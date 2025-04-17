@@ -4,7 +4,7 @@ import warnings
 import pytest
 from astropy.io import fits
 
-from xraysim.sixte import cube2simputfile, create_eventlist, make_pha, version
+from xraysim.sixte import cube2simputfile, create_eventlist, make_pha, versionTuple
 from xraysim.sphprojection.mapping import make_speccube, write_speccube, read_speccube
 from .fitstestutils import assert_hdu_list_matches_reference
 
@@ -96,7 +96,7 @@ def test_full_run(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(referenceEvtFile, phaFile, grading=1) if version() < (3,) else make_pha(referenceEvtFile, phaFile)
+    make_pha(referenceEvtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(referenceEvtFile, phaFile)
 
     os.remove(evtFile)
 

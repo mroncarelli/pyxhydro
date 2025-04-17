@@ -1,8 +1,6 @@
 import copy as cp
-import json
 import os
 import tempfile
-import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,33 +8,12 @@ from astropy.io import fits
 
 from xraysim.gadgetutils import phys_const
 from xraysim.specutils import absorption
-from .shared import instrumentsConfigFile, instrumentsDir
+from .shared import instrumentsConfigFile, instrumentsDir, versionTuple
 from .classes import SixteInstruments
 
 # Instruments object
 instruments = SixteInstruments()
 instruments.load(instrumentsConfigFile)
-
-def version():
-    """
-    Gets SIXTE version
-    :return: (tuple) Numbers containing the SIXTE version, None if undetermined (warning)
-    """
-    svout = os.popen('sixteversion').read().split('\n')
-    svout_line0 = svout[0].split(' ')
-    warnmsg = "Unable to verify SIXTE version"
-    if len(svout_line0) == 3:
-        if svout_line0[0].lower() == 'sixte' and svout_line0[1].lower() == 'version':
-            return tuple([int(x) for x in svout_line0[2].split('.')])
-        else:
-            warnings.warn(warnmsg)
-            return None
-    else:
-        warnings.warn(warnmsg)
-        return None
-
-
-sixte_version = version()
 
 
 def set_simput_src_cat_header(header: fits.header):
@@ -314,11 +291,18 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
         path = instrumentsDir + '/' + instrument_.subdir + '/'
         sixte_command = instrument_.command
         special = instrument_.special
-        xmlfile_ = xmlfile if xmlfile else path + instrument_.xml
+
+        if versionTuple < (3,) and sixte_command == 'erosim':
+            # SIXTE in version 2 or lower handles eROSITA in a special way, so that the xml file is not needed
+            xmlfile_ = None
+        else:
+            xmlfile_ = xmlfile if xmlfile else path + (',' + path).join(instrument_.xml.replace(' ', '').split(','))
+
         if advxml:
             advxml_ = advxml
         else:
             advxml_ = path + instrument_.adv_xml if instrument_.adv_xml else None
+
         if attitude:
             attitude_ = attitude
         else:
@@ -337,9 +321,9 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
     clobber_ = 'yes' if overwrite else 'no'
 
     # eROSITA special case
-    if (sixte_version >= (3,) and special == 'erosita') or (sixte_version < (3,) and sixte_command == 'erosim'):
+    if (versionTuple >= (3,) and special == 'erosita') or (versionTuple < (3,) and sixte_command == 'erosim'):
         if attitude_:
-            command_list = erosita_survey(simputfile, attitude_, exposure, evtfile)
+            command_list = erosita_survey(simputfile, attitude_, exposure, evtfile, xmlfile=xmlfile_)
             itask = 1
         else:
             command_list = erosita_pointed(simputfile, exposure, evtfile, ra=ra, dec=dec, xmlfile=xmlfile_)
@@ -357,7 +341,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
         # Standard instrument
         command_list = [sixte_command + ' XMLFile=' + xmlfile_ + ' Simput=' + simputfile +
                         ' Exposure=' + str(exposure) + ' RA=' + str(ra) + ' Dec=' + str(dec) + ' evtfile=' + evtfile]
-        if sixte_version < (3,) and advxml_:  # only for Sixte version 2 and earlier
+        if versionTuple < (3,) and advxml_:  # only for Sixte version 2 and earlier
             command_list[0] += ' AdvXml=' + advxml_
 
         itask = 0
@@ -388,7 +372,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
             result.append(sys_out)
         if all(value == 0 for value in result):
             inherit_keywords(simputfile, evtfile, file_type="evt")
-            if (sixte_version >= (3,) and special == 'erosita') or (sixte_version < (3,) and sixte_command == 'erosim'):
+            if (versionTuple >= (3,) and special == 'erosita') or (versionTuple < (3,) and sixte_command == 'erosim'):
                 # For the eROSITA simulation I also need to add manually the XML file in the header history, as SIXTE
                 # does not do it or does it wrong. I take for reference the one of CCD 1.
                 correct_erosita_history_header(evtfile, xmlfile_)
@@ -410,7 +394,7 @@ def erosita_pointed(simputfile: str, exposure: float, evtfile: str, ra: float, d
     :return: (list) List with one SIXTE command
     """
 
-    if sixte_version < (3,):
+    if versionTuple < (3,):
         result = ['erosim Prefix=' + os.path.splitext(evtfile)[0] + '_' + ' Simput=' + simputfile + ' Exposure=' +
                   str(exposure) + ' RA=' + str(ra) + ' Dec=' + str(dec)]
     else:
@@ -421,7 +405,7 @@ def erosita_pointed(simputfile: str, exposure: float, evtfile: str, ra: float, d
     return result
 
 
-def erosita_survey(simputfile: str, attitude: str, exposure, evtfile: str) -> list:
+def erosita_survey(simputfile: str, attitude: str, exposure, evtfile: str, xmlfile=None) -> list:
     """
     Sixte wrapper for the eROSITA simulations in survey mode.
     :param simputfile: (str) Simput file
@@ -430,16 +414,17 @@ def erosita_survey(simputfile: str, attitude: str, exposure, evtfile: str) -> li
         all the survey from the attitude file
     :param evtfile: (str) Output FITS file containing the simulation results, defines also the name of the 7 eROSITA
     telescope outputs
+    :param xmlfile: (str) String containing the xml files, comma separated
     :return: (list) List with two SIXTE commands
     """
 
     root_file_name = os.path.splitext(evtfile)[0]
     result = []
-    if sixte_version < (3,):
+    if versionTuple < (3,):
         runsim_command = 'erosim Prefix=' + root_file_name + '_' + ' Simput=' + simputfile
     else:
-        runsim_command = ('sixtesim Prefix=' + os.path.dirname(evtfile) + '/' + ' Simput=' + simputfile +
-                          ' Exposure=0 MJDREF=51543.8750 evtfile=' + os.path.basename(evtfile))
+        runsim_command = ('sixtesim Prefix=' + os.path.dirname(evtfile) + '/' + ' XMLFile=' + xmlfile + ' Simput=' +
+                          simputfile + ' Exposure=0 MJDREF=51543.8750 evtfile=' + os.path.basename(evtfile))
 
     hdu_list = fits.open(attitude)
     t0 = hdu_list[1].data['TIME'][0]  # MJD of the survey start [s]
@@ -462,7 +447,7 @@ def erosita_ccd_eventfile(evtfile: str, ccd: int):
     :param ccd: (int) CCD number
     :return: (str) eROSITA ventfile
     """
-    if sixte_version < (3,):
+    if versionTuple < (3,):
         return os.path.splitext(evtfile)[0] + '_ccd' + str(ccd) + '_evt.fits'
     else:
         return os.path.dirname(evtfile) + '/tel' + str(ccd) + '_' + os.path.basename(evtfile)
@@ -476,7 +461,7 @@ def correct_erosita_history_header(evtfile: str, xmlfile=None):
     :return: (int) Output of the FITS file writing
     """
     hdulist = fits.open(evtfile)
-    if sixte_version < (3,):
+    if versionTuple < (3,):
         xml_file = instrumentsDir + '/srg/erosita/erosita_1.xml'
     else:
         xml_file = xmlfile.split(',')[0]
@@ -500,7 +485,7 @@ def correct_erosita_history_header(evtfile: str, xmlfile=None):
         history[index_line] = modif_hline
         # Removing lines from previous record
         index_line += 1
-        while (len(history) > index_line and history[index_line].startswith(hprefix)):
+        while len(history) > index_line and history[index_line].startswith(hprefix):
             history.pop(index_line)
 
         # Removing history in the original header and substituting with the corrected one
@@ -522,7 +507,7 @@ def get_fluxmap(simputfile: str):
     ra = np.linspace(hdul[1].data['RA'].min(), hdul[1].data['RA'].max(), npix)  # [deg]
     dec = np.linspace(hdul[1].data['DEC'].min(), hdul[1].data['DEC'].max(), npix)  # [deg]
     ang_pix = hdul[0].header.get('ANG_PIX') / 60.  # [deg]
-    if ('X_MIN' in hdul[0].header and 'X_MAX' in hdul[0].header):
+    if 'X_MIN' in hdul[0].header and 'X_MAX' in hdul[0].header:
         x_min, x_max = hdul[0].header['X_MIN'], hdul[0].header['X_MAX']  # [h^-1 kpc]
         l_pix = (x_max - x_min) / npix  # [h^-1 kpc]
         x = np.linspace(x_min + 0.5 * l_pix, x_max - 0.5 * l_pix, npix)

@@ -4,18 +4,19 @@ import warnings
 import pytest
 from astropy.io import fits
 
-from xraysim.sixte import create_eventlist, make_pha, version, erosita_ccd_eventfile
+from xraysim.sixte import create_eventlist, make_pha, erosita_ccd_eventfile, versionTuple
 from .fitstestutils import assert_hdu_list_matches_reference
-
-sixte_version = version()
 
 inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
 referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
-if sixte_version < (3,):
-    referenceDir += 'sixte_v2/'
+referenceDirSixteV2 = os.environ.get('XRAYSIM') + '/tests/reference_files/sixte_v2/'
 referenceSimputFile = referenceDir + 'reference.simput'
-referenceEvtFile = referenceDir + 'reference_erosita_pointed.evt'
-referencePhaFile = referenceDir + 'reference_erosita_pointed.pha'
+if versionTuple < (3,):
+    referenceEvtFile = referenceDirSixteV2 + 'reference_erosita_pointed.evt'
+    referencePhaFile = referenceDirSixteV2 + 'reference_erosita_pointed.pha'
+else:
+    referenceEvtFile = referenceDir + 'reference_erosita_pointed.evt'
+    referencePhaFile = referenceDir + 'reference_erosita_pointed.pha'
 
 simputFile = referenceDir + "reference.simput"
 evtFile = referenceDir + "evt_file_erosita_pointed_created_for_test.evt"
@@ -65,7 +66,7 @@ def test_erosita_pointed(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(referenceEvtFile, phaFile, grading=1) if version() < (3,) else make_pha(referenceEvtFile, phaFile)
+    make_pha(referenceEvtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(referenceEvtFile, phaFile)
     os.remove(evtFile)
 
     if run_type == 'standard':
