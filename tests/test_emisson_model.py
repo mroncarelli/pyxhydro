@@ -11,7 +11,10 @@ from xraysim.gadgetutils.readspecial import readtemperature
 from xraysim.specutils.emisson_models import EmissionModels
 from xraysim.specutils.emisson_models import XspecModel
 from xraysim.specutils.emisson_models import AtomdbModel
-import matplotlib.pyplot as plt
+
+inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
+snapshotFileGadget = inputDir + 'snap_Gadget_sample'
+snapshotFileGizmo = inputDir + 'snap_sample.hdf5'
 
 
 def process_simulation(sim_path, model_name, model_index, sim_type, num_regions=1000):
@@ -19,6 +22,8 @@ def process_simulation(sim_path, model_name, model_index, sim_type, num_regions=
         sim_metal = readsnap(sim_path, 'Metallicity', 'gas')[:, 2:]
     elif sim_type == 'Gadget':
         sim_metal = np.reshape(readsnap(sim_path, 'Z   ', 'gas'), (-1, 1))
+    else:
+        raise ValueError("Invalid sim_type.")
 
     sim_temp = np.array(readtemperature(sim_path, units='KeV'), dtype=float)
     sim_z = 0 if readhead(sim_path, 'redshift') < 0 else readhead(sim_path, 'redshift')
@@ -46,20 +51,16 @@ def process_simulation(sim_path, model_name, model_index, sim_type, num_regions=
 
 
 def test_sample_gizmo():
-    sim_path = '/home/atulit-pc/IdeaProjects/xraysim/tests/inp/snap_sample.hdf5'
-
-    spectrum_xspec = process_simulation(sim_path, 'TheThreeHundred-3', 3, 'Gizmo')
-    spectrum_atomdb = process_simulation(sim_path, 'TheThreeHundred-4', 4, 'Gizmo')
+    spectrum_xspec = process_simulation(snapshotFileGizmo, 'TheThreeHundred-3', 3, 'Gizmo')
+    spectrum_atomdb = process_simulation(snapshotFileGizmo, 'TheThreeHundred-4', 4, 'Gizmo')
 
     assert np.all([spec_xsp == pytest.approx(spec_atmdb) for spec_xsp, spec_atmdb in
                    zip(np.sum(spectrum_atomdb, axis=1), np.sum(spectrum_xspec, axis=1))])
 
 
 def test_sample_gadget():
-    sim_path = '/home/atulit-pc/IdeaProjects/xraysim/tests/inp/snap_Gadget_sample'
-
-    spectrum_xspec = process_simulation(sim_path, 'TheThreeHundred-2', 2, 'Gadget')
-    spectrum_atomdb = process_simulation(sim_path, 'TheThreeHundred-5', 5, 'Gadget')
+    spectrum_xspec = process_simulation(snapshotFileGadget, 'TheThreeHundred-2', 2, 'Gadget')
+    spectrum_atomdb = process_simulation(snapshotFileGadget, 'TheThreeHundred-5', 5, 'Gadget')
 
     assert np.all([spec_xsp == pytest.approx(spec_atmdb) for spec_xsp, spec_atmdb in
                    zip(np.sum(spectrum_atomdb, axis=1), np.sum(spectrum_xspec, axis=1))])

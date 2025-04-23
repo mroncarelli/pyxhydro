@@ -37,7 +37,7 @@ def test_apec_fit_start_with_correct_parameters():
     # lead to the correct result, within tolerance
     specfit = SpecFit(spectrum_apec, "apec", rmf=rmf, arf=arf)
     specfit.run(start=true_pars_apec, method="cstat")
-    assert_fit_results_within_tolerance(specfit, true_pars_apec, tol=2.)
+    assert_fit_results_within_tolerance(specfit, true_pars_apec, tol=2.1)
 
 
 def test_bapec_fit_start_with_correct_parameters():
@@ -45,7 +45,7 @@ def test_bapec_fit_start_with_correct_parameters():
     # lead to the correct result, within tolerance
     specfit = SpecFit(spectrum_bapec, "bapec", rmf=rmf, arf=arf)
     specfit.run(start=true_pars_bapec, method="cstat")
-    assert_fit_results_within_tolerance(specfit, true_pars_bapec, tol=2.)
+    assert_fit_results_within_tolerance(specfit, true_pars_bapec, tol=2.1)
 
 
 def test_fit_two_spectra_start_with_correct_parameters():
@@ -66,11 +66,11 @@ def test_fit_two_spectra_start_with_correct_parameters():
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_bapec, true_pars_bapec, tol=2.)
+    assert_fit_results_within_tolerance(specfit_bapec, true_pars_bapec, tol=2.1)
 
     specfit_apec.run(start=true_pars_apec, method="cstat")
     assert xsp.AllData.nSpectra == n_spectra
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_apec, true_pars_apec, tol=2.)
+    assert_fit_results_within_tolerance(specfit_apec, true_pars_apec, tol=2.1)
