@@ -4,7 +4,7 @@ import warnings
 import pytest
 from astropy.io import fits
 
-from xraysim.specutils.sixte import cube2simputfile, create_eventlist, make_pha
+from xraysim.sixte import cube2simputfile, create_eventlist, make_pha, versionTuple
 from xraysim.sphprojection.mapping import make_speccube, write_speccube, read_speccube
 from .fitstestutils import assert_hdu_list_matches_reference
 
@@ -76,33 +76,39 @@ def test_full_run(run_type):
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False, seed=42, verbosity=0)
+    sys_out = create_eventlist(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
+                               seed=42, verbosity=0)
     assert sys_out == [0]
     os.remove(simputFile)
 
     if run_type == 'standard':
         # Checking only that the file was created
         assert os.path.isfile(evtFile)
-        warnings.warn("Eventlist not checked. Run pytest --eventlist complete to check it.")
+        warnings.warn("Eventlist not checked. Run 'pytest --eventlist complete' to check it.")
     elif run_type == 'complete':
         # Checking that file content matches reference
-        assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceEvtFile))
+        assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceEvtFile),
+                                          key_skip=('DATE', 'CREADATE', 'COMMENT'),
+                                          history_tag_skip=('START PARAMETER ', ' EvtFile = '))
     else:
         raise ValueError("ERROR in test_full_run.py: unknown option " + run_type)
 
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(evtFile, phaFile)
+    make_pha(referenceEvtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(referenceEvtFile, phaFile)
+
     os.remove(evtFile)
 
     if run_type == 'standard':
         # Checking only that the file was created
         assert os.path.isfile(phaFile)
-        warnings.warn("Pha file not checked. Run pytest --eventlist complete to check it.")
+        warnings.warn("Pha file not checked. Run 'pytest --eventlist complete' to check it.")
     elif run_type == 'complete':
         # Checking that file content matches reference
-        assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referencePhaFile))
+        assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referencePhaFile),
+                                          key_skip=('COMMENT'),
+                                          history_tag_skip=('START PARAMETER ', ' Spectrum = '))
     else:
         raise ValueError("ERROR in test_full_run.py: unknown option " + run_type)
 
