@@ -12,7 +12,6 @@ from xraysim.sphprojection.kernel import intkernel
 from xraysim.sphprojection.linkedlist import linkedlist2d
 from xraysim.sphprojection.kernel import kernel_mapping_p
 from xraysim.specutils.emisson_models import EmissionModels
-from xraysim.specutils.sixte import cube2simputfile
 from xraysim.sphprojection.mapping import write_speccube
 
 intkernel_vec = np.vectorize(intkernel)

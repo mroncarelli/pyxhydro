@@ -6,12 +6,8 @@ from astropy import cosmology
 import pygadgetreader as pygr
 from xraysim.gadgetutils import convert
 from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
-
-from xraysim.sphprojection.kernel import intkernel
 from xraysim.sphprojection.linkedlist import linkedlist2d
-
 from xraysim.specutils.emisson_models import EmissionModels
-from xraysim.specutils.sixte import cube2simputfile
 from xraysim.sphprojection.mapping import write_speccube
 from numba import njit
 
