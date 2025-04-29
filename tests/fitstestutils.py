@@ -87,11 +87,12 @@ def assert_header_has_all_keywords_and_values_of_reference(header: fits.header, 
     return None
 
 
-def assert_data_matches_reference(inp, reference) -> None:
+def assert_data_matches_reference(inp, reference, tol=None) -> None:
     """
     Checks that data in an HDU match reference.
-    :param inp: Input data.
-    :param reference: Reference data.
+    :param inp: (float/int) Input data.
+    :param reference: (float/int) Reference data.
+    :param tol: (float) Tolerance on the relative difference in the data values, default None i.e. 1e-6
     :return: None.
     """
 
@@ -113,7 +114,7 @@ def assert_data_matches_reference(inp, reference) -> None:
                     assert val == pytest.approx(val_reference)
         else:
             # Checking all values
-            assert np.all(inp == pytest.approx(reference))
+            assert np.all(inp == pytest.approx(reference, rel=tol))
 
     else:
         warnings.warn("Found unknown data type in FITS hdu:" + str(type(inp)))
@@ -121,12 +122,13 @@ def assert_data_matches_reference(inp, reference) -> None:
     return None
 
 
-def assert_hdu_list_matches_reference(inp: fits.hdu.hdulist.HDUList, reference: fits.hdu.hdulist.HDUList, key_skip=None,
-                                      history_tag_skip=None) -> None:
+def assert_hdu_list_matches_reference(inp: fits.hdu.hdulist.HDUList, reference: fits.hdu.hdulist.HDUList, tol=None,
+                                      key_skip=None, history_tag_skip=None) -> None:
     """
     Checks that a FITS file matches a reference one
     :param inp: (HDUList) HDUList to check.
     :param reference: (HDUList) Reference HDUList.
+    :param tol: (float) Tolerance on the relative difference in the data values, default None i.e. 1e-6
     :param key_skip: (tuple or list) List of header keywords should not be checked.
     :param history_tag_skip: (tuple or list) List of tags that if present in a history record should not be checked.
     :return: None.
@@ -135,6 +137,6 @@ def assert_hdu_list_matches_reference(inp: fits.hdu.hdulist.HDUList, reference: 
     for hdu, hdu_reference in zip(inp, reference):
         assert_header_has_all_keywords_and_values_of_reference(hdu.header, hdu_reference.header, key_skip=key_skip,
                                                                history_tag_skip=history_tag_skip)
-        assert_data_matches_reference(hdu.data, hdu_reference.data)
+        assert_data_matches_reference(hdu.data, hdu_reference.data, tol=tol)
 
     return None

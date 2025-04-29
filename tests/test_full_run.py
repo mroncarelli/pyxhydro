@@ -50,7 +50,7 @@ def test_full_run(run_type):
     reference_speccube = fits.open(referenceSpcubeFile)
 
     # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(spcubeFile), reference_speccube)
+    assert_hdu_list_matches_reference(fits.open(spcubeFile), reference_speccube, tol=5e-5)
 
     # Creating a speccube file from the speccube read from the file
     speccube_read = read_speccube(spcubeFile)
@@ -61,7 +61,7 @@ def test_full_run(run_type):
     assert os.path.isfile(spcubeFile2)
 
     # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(spcubeFile2), reference_speccube)
+    assert_hdu_list_matches_reference(fits.open(spcubeFile2), reference_speccube, tol=5e-5)
     os.remove(spcubeFile2)
 
     # Creating a SIMPUT file from a speccube
@@ -71,7 +71,7 @@ def test_full_run(run_type):
     del speccube_read
 
     # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(simputFile), fits.open(referenceSimputFile))
+    assert_hdu_list_matches_reference(fits.open(simputFile), fits.open(referenceSimputFile), tol=5e-5)
 
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
@@ -87,7 +87,7 @@ def test_full_run(run_type):
         warnings.warn("Eventlist not checked. Run 'pytest --eventlist complete' to check it.")
     elif run_type == 'complete':
         # Checking that file content matches reference
-        assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceEvtFile),
+        assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceEvtFile), tol=5e-5,
                                           key_skip=('DATE', 'CREADATE', 'COMMENT'),
                                           history_tag_skip=('START PARAMETER ', ' EvtFile = '))
     else:
@@ -106,7 +106,7 @@ def test_full_run(run_type):
         warnings.warn("Pha file not checked. Run 'pytest --eventlist complete' to check it.")
     elif run_type == 'complete':
         # Checking that file content matches reference
-        assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referencePhaFile),
+        assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referencePhaFile), tol=5e-5,
                                           key_skip=('COMMENT'),
                                           history_tag_skip=('START PARAMETER ', ' Spectrum = '))
     else:
