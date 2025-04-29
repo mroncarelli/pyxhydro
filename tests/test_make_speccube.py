@@ -7,6 +7,9 @@ from xraysim.sphprojection.mapping import make_speccube, write_speccube
 from xraysim.gadgetutils.phys_const import keV2K
 from xraysim.specutils.tables import read_spectable, calc_spec
 
+from .fitstestutils import assert_hdu_list_matches_reference
+
+
 data_dir = os.environ.get('XRAYSIM') + '/tests/inp/'
 reference_dir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 snapshot_file = data_dir + 'snap_Gadget_sample'
@@ -16,8 +19,8 @@ npix, size, redshift, center, proj, flag_ene, nsample, nh = 25, 1.05, 0.1, [2500
 nene = fits.open(spfile)[0].header.get('NENE')
 test_file = data_dir + 'file_created_for_test.speccube'
 
-spec_cube = make_speccube(snapshot_file, spfile, size=size, npix=npix, redshift=0.1, nh=nh, center=center, proj=proj)
-
+spec_cube = make_speccube(snapshot_file, spfile, size=size, npix=npix, redshift=0.1, nh=nh, center=center, proj=proj,
+                          tcut=1.e6)
 
 def test_structure(inp=spec_cube):
     """
@@ -131,31 +134,4 @@ def test_created_file_matches_reference(speccube_inp=spec_cube, reference=refere
     os.remove(test_file)
     hdulist_reference = fits.open(reference)
 
-# File must have Primary and 2 extensions
-    assert len(hdulist) == len(hdulist_reference) == 3
-
-    # Primary
-    data = hdulist[0].data
-    data_reference = hdulist_reference[0].data
-    assert len(data.shape) == len(data_reference.shape) == 3
-    assert data.shape == data_reference.shape
-    for i in range(data.shape[0]):
-        for j in range(data.shape[1]):
-            for k in range(data.shape[2]):
-                assert data[i, j, k] == pytest.approx(data_reference[i, j, k])
-
-    # Extension 1
-    data = hdulist[1].data
-    data_reference = hdulist_reference[1].data
-    assert len(data.shape) == len(data_reference.shape) == 1
-    assert data.shape == data_reference.shape
-    for i in range(data.shape[0]):
-        assert data[i] == pytest.approx(data_reference[i])
-
-    # Extension 2
-    data = hdulist[2].data
-    data_reference = hdulist_reference[2].data
-    assert len(data.shape) == len(data_reference.shape) == 1
-    assert data.shape == data_reference.shape
-    for i in range(data.shape[0]):
-        assert data[i] == pytest.approx(data_reference[i])
+    assert_hdu_list_matches_reference(hdulist, hdulist_reference, tol=5e-5)

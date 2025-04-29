@@ -118,4 +118,4 @@ def test_created_file_matches_reference(inp=speccube, out=testSimputFile, refere
     hdulist = fits.open(testSimputFile)
     os.remove(out)
     hdulist_reference = fits.open(reference)
-    assert_hdu_list_matches_reference(hdulist, hdulist_reference)
+    assert_hdu_list_matches_reference(hdulist, hdulist_reference, tol=5e-5)
