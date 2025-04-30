@@ -3,7 +3,7 @@ import json
 import os
 import warnings
 
-from .shared import instrumentsDir, defaultSixteCommand
+from .shared import instrumentsDir, defaultSixteCommand, specialInstrumentsList
 
 
 def new_sw(message, category, filename, lineno, file=None, line=None):
@@ -78,7 +78,7 @@ class Instrument:
             messages.append("Instrument " + self.name + " command does not exist: " + self.command)
 
         if self.special:
-            if self.special.strip().lower() not in [''] + special_list:
+            if self.special.strip().lower() not in [''] + specialInstrumentsList:
                 messages.append("Instrument " + self.name + " special not recognized: " + self.special)
 
         ok = not messages
