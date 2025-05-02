@@ -111,7 +111,7 @@ def assert_data_matches_reference(inp, reference, tol=None) -> None:
             # Checking data iterating by field and vale
             for name in inp.dtype.names:
                 for val, val_reference in zip(inp[name], reference[name]):
-                    assert val == pytest.approx(val_reference)
+                    assert val == pytest.approx(val_reference, rel=tol)
         else:
             # Checking all values
             assert np.all(inp == pytest.approx(reference, rel=tol))
