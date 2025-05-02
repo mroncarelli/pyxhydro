@@ -11,7 +11,7 @@
   },
   {
     "name": "xrism-resolve-test",
-    "subdir": "xrism/resolve",
+    "subdir": "xrism-resolve-test",
     "xml": "resolve_baseline_test.xml"
   },
   {
@@ -23,7 +23,7 @@
   {
     "name": "erass1-test",
     "subdir": "srg-test/erosita",
-    "special": "erosita-test",
+    "special": "erosita",
     "xml": "erosita_1.xml, erosita_2.xml, erosita_3.xml, erosita_4.xml, erosita_5.xml, erosita_6.xml, erosita_7.xml",
     "attitude": "eRASS1_attitude.fits"
   },

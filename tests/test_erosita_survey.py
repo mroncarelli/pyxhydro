@@ -49,7 +49,7 @@ def test_erosita_survey(run_type):
         os.remove(GTIFile)
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(referenceSimputFile, 'erass1', None, evtFile, background=False, seed=42, verbosity=0)
+    sys_out = create_eventlist(referenceSimputFile, 'erass1-test', None, evtFile, background=False, seed=42, verbosity=0)
     assert sys_out == [0, 0, 0]
 
     # Checking GTI file
