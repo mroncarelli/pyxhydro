@@ -6,6 +6,18 @@ import warnings
 from .shared import instrumentsDir, defaultSixteCommand, specialInstrumentsList
 
 
+class BColors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 def new_sw(message, category, filename, lineno, file=None, line=None):
     """
     Monkeypatch of warnings.showwarning
@@ -51,14 +63,14 @@ class Instrument:
         if self.attitude:
             print("Attitude: " + self.attitude)
 
-    def verify(self, warn=False, verbose=1) -> list:
+    def verify(self, warn=False, verbose=1):
         """
         Verifies if the instrument has been correctly initialized: checks if the subfolder exists and contains the xml
         files, checks if the command exists and if the special attribute corresponds to the implemented ones. Prints out
         a message containing "Instrument 'name' OK" or the list of wrong things.
         :param warn: (bool) If set the messages are issued as warnings.
-        :param verbose (int) If > 0 messages are printed out, otherwise not
-        :return: (list) Messages
+        :param verbose (int) If > 0 messages are printed out, otherwise not. Determines also the output type.
+        :return: None if verbose > 0 (default) or (bool) True/False if the instrument is set up correctly or not
         """
         messages = []
         path = instrumentsDir + '/' + self.subdir
@@ -92,9 +104,9 @@ class Instrument:
         else:
             if verbose > 0:
                 for msg in messages:
-                    print(msg)
+                    print(BColors.OKGREEN + msg + BColors.ENDC) if ok else print(BColors.WARNING + msg + BColors.ENDC)
 
-        return messages
+        return None if verbose > 0 else ok
 
 
 def load_instrument(inp: dict) -> Instrument:
