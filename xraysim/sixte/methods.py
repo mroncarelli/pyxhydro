@@ -5,6 +5,7 @@ import tempfile
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
+from astropy.wcs import WCS
 
 from xraysim.gadgetutils import phys_const
 from xraysim.specutils import absorption
