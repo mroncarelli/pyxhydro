@@ -3,6 +3,10 @@ import numpy as np
 from scipy.stats import pearsonr
 import os
 
+import sys
+sys.path.append(os.environ.get("HEADAS") + "/lib/python")
+# TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging)
+
 from tqdm.auto import tqdm
 
 from xraysim.readgadget.readgadget import readsnap
