@@ -1,6 +1,14 @@
 from astropy.io import fits
 import numpy as np
 
+sp = np.float32
+
+import os
+import sys
+
+sys.path.append(os.environ.get("HEADAS") + "/lib/python")
+# TODO: the three lines above are necessary only to make the code work in IntelliJ (useful for debugging)
+
 
 def nearest_index_sorted(array, value) -> int:
     """
@@ -9,7 +17,7 @@ def nearest_index_sorted(array, value) -> int:
     :param value: value to search
     :return: index of the closest value
     """
-    idx = np.searchsorted(array, value, side="left")
+    idx = int(np.searchsorted(array, value, side="left"))
     if idx > 0 and np.abs(value - array[idx - 1]) < np.abs(value - array[idx]):
         idx += -1
     return idx
@@ -90,15 +98,15 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
     header of the file has the keyword FLAG_ENE = 1.
     """
     hdulist = fits.open(filename)
-    spec = hdulist[0].data
+    spectable = hdulist[0].data
     if reversed_fits_axis_order(hdulist):
-        spec = spec.transpose()
+        spectable = spectable.transpose()
     z = hdulist[1].data
     temperature = hdulist[2].data
     energy = hdulist[3].data
 
     # Sanity check
-    assert spec.shape[0] == len(z) and spec.shape[1] == len(temperature) and spec.shape[2] == len(energy)
+    assert spectable.shape[0] == len(z) and spectable.shape[1] == len(temperature) and spectable.shape[2] == len(energy)
 
     if z_cut:
         try:
@@ -111,7 +119,7 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
         if i1 is None:
             i1 = len(z) - 1  # TODO: WARNING
         z = z[i0:i1 + 1]
-        spec = spec[i0:i1 + 1, :, :]
+        spectable = spectable[i0:i1 + 1, :, :]
 
     if temperature_cut:
         try:
@@ -128,7 +136,7 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
             if i1 == len(temperature):
                 i0, i1 = len(temperature) - 2, len(temperature) - 1
         temperature = temperature[i0:i1 + 1]
-        spec = spec[:, i0:i1 + 1, :]
+        spectable = spectable[:, i0:i1 + 1, :]
 
     if energy_cut:
         try:
@@ -141,20 +149,25 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
         if i1 is None:
             i1 = len(energy) - 1  # TODO: WARNING
         energy = energy[i0:i1 + 1]
-        spec = spec[:, :, i0:i1 + 1]
+        spectable = spectable[:, :, i0:i1 + 1]
 
     result = {
-        'data': spec,
+        'data': spectable,
         'z': z,
         'temperature': temperature,
         'energy': energy,
         'units': hdulist[0].header['UNITS'],
         'flag_ene': hdulist[0].header['FLAG_ENE'] == 1,
         'model': hdulist[0].header['MODEL'],
-        'param': hdulist[0].header['PARAM'],
         'temperature_units': hdulist[2].header['UNITS'],
         'energy_units': hdulist[3].header['UNITS']
     }
+    if 'ABUND' in hdulist[0].header:
+        result['abund'] = hdulist[0].header['ABUND']
+    if 'TBROAD' in hdulist[0].header:
+        result['tbroad'] = hdulist[0].header['TBROAD']
+    if 'PARAM' in hdulist[0].header:
+        result['param'] = hdulist[0].header['PARAM']
     if 'NH' in hdulist[0].header:
         result['nh'] = hdulist[0].header['NH']
 
@@ -162,7 +175,46 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
     return result
 
 
-def calc_spec(spectable, z, temperature, no_z_interp=False, flag_ene=False) -> np.ndarray:
+def write_spectable(spectable: dict, file: str, overwrite=True):
+    """
+    Writes a spectral table into a FITS file.
+    :param spectable: (dict) Spectral table as from, i.e. apec_table
+    :param file: (str) Output file
+    :param overwrite:
+    :return:
+    """
+
+
+    # Creagin HDU list
+    hdulist = fits.HDUList()
+
+    # Appending data
+    hdulist.append(fits.PrimaryHDU(spectable.get('data')))
+    hdulist.append(fits.ImageHDU(spectable.get('z'), name="Redshift"))
+    hdulist.append(fits.ImageHDU(spectable.get('temperature'), name="Temperature"))
+    hdulist.append(fits.ImageHDU(spectable.get('energy'), name="Energy"))
+
+    # Setting headers
+    hdulist[0].header.set('MDOEL', spectable.get('model'))
+    hdulist[0].header.set('ABUND', spectable.get('abund'))
+    hdulist[0].header.set('METAL', str(spectable.get('metallicity')))
+    hdulist[0].header.set('TBROAD', 1 if spectable.get('tbroad') else 0)
+    hdulist[0].header.set('FLAG_ENE', 1 if spectable.get('flag_ene') else 0)
+    hdulist[0].header.set('NZ', len(spectable.get('z')))
+    hdulist[0].header.set('NTEMP', len(spectable.get('temperature')))
+    hdulist[0].header.set('NENE', len(spectable.get('energy')))
+    hdulist[0].header.set('UNITS', spectable.get('units'))
+    hdulist[1].header.set('NZ', len(spectable.get('z')))
+    hdulist[1].header.set('UNITS', "[---]")
+    hdulist[2].header.set('NTEMP', len(spectable.get('temperature')))
+    hdulist[2].header.set('UNITS', spectable.get('temperature_units'))
+    hdulist[3].header.set('NENE', len(spectable.get('energy')))
+    hdulist[3].header.set('UNITS', spectable.get('energy_units'))
+
+    return hdulist.writeto(file, overwrite=overwrite)
+
+
+def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, flag_ene=False) -> np.ndarray:
     """
     Calculates a spectrum from a table for a given redshift and temperature
     :param spectable: structure containing the spectrum table
@@ -205,11 +257,11 @@ def calc_spec(spectable, z, temperature, no_z_interp=False, flag_ene=False) -> n
     ft = (np.log(temperature) - np.log(temperature_table[it0])) / (
             np.log(temperature_table[it1]) - np.log(temperature_table[it0]))
     valid = np.where(data[it0, :] * data[it0, :] > 0.)
-    result = np.zeros(nene, dtype='float32')
+    result = np.zeros(nene, dtype=sp)
     result[valid] = np.exp((1 - ft) * np.log(data[it0, valid]) + ft * np.log(
         data[it1, valid]))  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
 
-    # Converting photons to energy or vice-versa if required
+    # Converting photons to energy or vice versa if required
     if flag_ene != flag_ene_table:
         energy = spectable.get('energy')  # [keV]
         if flag_ene:
@@ -220,3 +272,90 @@ def calc_spec(spectable, z, temperature, no_z_interp=False, flag_ene=False) -> n
                 result[:, :, ind] /= ene  # [10^-14 photons s^-1 cm^3]
 
     return result  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
+
+
+def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax: float, nene: int, emin: float,
+               emax: float, metal=0, apecroot=None, tbroad=True, abund='angr', flag_ene=False) -> dict:
+    """
+    Creates a 3D Apec spectral table with fixed metallicity.
+    :param nz: (int) Number of redshifts, first dimension of the output table
+    :param zmin: (float) Minimum redshift
+    :param zmax: (float) Maximum redshift
+    :param ntemp: (int) Number of temperatures, second dimension of the output table
+    :param tmin: (float) Minimum temperature [keV]
+    :param tmax: (float) Maximum temperature [keV]
+    :param nene: (int) Number of energy bins, third dimension of the output table
+    :param emin: (float) Minimum energy
+    :param emax: (float) Maximum energy
+    :param metal: (float or tuple/list) Metallicity [Solar]. If a single value is provided it applies to all metals, if
+    a tuple/list is provided each value will correspond to the 28 metals of the vvapec model of Xspec
+    (https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node134.html). Default 0
+    :param apecroot: (str) Root table for Apec version. Default None, i.e. default table decide by Xspec
+    :param tbroad: (bool) Thermal broadening turned on (True) or off (False). Default True
+    :param abund: (str) Solar abundance reference for Xspec (see
+    https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node116.html), default 'angr', i.e. Anders & Grevesse 1989
+    :param flag_ene: (bool) If set to True spectra are in [10^-14 keV s^-1 cm^3], if False in
+    [10^-14 photons s^-1 cm^3], default False
+    :return: (dict) Dictionary containing the spectable in the "data" key, and other properties.
+    """
+
+    import xspec as xsp
+
+    # General settings
+    xsp.Xset.chatter = 0
+    xsp.AllModels.setEnergies(str(emin)+ " " + str(emax) + " " + str(nene) +" lin")
+
+    # Optional settings
+    if apecroot:
+        xsp.Xset.addModelString("APECROOT", apecroot)
+    if type(tbroad) == bool:
+        xsp.Xset.addModelString("APECTHERMAL", "yes" if tbroad else "no")
+    if abund:
+        xsp.Xset.abund = abund
+
+    # Redshift, temperature and energy arrays
+    z = np.linspace(zmin, zmax, num=nz, endpoint=True)  # [---]
+    temperature = np.exp(np.linspace(np.log(tmin), np.log(tmax), num=ntemp, endpoint=True))  # [keV]
+    # Middle point of the bin
+    energy = np.linspace(emin, emax, num=nene, endpoint=False) + 0.5 * (emax - emin) / nene  # [keV]
+
+    # Parameters setup through dictionary (common to all z and T)
+    pars = {}
+    # Metal abundance
+    if isinstance(metal, float) or isinstance(metal, int):
+        for ind in range(28):
+            pars[4 + ind] = metal
+    elif isinstance(metal, tuple) or isinstance(metal, list):
+        for ind in range(28):
+            pars[4 + ind] = metal[ind] if ind < len(metal) else 0
+    pars[33] = 1.
+
+    model = xsp.Model('vvapec')
+
+    table = np.ndarray([nz, ntemp, nene], dtype=sp)
+    for index_z in range(nz):
+        pars[32] = z[index_z]
+        for index_t in range(ntemp):
+            pars[1] = temperature[index_t]
+            model.setPars(pars)
+            if flag_ene:
+                table[index_z, index_t, :] = np.array(model.values(0)) * energy  # [10^-14 keV s^-1 cm^3]
+            else:
+                table[index_z, index_t, :] = np.array(model.values(0))  # [10^-14 photons s^-1 cm^3]
+
+    result = {
+        'data': table,
+        'z': sp(z),
+        'temperature': sp(temperature),
+        'energy': sp(energy),
+        'units': "[10^-14 keV s^-1 cm^3]" if flag_ene else "[10^-14 photons s^-1 cm^3]",
+        'flag_ene': flag_ene,
+        'model': "vvapec",
+        'abund': abund,
+        'tbroad': tbroad,
+        'metallicity': metal,
+        'temperature_units': "keV",
+        'energy_units': "keV"
+    }
+
+    return result
