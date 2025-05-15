@@ -93,8 +93,10 @@ def highlight_spectrum(self, index=1) -> None:
     :return: None
     """
     for i in range(1, self.nSpectra + 1):
-        if i != index:
-            self(i).ignore("**")
+        if i != index and self(i).noticed != []:
+            channel_min = min(self(i).noticed)
+            channel_max = max(self(i).noticed)
+            self(i).ignore(str(channel_min) + "-" + str(channel_max))
 
 
 xsp.DataManager.highlightSpectrum = highlight_spectrum
