@@ -61,10 +61,8 @@ def smallest_index_larger(array, value):
 
 def reversed_fits_axis_order(inp) -> bool:
     """
-    Determines whether a FITS file has been created following the column-major-order convention and, therefore,
-    requires to transpose the input when 2d, 3d, ... data are present. WARNING: this is not complete! I could figure
-    out that this is the case for FITS files created by the IDL routine MWRFITS, and how to identify these files. For
-    FITS files created by other languages, applications, etc., this has to verified and implemented.
+    Determines whether a spectable in a FITS file has been created following the column-major-order convention and,
+    therefore, requires to transpose the input.
     :param inp: input file (FITS) or HDUList
     :return: (bool) True if it is in reversed axis order, False otherwise
     """
@@ -78,12 +76,15 @@ def reversed_fits_axis_order(inp) -> bool:
     else:
         raise ValueError("Invalid input in reversed_fits_axis_order: must be a string or HDUList")
 
-    if hdulist[0].header.comments['SIMPLE'].lower().startswith('written by idl'):
-        result = True
+    if hdulist[0].header['NZ'] == hdulist[0].header['NENE']:
+        # In this case I can't determine just from the array shape, I have to guess based on the header.
+        # I know that IDL routines write tables in FITS files in column-major-order
+        return hdulist[0].header.comments['SIMPLE'].lower().startswith('written by idl')
     else:
-        result = False
-
-    return result
+        # In this case I verify if NENE correspond to the 1st dimension and NZ to the last: in this case I have a
+        # column-major-order
+        return ((hdulist[0].header['NENE'], hdulist[0].header['NZ']) ==
+                (hdulist[0].data.shape[0], hdulist[0].data.shape[-1]))
 
 
 def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=None) -> dict:
@@ -175,13 +176,13 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
     return result
 
 
-def write_spectable(spectable: dict, file: str, overwrite=True):
+def write_spectable(spectable: dict, file: str, overwrite=True) -> int:
     """
     Writes a spectral table into a FITS file.
     :param spectable: (dict) Spectral table as from, i.e. apec_table
     :param file: (str) Output file
     :param overwrite:
-    :return:
+    :return: Output of fits.HDUlist.writeto()
     """
 
 
@@ -189,13 +190,15 @@ def write_spectable(spectable: dict, file: str, overwrite=True):
     hdulist = fits.HDUList()
 
     # Appending data
-    hdulist.append(fits.PrimaryHDU(spectable.get('data')))
+    # I transpose the array so that Fits View reads it correctly and for compatibility with old IDL tables. When read
+    # with read_spectable the array is transposed back so that the shape matches the original one.
+    hdulist.append(fits.PrimaryHDU(spectable.get('data').transpose()))
     hdulist.append(fits.ImageHDU(spectable.get('z'), name="Redshift"))
     hdulist.append(fits.ImageHDU(spectable.get('temperature'), name="Temperature"))
     hdulist.append(fits.ImageHDU(spectable.get('energy'), name="Energy"))
 
     # Setting headers
-    hdulist[0].header.set('MDOEL', spectable.get('model'))
+    hdulist[0].header.set('MODEL', spectable.get('model'))
     hdulist[0].header.set('ABUND', spectable.get('abund'))
     hdulist[0].header.set('METAL', str(spectable.get('metallicity')))
     hdulist[0].header.set('TBROAD', 1 if spectable.get('tbroad') else 0)
