@@ -59,7 +59,7 @@ def test_primary_header_keywords(inp=speccubeIsothermalNovel, out=testSimputFile
     assert header.get('SP_FILE') == inp.get('spectral_table')
     assert header.get('PROJ') == inp.get('proj')
     assert header.get('Z_COS') == pytest.approx(inp.get('z_cos'))
-    assert (header.get('D_C'), header.comments['D_C']) == pytest.approx((inp.get('d_c'), '[Mpc]'))
+    assert (header.get('D_C'), header.comments['D_C']) == pytest.approx((inp.get('d_c'), '[h^-1 kpc]'))
     assert header.get('NPIX') == inp.get('data').shape[0]
     assert header.get('NENE') == inp.get('data').shape[2]
     assert (header.get('ANG_PIX'), header.comments['ANG_PIX']) == pytest.approx((inp.get('pixel_size'), '[arcmin]'))
