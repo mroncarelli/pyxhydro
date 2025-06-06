@@ -151,6 +151,7 @@ class SpecFit(xsp.Model):
         self.spectrum = xsp.Spectrum(spectrum, backFile=bkg, respFile=rmf, arfFile=arf)
         xsp.Model.__init__(self, model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
         self.fitData = None
+        self.fitResult = None
 
     def get_parnames(self) -> tuple:
         """
@@ -176,24 +177,6 @@ class SpecFit(xsp.Model):
         """
         return tuple(self(self.startParIndex + index).sigma for index in range(self.nParameters))
 
-    def fitresult(self) -> dict:
-        """
-        Return the fit results in a user-friendly format.
-        :return: (dict) The fit result.
-        """
-        return {
-            "parnames": self.get_parnames(),
-            "values": self.get_parvals(),
-            "sigma": self.get_errors(),
-            "statistic": xsp.Fit.statistic,
-            "dof": xsp.Fit.dof,
-            "rstat": xsp.Fit.statistic / (xsp.Fit.dof - 1),
-            "covariance": xsp.Fit.covariance,
-            "method": xsp.Fit.statMethod,
-            "nIterations": xsp.Fit.nIterations,
-            "criticalDelta": xsp.Fit.criticalDelta
-        }
-
     def perform(self) -> None:
         """
         Equivalent of the `xspec.Fit.perform` method adapted to the `SpecFit` class. It allows to run the fit of the
@@ -215,6 +198,21 @@ class SpecFit(xsp.Model):
             "yErr": np.asarray(xsp.Plot.yErr()),
             "model": np.asarray(xsp.Plot.model())
         }
+
+        # Saving fit results
+        self.fitResult = {
+            "parnames": self.get_parnames(),
+            "values": self.get_parvals(),
+            "sigma": self.get_errors(),
+            "statistic": xsp.Fit.statistic,
+            "dof": xsp.Fit.dof,
+            "rstat": xsp.Fit.statistic / (xsp.Fit.dof - 1),
+            "covariance": xsp.Fit.covariance,
+            "method": xsp.Fit.statMethod,
+            "nIterations": xsp.Fit.nIterations,
+            "criticalDelta": xsp.Fit.criticalDelta
+        }
+
         xsp.Xset.restoreXspecState()
 
     def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3):
