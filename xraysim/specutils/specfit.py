@@ -4,6 +4,8 @@ import sys
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the three lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
+import matplotlib.pyplot as plt
+import numpy as np
 import xspec as xsp
 
 xsp.Xset.allowNewAttributes = True
@@ -56,6 +58,7 @@ def save_xspec_state(self) -> None:
         self.noticeState.append(xsp.AllData(index + 1).noticed)
 
     self.activeModel = xsp.AllModels.sources[1]
+    self.plotState = {"xAxis": xsp.Plot.xAxis}
 
 
 xsp.XspecSettings.saveXspecState = save_xspec_state
@@ -80,6 +83,9 @@ def restore_xspec_state(self) -> None:
 
     xsp.AllModels.setActive(xsp.Xset.activeModel)
     del xsp.Xset.activeModel
+
+    xsp.Plot.xAxis = self.plotState["xAxis"]
+    del xsp.Xset.plotState
 
 
 xsp.XspecSettings.restoreXspecState = restore_xspec_state
@@ -144,6 +150,7 @@ class SpecFit(xsp.Model):
     def __init__(self, spectrum, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None):
         self.spectrum = xsp.Spectrum(spectrum, backFile=bkg, respFile=rmf, arfFile=arf)
         xsp.Model.__init__(self, model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
+        self.fitData = None
 
     def get_parnames(self) -> tuple:
         """
@@ -198,6 +205,16 @@ class SpecFit(xsp.Model):
         xsp.AllData.highlightSpectrum(self.spectrum.index)
         xsp.AllModels.setActive(self.name)
         xsp.Fit.perform()
+
+        # Saving the data of the fit points
+        xsp.Plot.xAxis = "keV"
+        xsp.Plot("data")
+        self.fitData = {
+            "x": np.asarray(xsp.Plot.x()),  # energy [keV]
+            "y": np.asarray(xsp.Plot.y()),
+            "yErr": np.asarray(xsp.Plot.yErr()),
+            "model": np.asarray(xsp.Plot.model())
+        }
         xsp.Xset.restoreXspecState()
 
     def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3):
@@ -243,3 +260,25 @@ class SpecFit(xsp.Model):
 
         # Fitting
         self.perform()
+
+    def plot(self, nsample=1):
+        """
+        Plots the spectrum data with errorbars, along with the best fit model and the residuals.
+        :param nsample: (int) If set it defines a sampling for the data points, for better visualization
+        """
+        if self.fitData is None:
+            print("No data available, the fit has not been run yet.")
+        else:
+            fig, (axd, axr) = plt.subplots(nrows=2, sharex=True, gridspec_kw={'height_ratios': [5, 2], 'hspace': 0})
+
+            axd.set_ylabel("counts s$^{-1}$ keV$^{-1}$")
+            axd.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample],
+                         yerr=self.fitData["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
+            axd.plot(self.fitData["x"], self.fitData["model"], color="limegreen", zorder=1)
+
+            axr.set_xlabel("Energy (keV)")
+            axr.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample]-self.fitData["model"][::nsample],
+                         yerr=self.fitData["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
+            axr.plot((self.fitData["x"][0], self.fitData["x"][-1]), (0, 0), color="limegreen", zorder=1)
+
+        return
