@@ -305,6 +305,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
     import xspec as xsp
 
     # General settings
+    # TODO: Save previous settings?
     xsp.Xset.chatter = 0
     xsp.AllModels.setEnergies(str(emin)+ " " + str(emax) + " " + str(nene) +" lin")
 
@@ -333,7 +334,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
             pars[4 + ind] = metal[ind] if ind < len(metal) else 0
     pars[33] = 1.
 
-    model = xsp.Model('vvapec')
+    model = xsp.Model('vvapec', 'xraysim.specutils.apec_table', 0)
 
     table = np.ndarray([nz, ntemp, nene], dtype=sp)
     for index_z in range(nz):

@@ -334,7 +334,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
         ftmerge_command = 'ftmerge '
         for ccd in range(1, 7):
             ftmerge_command += erosita_ccd_eventfile(evtfile, ccd) + ','
-        ftmerge_command += erosita_ccd_eventfile(evtfile, 7) + ' ' + evtfile
+        ftmerge_command += erosita_ccd_eventfile(evtfile, 7) + ' ' + evtfile + ' clobber=' + clobber_
         command_list.append(ftmerge_command)
 
     else:

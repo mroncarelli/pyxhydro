@@ -10,7 +10,7 @@ xsp.Xset.allowNewAttributes = True
 xsp.Xset.chatter = 0
 xsp.Xset.addModelString("APECROOT", "3.0.9")
 xsp.Xset.addModelString("APECTHERMAL", "yes")
-xsp.Xset.abund = "angr"
+xsp.Xset.abund = "angr"  # TODO: is a default needed?
 
 
 def notice_list_split(notice) -> list:
