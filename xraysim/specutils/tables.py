@@ -304,8 +304,12 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
 
     import xspec as xsp
 
+    # Saving current PyXspec settings to restore them at the end of the procedure
+    chatter_ = xsp.Xset.chatter
+    model_strings_ = xsp.Xset.modelStrings
+    abund_ = xsp.Xset.abund[0:4]
+
     # General settings
-    # TODO: Save previous settings?
     xsp.Xset.chatter = 0
     xsp.AllModels.setEnergies(str(emin)+ " " + str(emax) + " " + str(nene) +" lin")
 
@@ -346,6 +350,12 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
                 table[index_z, index_t, :] = np.array(model.values(0)) * energy  # [10^-14 keV s^-1 cm^3]
             else:
                 table[index_z, index_t, :] = np.array(model.values(0))  # [10^-14 photons s^-1 cm^3]
+
+    # Restoring PyXspec settings
+    xsp.Xset.chatter = chatter_
+    xsp.Xset.modelStrings = model_strings_
+    xsp.Xset.abund = abund_
+    xsp.AllModels.setEnergies("reset")  # Resets to the PyXspec default, not to the original
 
     result = {
         'data': table,

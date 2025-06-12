@@ -275,6 +275,7 @@ class SpecFit(xsp.Model):
             axd.plot(self.fitData["x"], self.fitData["model"], color="limegreen", zorder=1)
 
             axr.set_xlabel("Energy (keV)")
+            axr.set_ylabel("Diff.")
             axr.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample]-self.fitData["model"][::nsample],
                          yerr=self.fitData["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
             axr.plot((self.fitData["x"][0], self.fitData["x"][-1]), (0, 0), color="limegreen", zorder=1)
