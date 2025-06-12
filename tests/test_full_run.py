@@ -76,8 +76,8 @@ def test_full_run(run_type):
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
-                               seed=42, verbosity=0)
+    sys_out = create_eventlist(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile,
+                               background=False, seed=42, verbosity=0)
     assert sys_out == [0]
     os.remove(simputFile)
 
