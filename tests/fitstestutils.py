@@ -83,7 +83,7 @@ def assert_header_has_all_keywords_and_values_of_reference(header: fits.header, 
             if type(val) == str:
                 assert_string_in_header_matches_reference(val, val_reference)
             else:
-                assert val == pytest.approx(val_reference)
+                assert val == pytest.approx(val_reference), key + " " + str(val) + " != " + str(val_reference)
     return None
 
 

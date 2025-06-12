@@ -3,6 +3,7 @@ import os
 import tempfile
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -178,20 +179,21 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
     # Setting headers
     set_simput_headers(hdulist)
     hdulist[0].header.set('INFO', 'Created with Python xraysim and astropy')
+    coord_units = '[' + spcube_struct.get('coord_units') + ']'
     if 'simulation_type' in spcube_struct:
         hdulist[0].header.set('SIM_TYPE', spcube_struct.get('simulation_type'))
     hdulist[0].header.set('SIM_FILE', spcube_struct.get('simulation_file'))
     hdulist[0].header.set('SP_FILE', spcube_struct.get('spectral_table'))
     hdulist[0].header.set('PROJ', spcube_struct.get('proj'))
-    hdulist[0].header.set('X_MIN', spcube_struct.get('xrange')[0])
-    hdulist[0].header.set('X_MAX', spcube_struct.get('xrange')[1])
-    hdulist[0].header.set('Y_MIN', spcube_struct.get('yrange')[0])
-    hdulist[0].header.set('Y_MAX', spcube_struct.get('yrange')[1])
+    hdulist[0].header.set('X_MIN', spcube_struct.get('xrange')[0], coord_units)
+    hdulist[0].header.set('X_MAX', spcube_struct.get('xrange')[1], coord_units)
+    hdulist[0].header.set('Y_MIN', spcube_struct.get('yrange')[0], coord_units)
+    hdulist[0].header.set('Y_MAX', spcube_struct.get('yrange')[1], coord_units)
     if spcube_struct.get('zrange'):
-        hdulist[0].header.set('Z_MIN', spcube_struct.get('zrange')[0])
-        hdulist[0].header.set('Z_MAX', spcube_struct.get('zrange')[1])
+        hdulist[0].header.set('Z_MIN', spcube_struct.get('zrange')[0], coord_units)
+        hdulist[0].header.set('Z_MAX', spcube_struct.get('zrange')[1], coord_units)
     hdulist[0].header.set('Z_COS', spcube_struct.get('z_cos'))
-    hdulist[0].header.set('D_C', spcube_struct.get('d_c'), '[Mpc]')
+    hdulist[0].header.set('D_C', spcube_struct.get('d_c'), coord_units)
     hdulist[0].header.set('NPIX', npix)
     hdulist[0].header.set('NENE', nene)
     hdulist[0].header.set('ANG_PIX', spcube_struct.get('pixel_size'), '[arcmin]')
@@ -335,7 +337,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
         ftmerge_command = 'ftmerge '
         for ccd in range(1, 7):
             ftmerge_command += erosita_ccd_eventfile(evtfile, ccd) + ','
-        ftmerge_command += erosita_ccd_eventfile(evtfile, 7) + ' ' + evtfile
+        ftmerge_command += erosita_ccd_eventfile(evtfile, 7) + ' ' + evtfile + ' clobber=' + clobber_
         command_list.append(ftmerge_command)
 
     else:
@@ -473,7 +475,7 @@ def correct_erosita_history_header(evtfile: str, xmlfile=None):
         # If the XMLFile is not present the file is left as it is. It should not happen as SIXTE does put the keyword.
         return None
     else:
-        # Substituing record, presumably 'none' with the XML file
+        # Substituting record, presumably 'none' with the XML file
         # line prefix ('P1 ', # 'P2 ' or similar)
         hprefix = history[index_line].split('XMLFile =')[0]
         line = history[index_line]
@@ -497,7 +499,7 @@ def correct_erosita_history_header(evtfile: str, xmlfile=None):
     return hdulist.writeto(evtfile, overwrite=True)
 
 
-def get_fluxmap(simputfile: str):
+def get_sbmap(simputfile: str):
     """
     Gets a flux map from a SIMPUT file
     :param simputfile: (str) SIMPUT file
@@ -509,53 +511,107 @@ def get_fluxmap(simputfile: str):
     dec = np.linspace(hdul[1].data['DEC'].min(), hdul[1].data['DEC'].max(), npix)  # [deg]
     ang_pix = hdul[0].header.get('ANG_PIX') / 60.  # [deg]
     if 'X_MIN' in hdul[0].header and 'X_MAX' in hdul[0].header:
-        x_min, x_max = hdul[0].header['X_MIN'], hdul[0].header['X_MAX']  # [h^-1 kpc]
-        l_pix = (x_max - x_min) / npix  # [h^-1 kpc]
-        x = np.linspace(x_min + 0.5 * l_pix, x_max - 0.5 * l_pix, npix)
-        y = np.linspace(hdul[0].header['Y_MIN'] + 0.5 * l_pix, hdul[0].header['Y_MAX'] - 0.5 * l_pix, npix)
+        coord_units = hdul[0].header.comments['X_MIN'].replace('[', '').replace(']', '')  # usually h^-1 kpc
+        x_min, x_max = hdul[0].header['X_MIN'], hdul[0].header['X_MAX']  # units are defined in l_units
+        l_pix = (x_max - x_min) / npix  # units are defined in l_units
+        x = np.linspace(x_min + 0.5 * l_pix, x_max - 0.5 * l_pix, npix)  # units are defined in l_units
+        y = np.linspace(hdul[0].header['Y_MIN'] + 0.5 * l_pix, hdul[0].header['Y_MAX'] - 0.5 * l_pix,
+                        npix)  # units are defined in l_units
     else:
+        coord_units = None
         x = np.arange(npix)
         y = np.arange(npix)
         l_pix = None
 
-    flux_map = np.zeros([npix, npix], dtype=np.float32)
+    sb_map = np.zeros([npix, npix], dtype=np.float32)
     for row in hdul[1].data:
         src_name = row['SRC_NAME']
         istr, jstr = src_name[src_name.find('(') + 1: src_name.find(')')].split(',')
-        flux_map[int(istr), int(jstr)] = row['FLUX']
+        sb_map[int(istr), int(jstr)] = row['FLUX'] / ang_pix ** 2  # [erg s^-1 cm^-2 deg^-2]
 
-    return {'data': flux_map, 'ra': ra, 'dec': dec, 'ang_pix': ang_pix, 'l_pix': l_pix, 'x': x, 'y': y}
+    return {'data': sb_map, 'ra': ra, 'dec': dec, 'ang_pix': ang_pix, 'l_pix': l_pix, 'x': x, 'y': y,
+            'units': 'erg s-1 cm-2', 'coord_units': coord_units, 'ang_units': 'deg'}
 
 
-def show_fluxmap(inp, gadget_units=False):
+def show_sbmap(inp, axes='arcmin', scale='lin'):
     """
     Shows the flux map of a SIMPUT file or a map file.
     :param inp: (str or dict) Input
-    :param gadget_units: (bool) If True sides are shown in comoving length, otherwise in angular size. Default False
+    :param axes: (str) Units of the x and y-axes, can be either 'arcmin', 'deg', 'Mpc' or 'kpc'
+    (case-insensitive.) Default 'arcmin'.
+    :param scale: (str) Scaling of the map, can be either 'lin'/'linear' for linear or 'log' for logarithmic. Default
+    'lin'.
     :return: None
     """
     if type(inp) is str:
-        flux_map = get_fluxmap(inp)
+        sb_map = get_sbmap(inp)
     elif type(inp) is dict:
-        flux_map = inp
+        sb_map = inp
     else:
-        raise ValueError("ERROR in show_fluxmap. Invalid input type, must be either str or dict")
+        raise ValueError("Invalid input type, must be either str or dict")
 
-    if gadget_units and flux_map['l_pix'] is not None:
+    axes_units_ = axes.lower().strip()
+    if axes_units_ == 'deg':
+        # Assumes units in input are in deg
         extent = (
-            flux_map['x'][0] - 0.5 * flux_map['l_pix'],
-            flux_map['x'][-1] + 0.5 * flux_map['l_pix'],
-            flux_map['y'][0] - 0.5 * flux_map['l_pix'],
-            flux_map['y'][-1] + 0.5 * flux_map['l_pix']
+            sb_map['ra'][0] - 0.5 * sb_map['ang_pix'],
+            sb_map['ra'][-1] + 0.5 * sb_map['ang_pix'],
+            sb_map['dec'][0] - 0.5 * sb_map['ang_pix'],
+            sb_map['dec'][-1] + 0.5 * sb_map['ang_pix']
         )
+        label_units = 'deg'
+    elif axes_units_ == 'arcmin':
+        # Assumes units in input are in deg
+        extent = (
+            60 * (sb_map['ra'][0] - 0.5 * sb_map['ang_pix']),
+            60 * (sb_map['ra'][-1] + 0.5 * sb_map['ang_pix']),
+            60 * (sb_map['dec'][0] - 0.5 * sb_map['ang_pix']),
+            60 * (sb_map['dec'][-1] + 0.5 * sb_map['ang_pix'])
+        )
+        label_units = 'arcmin'
+    elif axes_units_ == 'mpc':
+        # Assumes units in input are in kpc (or h^-1 kpc)
+        extent = (
+            1e-3 * (sb_map['x'][0] - 0.5 * sb_map['l_pix']),
+            1e-3 * (sb_map['x'][-1] + 0.5 * sb_map['l_pix']),
+            1e-3 * (sb_map['y'][0] - 0.5 * sb_map['l_pix']),
+            1e-3 * (sb_map['y'][-1] + 0.5 * sb_map['l_pix'])
+        )
+        # Keeps h^-1 if present
+        label_units = sb_map.get('coord_units').replace('kpc', 'Mpc')
+        label_units = label_units.replace('h^-1', '$h^{-1}$')
+
+    elif axes_units_ == 'kpc':
+        # Assumes units in input are in kpc (or h^-1 kpc)
+        extent = (
+            sb_map['x'][0] - 0.5 * sb_map['l_pix'],
+            sb_map['x'][-1] + 0.5 * sb_map['l_pix'],
+            sb_map['y'][0] - 0.5 * sb_map['l_pix'],
+            sb_map['y'][-1] + 0.5 * sb_map['l_pix']
+        )
+        # Keeps h^-1 if present
+        label_units = sb_map.get('coord_units').replace('Mpc', 'kpc')
+        label_units = label_units.replace('h^-1', '$h^{-1}$')
     else:
-        extent = (
-            flux_map['ra'][0] - 0.5 * flux_map['ang_pix'],
-            flux_map['ra'][-1] + 0.5 * flux_map['ang_pix'],
-            flux_map['dec'][0] - 0.5 * flux_map['ang_pix'],
-            flux_map['dec'][-1] + 0.5 * flux_map['ang_pix']
-        )
-    plt.imshow(flux_map.get('data').transpose(), origin='lower', extent=extent)
+        raise ValueError("Invalid input type for axes_units, must be one of 'arcmin', 'deg', 'Mpc' or 'kpc'")
+
+    f = plt.figure(figsize=(6.2, 5.6))
+    ax = f.add_axes([0.17, 0.02, 0.72, 0.79])
+    ax.set_title('erg/s/cm$^2$/deg$^2$')
+    ax.set_xlabel(label_units)
+    ax.set_ylabel(label_units)
+    axcolor = f.add_axes([0.90, 0.02, 0.03, 0.79])
+
+    scale_ = scale.lower().strip()
+    img = sb_map.get('data').transpose()
+    if scale_ in ['lin', 'linear']:
+        img_show = ax.imshow(img, extent=extent, origin="lower")
+        dummy = f.colorbar(img_show, cax=axcolor)#, format="$%.0e$")
+    elif scale_ == 'log':
+        img_show = ax.imshow(img, norm=LogNorm(vmin=img.min(), vmax=img.max()), extent=extent, origin="lower")
+        dummy = f.colorbar(img_show, cax=axcolor, format="$%.0e$")
+    else:
+        raise ValueError("Invalid input type for scale, must be one of 'lin' ('linear') or 'log'")
     plt.show()
     return None
 

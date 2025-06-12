@@ -4,7 +4,7 @@ from xraysim.specutils import absorption as spabs
 from xraysim.specutils import tables
 import numpy as np
 
-spfile_path = os.path.join(os.path.dirname(__file__), "inp/test_emission_table.fits")
+spfile_path = os.path.join(os.path.dirname(__file__), "reference_files/reference_emission_table.fits")
 spectable = tables.read_spectable(spfile_path)
 
 

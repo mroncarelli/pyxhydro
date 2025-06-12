@@ -11,7 +11,7 @@ from .fitstestutils import assert_hdu_list_matches_reference
 inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
 referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 snapshotFile = inputDir + 'snap_Gadget_sample'
-spFile = inputDir + 'test_emission_table.fits'
+spFile = referenceDir + 'reference_emission_table.fits'
 referenceSpcubeFile = referenceDir + 'reference.speccube'
 referenceSimputFile = referenceDir + 'reference.simput'
 referenceEvtFile = referenceDir + 'reference.evt'
@@ -76,8 +76,8 @@ def test_full_run(run_type):
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
-                               seed=42, verbosity=0)
+    sys_out = create_eventlist(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile,
+                               background=False, seed=42, verbosity=0)
     assert sys_out == [0]
     os.remove(simputFile)
 

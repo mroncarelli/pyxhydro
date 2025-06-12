@@ -9,11 +9,10 @@ from xraysim.specutils.tables import read_spectable, calc_spec
 
 from .fitstestutils import assert_hdu_list_matches_reference
 
-
 data_dir = os.environ.get('XRAYSIM') + '/tests/inp/'
 reference_dir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 snapshot_file = data_dir + 'snap_Gadget_sample'
-spfile = data_dir + 'test_emission_table.fits'
+spfile = reference_dir + 'reference_emission_table.fits'
 reference_file = reference_dir + 'reference.speccube'
 npix, size, redshift, center, proj, flag_ene, nsample, nh = 25, 1.05, 0.1, [2500., 2500.], 'z', False, 1, 0.01
 nene = fits.open(spfile)[0].header.get('NENE')

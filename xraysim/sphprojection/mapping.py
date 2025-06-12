@@ -484,7 +484,7 @@ def make_speccube(snapfile: str, spfile: str, size: float, npix=256, redshift=No
         'spectral_table': spfile,
         'proj': proj,
         'z_cos': redshift,
-        'd_c': cosmo.comoving_distance(redshift).to_value(),  # [h^-1 Mpc]
+        'd_c': 1e3 * cosmo.comoving_distance(redshift).to_value(),  # [h^-1 kpc]
         'xrange': (xmap0, xmap0 + size_gadget),  # [h^-1 kpc]
         'yrange': (ymap0, ymap0 + size_gadget),  # [h^-1 kpc]
         'size': np.float32(size),  # [deg]
@@ -547,7 +547,7 @@ def write_speccube(spec_cube: dict, outfile: str, overwrite=True):
     hdulist[-1].header.set('SP_FILE', spec_cube.get('spectral_table'))
     hdulist[-1].header.set('PROJ', spec_cube.get('proj'))
     hdulist[-1].header.set('Z_COS', spec_cube.get('z_cos'))
-    hdulist[-1].header.set('D_C', spec_cube.get('d_c'))
+    hdulist[-1].header.set('D_C', spec_cube.get('d_c'), '[' + spec_cube.get('coord_units') + ']')
     if nsample:
         hdulist[-1].header.set('NSAMPLE', nsample)
     hdulist[-1].header.set('NPIX', data.shape[0])

@@ -13,7 +13,7 @@ environmentVariablesPathList = [os.environ.get('XRAYSIM'), os.environ.get('SIXTE
 inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
 referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 snapshotFile = inputDir + 'snap_Gadget_sample'
-spFile = inputDir + 'test_emission_table.fits'
+spFile = referenceDir + 'reference_emission_table.fits'
 referenceSimputFile = referenceDir + 'reference.simput'
 npix, size, redshift, center, proj, flag_ene, tcut, nsample, nh = 25, 1.05, 0.1, [2500., 2500.], 'z', False, 1.e6, 1, 0.01
 t_iso_keV = 6.3  # [keV]
@@ -59,7 +59,7 @@ def test_primary_header_keywords(inp=speccubeIsothermalNovel, out=testSimputFile
     assert header.get('SP_FILE') == inp.get('spectral_table')
     assert header.get('PROJ') == inp.get('proj')
     assert header.get('Z_COS') == pytest.approx(inp.get('z_cos'))
-    assert (header.get('D_C'), header.comments['D_C']) == pytest.approx((inp.get('d_c'), '[Mpc]'))
+    assert (header.get('D_C'), header.comments['D_C']) == pytest.approx((inp.get('d_c'), '[h^-1 kpc]'))
     assert header.get('NPIX') == inp.get('data').shape[0]
     assert header.get('NENE') == inp.get('data').shape[2]
     assert (header.get('ANG_PIX'), header.comments['ANG_PIX']) == pytest.approx((inp.get('pixel_size'), '[arcmin]'))
