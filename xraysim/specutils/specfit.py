@@ -264,6 +264,8 @@ class SpecFit(xsp.Model):
         Plots the spectrum data with errorbars, along with the best fit model and the residuals.
         :param nsample: (int) If set it defines a sampling for the data points, for better visualization
         """
+        plt_int_state_ = plt.isinteractive()
+        plt.ion()
         if self.fitData is None:
             print("No data available, the fit has not been run yet.")
         else:
@@ -279,5 +281,8 @@ class SpecFit(xsp.Model):
             axr.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample]-self.fitData["model"][::nsample],
                          yerr=self.fitData["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
             axr.plot((self.fitData["x"][0], self.fitData["x"][-1]), (0, 0), color="limegreen", zorder=1)
+
+        if not plt_int_state_:
+            plt.ioff()
 
         return
