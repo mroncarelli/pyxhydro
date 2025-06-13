@@ -259,17 +259,38 @@ class SpecFit(xsp.Model):
         # Fitting
         self.perform()
 
-    def plot(self, nsample=1):
+    def plot(self, nsample=1, xscale='lin', yscale='lin') -> None:
         """
         Plots the spectrum data with errorbars, along with the best fit model and the residuals.
         :param nsample: (int) If set it defines a sampling for the data points, for better visualization
+        :param xscale: (str) Scaling of the x-axis, can be either 'lin'/'linear' or 'log'/'logarithmic'. Default 'lin'.
+        :param yscale: (str) Same as xscale but for the y-axis.
         """
-        plt_int_state_ = plt.isinteractive()
-        plt.ion()
+
+        xscale_ = xscale.lower().strip()
+        yscale_ = yscale.lower().strip()
         if self.fitData is None:
             print("No data available, the fit has not been run yet.")
         else:
             fig, (axd, axr) = plt.subplots(nrows=2, sharex=True, gridspec_kw={'height_ratios': [5, 2], 'hspace': 0})
+
+            if xscale_ in ['lin', 'linear']:
+                axd.set_xscale('linear')
+                axr.set_xscale('linear')
+            elif xscale_ in ['log', 'logarithmic']:
+                axd.set_xscale('log')
+                axr.set_xscale('log')
+            else:
+                raise ValueError(
+                    "Invalid input type for xscale, must be one of 'lin' ('linear') or 'log' ('logarithmic')")
+
+            if yscale_ in ['lin', 'linear']:
+                axd.set_yscale('linear')
+            elif yscale_ in ['log', 'logarithmic']:
+                axd.set_yscale('log')
+            else:
+                raise ValueError(
+                    "Invalid input type for yscale, must be one of 'lin' ('linear') or 'log' ('logarithmic')")
 
             axd.set_ylabel("counts s$^{-1}$ keV$^{-1}$")
             axd.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample],
@@ -278,11 +299,8 @@ class SpecFit(xsp.Model):
 
             axr.set_xlabel("Energy (keV)")
             axr.set_ylabel("Diff.")
-            axr.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample]-self.fitData["model"][::nsample],
+            axr.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample] - self.fitData["model"][::nsample],
                          yerr=self.fitData["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
             axr.plot((self.fitData["x"][0], self.fitData["x"][-1]), (0, 0), color="limegreen", zorder=1)
 
-        if not plt_int_state_:
-            plt.ioff()
-
-        return
+        return None

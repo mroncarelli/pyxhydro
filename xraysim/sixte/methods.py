@@ -538,8 +538,7 @@ def show_sbmap(inp, axes='arcmin', scale='lin'):
     :param inp: (str or dict) Input
     :param axes: (str) Units of the x and y-axes, can be either 'arcmin', 'deg', 'Mpc' or 'kpc'
     (case-insensitive.) Default 'arcmin'.
-    :param scale: (str) Scaling of the map, can be either 'lin'/'linear' for linear or 'log' for logarithmic. Default
-    'lin'.
+    :param scale: (str) Scaling of the map, can be either 'lin'/'linear' or 'log'/'logarithmic'. Default 'lin'.
     :return: None
     """
     if type(inp) is str:
@@ -595,23 +594,23 @@ def show_sbmap(inp, axes='arcmin', scale='lin'):
         raise ValueError("Invalid input type for axes_units, must be one of 'arcmin', 'deg', 'Mpc' or 'kpc'")
 
     f = plt.figure(figsize=(6.2, 5.6))
-    ax = f.add_axes([0.17, 0.02, 0.72, 0.79])
+    ax = f.add_axes((0.15, 0.10, 0.65, 0.79))
     ax.set_title('erg/s/cm$^2$/deg$^2$')
     ax.set_xlabel(label_units)
     ax.set_ylabel(label_units)
-    axcolor = f.add_axes([0.90, 0.02, 0.03, 0.79])
+    axcolor = f.add_axes((0.85, 0.10, 0.03, 0.79))
 
     scale_ = scale.lower().strip()
     img = sb_map.get('data').transpose()
     if scale_ in ['lin', 'linear']:
         img_show = ax.imshow(img, extent=extent, origin="lower")
         dummy = f.colorbar(img_show, cax=axcolor)#, format="$%.0e$")
-    elif scale_ == 'log':
+    elif scale_ in ['log', 'logarithmic']:
         img_show = ax.imshow(img, norm=LogNorm(vmin=img.min(), vmax=img.max()), extent=extent, origin="lower")
         dummy = f.colorbar(img_show, cax=axcolor, format="$%.0e$")
     else:
-        raise ValueError("Invalid input type for scale, must be one of 'lin' ('linear') or 'log'")
-    plt.show()
+        raise ValueError("Invalid input type for scale, must be one of 'lin' ('linear') or 'log' ('logarithmic')")
+
     return None
 
 
