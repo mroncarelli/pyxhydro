@@ -360,5 +360,5 @@ class SpecFit(xsp.Model):
             ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
 
             # Text annotations
-            for i, j in np.ndindex(corr_matrix):
+            for i, j in np.ndindex(corr_matrix.shape):
                 ax.text(j, i, "{:.3f}".format(corr_matrix[i, j]), ha="center", va="center", color="black")
