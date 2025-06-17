@@ -1,6 +1,9 @@
 import os
 import sys
 
+import numpy as np
+import pytest
+
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the three lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
@@ -88,12 +91,55 @@ def test_apec_fit_start_with_only_redshift_right():
     specfit.run(start=start_pars, method="cstat")
     assert_fit_results_within_tolerance(specfit, right_pars_apec, tol=tolerance)
 
+def test_covariance_and_correlation_matrices_are_none_at_initialization():
+    """
+    Tests that the covariance and the correlation matrices are None before running the fit
+    """
+    specfit = SpecFit(spectrum_bapec, "bapec", rmf=rmf, arf=arf)
+    assert specfit.covariance_matrix() is None
+    assert specfit.covariance_matrix() is None
+
+
+specFitBapec = SpecFit(spectrum_bapec, "bapec", rmf=rmf, arf=arf)
+start_pars = wrong_pars_bapec
+start_pars[2] = right_pars_bapec[2]
+specFitBapec.run(start=start_pars, method="cstat")
 
 def test_bapec_fit_start_with_only_redshift_right():
     # Fitting the bapec spectrum produced with fakeit, starting with all wrong parameters except for redshift should
     # lead to the correct result, within tolerance
-    specfit = SpecFit(spectrum_bapec, "bapec", rmf=rmf, arf=arf)
-    start_pars = wrong_pars_bapec
-    start_pars[2] = right_pars_bapec[2]
-    specfit.run(start=start_pars, method="cstat")
-    assert_fit_results_within_tolerance(specfit, right_pars_bapec, tol=tolerance)
+    assert_fit_results_within_tolerance(specFitBapec, right_pars_bapec, tol=tolerance)
+
+def test_covariance_matrix_has_correct_shape_and_diagonal_elements():
+    """
+    After the fit has been done the covariance matrix should have a shape equal to the number of parameters per side
+    and the diagonal elements should correspond to the product of the fit errors for the corresponding parameters.
+    """
+    covariance_matrix = specFitBapec.covariance_matrix()
+    assert covariance_matrix.shape == (specFitBapec.nParameters, specFitBapec.nParameters)
+    for i in range(specFitBapec.nParameters):
+        assert covariance_matrix[i, i] == pytest.approx(specFitBapec.fitResult["sigma"][i] ** 2)
+
+correlationMatrix = specFitBapec.correlation_matrix()
+
+def test_correlation_matrix_has_correct_shape_and_diagonal_elements():
+    """
+    After the fit has been done the correlation matrix should have a shape equal to the number of parameters per side
+    and the diagonal elements should be equal to 1.
+    """
+    assert correlationMatrix.shape == (specFitBapec.nParameters, specFitBapec.nParameters)
+    for i in range(specFitBapec.nParameters):
+        assert correlationMatrix[i, i] == pytest.approx(1)
+
+def test_correlation_matrix_has_all_values_between_minus_one_and_one():
+    """
+    After the fit has been done the correlation matrix should contain only values between -1 and 1.
+    """
+    check = np.ndarray(correlationMatrix.shape, dtype=bool)
+    for i, j in np.ndindex(check.shape):
+        check[i, j] = correlationMatrix[i, j] == pytest.approx(-1) or correlationMatrix[i, j] > -1
+    assert check.all()
+
+    for i, j in np.ndindex(check.shape):
+        check[i, j] = correlationMatrix[i, j] == pytest.approx(1) or correlationMatrix[i, j] < 1
+    assert check.all()

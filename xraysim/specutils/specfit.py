@@ -1,10 +1,13 @@
 import os
 import sys
 
+from heasoftpy.fcn.aspect import aspect
+
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the three lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
 import matplotlib.pyplot as plt
+from matplotlib import colormaps as cm
 import numpy as np
 import xspec as xsp
 
@@ -215,6 +218,45 @@ class SpecFit(xsp.Model):
 
         xsp.Xset.restoreXspecState()
 
+    def covariance_matrix(self):
+        """
+        Returns the covariance matrix of the fit.
+        :return: (2D array) The covariance matrix
+        """
+
+        if self.fitData is None:
+            print("No data available, the fit has not been run yet.")
+            return None
+        else:
+            # Creating covariance matrix
+            npar = self.nParameters
+            result = np.ndarray([npar, npar])
+
+            # Filling diagonal and lower part
+            index = 0
+            for i in range(npar):
+                for j in range(i + 1):
+                    result[i, j] = self.fitResult["covariance"][index]
+                    index += 1
+            # Filling upper part
+            for i in range(npar):
+                for j in range(i + 1, npar):
+                    result[i, j] = result[j, i]
+
+            return result
+
+    def correlation_matrix(self):
+        """
+        Returns the correlation matrix of the fit.
+        :return: (2D array) The correlation matrix
+        """
+        result = self.covariance_matrix()
+        if result is not None:
+            for i, j in np.ndindex(result):
+                result[i, j] /= self.fitResult["sigma"][i] * self.fitResult["sigma"][j]
+
+        return result
+
     def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3):
         """
         Standard procedure to fit spectra.
@@ -304,3 +346,22 @@ class SpecFit(xsp.Model):
             axr.plot((self.fitData["x"][0], self.fitData["x"][-1]), (0, 0), color="limegreen", zorder=1)
 
         return None
+
+    def show_correlation(self) -> None:
+        """
+        Plots a heatmap of the correlation matrix
+        :return: None
+        """
+        corr_matrix = self.correlation_matrix()
+
+        # Plotting
+        if corr_matrix is not None:
+            fig, ax = plt.subplots()
+            ax.set_xticks(range(self.nParameters), labels=self.fitResult["parnames"], rotation=45, ha="right",
+                          rotation_mode="anchor")
+            ax.set_yticks(range(self.nParameters), labels=self.fitResult["parnames"])
+            ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
+
+            # Text annotations
+            for i, j in np.ndindex(corr_matrix):
+                ax.text(j, i, "{:.3f}".format(corr_matrix[i, j]), ha="center", va="center", color="black")
