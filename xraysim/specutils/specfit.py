@@ -1,8 +1,6 @@
 import os
 import sys
 
-from heasoftpy.fcn.aspect import aspect
-
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the three lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
@@ -252,7 +250,7 @@ class SpecFit(xsp.Model):
         """
         result = self.covariance_matrix()
         if result is not None:
-            for i, j in np.ndindex(result):
+            for i, j in np.ndindex(result.shape):
                 result[i, j] /= self.fitResult["sigma"][i] * self.fitResult["sigma"][j]
 
         return result
@@ -363,5 +361,5 @@ class SpecFit(xsp.Model):
             ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
 
             # Text annotations
-            for i, j in np.ndindex(corr_matrix):
+            for i, j in np.ndindex(corr_matrix.shape):
                 ax.text(j, i, "{:.3f}".format(corr_matrix[i, j]), ha="center", va="center", color="black")
