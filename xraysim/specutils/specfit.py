@@ -150,7 +150,7 @@ def ignore(spectrum: xsp.Spectrum, erange=(None, None)) -> None:
 class SpecFit(xsp.Model):
     def __init__(self, spectrum, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None):
         self.spectrum = xsp.Spectrum(spectrum, backFile=bkg, respFile=rmf, arfFile=arf)
-        xsp.Model.__init__(self, model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
+        self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
         self.fitData = None
         self.fitResult = None
 
@@ -160,7 +160,7 @@ class SpecFit(xsp.Model):
         :param self: (ModelFit)
         :return: (tuple) Tuple of strings containing the parameter names.
         """
-        return tuple(self(self.startParIndex + index).name for index in range(self.nParameters))
+        return tuple(self.model(self.model.startParIndex + index).name for index in range(self.model.nParameters))
 
     def get_parvals(self) -> tuple:
         """
@@ -168,7 +168,7 @@ class SpecFit(xsp.Model):
         :param self: (ModelFit)
         :return: (tuple) Tuple containing the parameter values.
         """
-        return tuple(self(self.startParIndex + index).values[0] for index in range(self.nParameters))
+        return tuple(self.model(self.model.startParIndex + index).values[0] for index in range(self.model.nParameters))
 
     def get_errors(self) -> tuple:
         """
@@ -176,7 +176,7 @@ class SpecFit(xsp.Model):
         :param self: (ModelFit)
         :return: (tuple) Tuple containing the parameter errors.
         """
-        return tuple(self(self.startParIndex + index).sigma for index in range(self.nParameters))
+        return tuple(self.model(self.model.startParIndex + index).sigma for index in range(self.model.nParameters))
 
     def perform(self) -> None:
         """
@@ -187,7 +187,7 @@ class SpecFit(xsp.Model):
         """
         xsp.Xset.saveXspecState()
         xsp.AllData.highlightSpectrum(self.spectrum.index)
-        xsp.AllModels.setActive(self.name)
+        xsp.AllModels.setActive(self.model.name)
         xsp.Fit.perform()
 
         # Saving the data of the fit points
@@ -227,18 +227,17 @@ class SpecFit(xsp.Model):
             return None
         else:
             # Creating covariance matrix
-            npar = self.nParameters
-            result = np.ndarray([npar, npar])
+            result = np.ndarray([self.model.nParameters, self.model.nParameters])
 
             # Filling diagonal and lower part
             index = 0
-            for i in range(npar):
+            for i in range(self.model.nParameters):
                 for j in range(i + 1):
                     result[i, j] = self.fitResult["covariance"][index]
                     index += 1
             # Filling upper part
-            for i in range(npar):
-                for j in range(i + 1, npar):
+            for i in range(self.model.nParameters):
+                for j in range(i + 1, self.model.nParameters):
                     result[i, j] = result[j, i]
 
             return result
@@ -274,15 +273,15 @@ class SpecFit(xsp.Model):
         # Initial conditions
         if start is not None:
             for index, par in enumerate(start):
-                self(self.startParIndex + index).values = par
+                self.model(self.model.startParIndex + index).values = par
 
         # Fixed/free parameter
         if fixed is not None:
             for index, frozen in enumerate(fixed):
-                self(self.startParIndex + index).frozen = frozen
+                self.model(self.model.startParIndex + index).frozen = frozen
         else:
-            for index in range(self.nParameters):
-                self(self.startParIndex + index).frozen = False
+            for index in range(self.model.nParameters):
+                self.model(self.model.startParIndex + index).frozen = False
 
         # Statistic method
         if method is not None:
@@ -355,9 +354,9 @@ class SpecFit(xsp.Model):
         # Plotting
         if corr_matrix is not None:
             fig, ax = plt.subplots()
-            ax.set_xticks(range(self.nParameters), labels=self.fitResult["parnames"], rotation=45, ha="right",
+            ax.set_xticks(range(self.model.nParameters), labels=self.fitResult["parnames"], rotation=45, ha="right",
                           rotation_mode="anchor")
-            ax.set_yticks(range(self.nParameters), labels=self.fitResult["parnames"])
+            ax.set_yticks(range(self.model.nParameters), labels=self.fitResult["parnames"])
             ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
 
             # Text annotations

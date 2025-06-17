@@ -1,7 +1,6 @@
 import os
 import sys
 
-import numpy as np
 import pytest
 
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
@@ -31,11 +30,11 @@ def assert_fit_results_within_tolerance(specfit: SpecFit, reference, tol=1.) -> 
     :return: None
     """
 
-    assert specfit.nParameters == len(reference)
+    assert specfit.model.nParameters == len(reference)
     for ind, val in enumerate(reference):
-        ind_fit = specfit.startParIndex + ind
-        if not specfit(ind_fit).frozen:
-            assert abs(specfit(ind_fit).values[0] - val) < tol * specfit(ind_fit).sigma
+        ind_fit = specfit.model.startParIndex + ind
+        if not specfit.model(ind_fit).frozen:
+            assert abs(specfit.model(ind_fit).values[0] - val) < tol * specfit.model(ind_fit).sigma
 
 
 def test_apec_fit_start_with_right_parameters():
@@ -116,8 +115,8 @@ def test_covariance_matrix_has_correct_shape_and_diagonal_elements():
     and the diagonal elements should correspond to the product of the fit errors for the corresponding parameters.
     """
     covariance_matrix = specFitBapec.covariance_matrix()
-    assert covariance_matrix.shape == (specFitBapec.nParameters, specFitBapec.nParameters)
-    for i in range(specFitBapec.nParameters):
+    assert covariance_matrix.shape == (specFitBapec.model.nParameters, specFitBapec.model.nParameters)
+    for i in range(specFitBapec.model.nParameters):
         assert covariance_matrix[i, i] == pytest.approx(specFitBapec.fitResult["sigma"][i] ** 2)
 
 correlationMatrix = specFitBapec.correlation_matrix()
@@ -127,8 +126,8 @@ def test_correlation_matrix_has_correct_shape_and_diagonal_elements():
     After the fit has been done the correlation matrix should have a shape equal to the number of parameters per side
     and the diagonal elements should be equal to 1.
     """
-    assert correlationMatrix.shape == (specFitBapec.nParameters, specFitBapec.nParameters)
-    for i in range(specFitBapec.nParameters):
+    assert correlationMatrix.shape == (specFitBapec.model.nParameters, specFitBapec.model.nParameters)
+    for i in range(specFitBapec.model.nParameters):
         assert correlationMatrix[i, i] == pytest.approx(1)
 
 def test_correlation_matrix_has_all_values_between_minus_one_and_one():
