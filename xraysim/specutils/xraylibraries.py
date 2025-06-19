@@ -30,8 +30,11 @@ class XspecModel:
         :param energy: list of float - Represents the range of energy values in KeV for spectrum calculation in pyxspec.
         """
         self.xspec_model_name = model_name
+        # TODO: This line is creating a problem to other procedures: we should restore the AllModels default after
+        # the methods are called
         xsp.AllModels.setEnergies(f"{energy.min()} {energy.max()} {len(energy) - 1} lin")
         xsp.Xset.addModelString("APECROOT", "3.0.9")
+        # TODO: check if we need to add xsp.Xset.addModelString("APECTHERMAL", "yes")
 
         # This is to turn off the logs
         xsp.Xset.chatter = 0
