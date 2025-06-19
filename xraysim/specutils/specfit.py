@@ -147,42 +147,143 @@ def ignore(spectrum: xsp.Spectrum, erange=(None, None)) -> None:
     return None
 
 
-class SpecFit(xsp.Model):
+class SpecFit:
     def __init__(self, spectrum, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None):
         self.spectrum = xsp.Spectrum(spectrum, backFile=bkg, respFile=rmf, arfFile=arf)
         self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
-        self.fitData = None
-        self.fitResult = None
 
-    def get_parnames(self) -> tuple:
+    @property
+    def nParameters(self) -> int:
         """
-        Returns a tuple with the model parameter names.
-        :param self: (ModelFit)
+        Number of model parameters.
+        :return: (int) The number of model parameters.
+        """
+        return self.model.nParameters
+
+    @property
+    def parNames(self) -> tuple:
+        """
+        Model parameter names.
         :return: (tuple) Tuple of strings containing the parameter names.
         """
         return tuple(self.model(self.model.startParIndex + index).name for index in range(self.model.nParameters))
 
-    def get_parvals(self) -> tuple:
+    @property
+    def fitDone(self) -> bool:
         """
-        Returns a tuple with the model parameter values.
+        Determines if the fit of the model with the spectrum has been run.
+        :return: (bool) True if it has been run, False if not
+        """
+        ind = np.where(self.__get_parfree())[0]
+        if len(ind) == 0:
+            return False
+        else:
+            return self.model(self.model.startParIndex + int(ind[0])).sigma > 0
+
+    def __get_parfixed(self):
+        """
+        Fixed (frozen) status of the model parameters, taken from the model attribute.
+        :return: (tuple) Tuple of bool containing True if the parameter is fixed (frozen), False if it is free.
+        """
+        return tuple(self.model(self.model.startParIndex + index).frozen for index in range(self.model.nParameters))
+
+    def __get_parfree(self):
+        """
+        Free status of the model parameters, taken from the model attribute.
+        :return: (tuple) Tuple of bool containing True if the parameter is free, False if it is fixed (frozen).
+        """
+        return tuple([not f for f in self.__get_parfixed()])
+
+    def __get_parvals(self) -> tuple:
+        """
+        Returns a tuple with the model parameter values, taken from the model attribute.
         :param self: (ModelFit)
         :return: (tuple) Tuple containing the parameter values.
         """
         return tuple(self.model(self.model.startParIndex + index).values[0] for index in range(self.model.nParameters))
 
-    def get_errors(self) -> tuple:
+    def __get_errors(self) -> tuple:
         """
-        Returns a tuple with the model parameter errors.
+        Returns a tuple with the model parameter errors, taken from the model attribute.
         :param self: (ModelFit)
         :return: (tuple) Tuple containing the parameter errors.
         """
         return tuple(self.model(self.model.startParIndex + index).sigma for index in range(self.model.nParameters))
 
+    @property
+    def nFixed(self):
+        """
+        Number of fixed (frozen) parameters of the model.
+        :return: (int) The number of fixed (frozen) parameters, None if the fit has not been run yet.
+        """
+        if self.fitDone:
+            result = 0
+            for index in range(self.nParameters):
+                if self.model(self.model.startParIndex + index).frozen:
+                    result += 1
+            return result
+        else:
+            return None
+
+    @property
+    def nFree(self):
+        """
+        Number of free parameters of the model.
+        :return: (int) The number of free parameters, None if the fit has not been run yet.
+        """
+        if self.fitDone:
+            result = 0
+            for index in range(self.nParameters):
+                if not self.model(self.model.startParIndex + index).frozen:
+                    result += 1
+            return result
+        else:
+            return None
+
+    @property
+    def parFixed(self):
+        """
+        Fixed (frozen) status of the model parameters.
+        :return: (tuple) Tuple of bool containing True if the parameter is fixed (frozen), False if it is free. If the
+                 fit has not been run, returns None.
+        """
+        return self.__get_parfixed() if self.fitDone else None
+
+    @property
+    def parFree(self):
+        """
+        Free status of the model parameters.
+        :return: (tuple) Tuple of bool containing True if the parameter is free, False if it is fixed (frozen). If the
+                 fit has not been run, returns None.
+        """
+        return self.__get_parfree() if self.fitDone else None
+
+    @property
+    def fixedParNames(self):
+        """
+        Fixed (frozen) parameters' names.
+        :return: (tuple) Tuple of strings containing the fixed (frozen) parameters' names, None if the fit has not
+        been run.
+        """
+        #return tuple([self.parNames[i] for i in range(self.nParameters) if self.__get_parfixed()[i]])
+        return tuple([name for i, name in enumerate(self.parNames) if self.parFixed[i]]) if self.fitDone else None
+
+    @property
+    def freeParNames(self):
+        """
+        Free parameters' names.
+        :param self: (ModelFit)
+        :return: (tuple) Tuple of strings containing the free parameters' names, None if the fit has not
+        been run.
+        """
+        return tuple([name for i, name in enumerate(self.parNames) if self.parFree[i]]) if self.fitDone else None
+
     def perform(self) -> None:
         """
         Equivalent of the `xspec.Fit.perform` method adapted to the `SpecFit` class. It allows to run the fit of the
         `xspec.Spectrum` loaded in the `spectrum` attribute with the `xspec.Model` of the instance while preserving the
-        state of the `xspec` global objects (i.e. `xspec.AllData` and `xspec.AllModels`).
+        state of the `xspec` global objects (i.e. `xspec.AllData` and `xspec.AllModels`). It also saves the fit results
+        and the data points in the fitResult and fitPoints attributes.
         :return: None
         """
         xsp.Xset.saveXspecState()
@@ -190,21 +291,11 @@ class SpecFit(xsp.Model):
         xsp.AllModels.setActive(self.model.name)
         xsp.Fit.perform()
 
-        # Saving the data of the fit points
-        xsp.Plot.xAxis = "keV"
-        xsp.Plot("data")
-        self.fitData = {
-            "x": np.asarray(xsp.Plot.x()),  # energy [keV]
-            "y": np.asarray(xsp.Plot.y()),
-            "yErr": np.asarray(xsp.Plot.yErr()),
-            "model": np.asarray(xsp.Plot.model())
-        }
-
         # Saving fit results
         self.fitResult = {
-            "parnames": self.get_parnames(),
-            "values": self.get_parvals(),
-            "sigma": self.get_errors(),
+            "parnames": self.parNames,
+            "values": self.__get_parvals(),
+            "sigma": self.__get_errors(),
             "statistic": xsp.Fit.statistic,
             "dof": xsp.Fit.dof,
             "rstat": xsp.Fit.statistic / (xsp.Fit.dof - 1),
@@ -212,6 +303,16 @@ class SpecFit(xsp.Model):
             "method": xsp.Fit.statMethod,
             "nIterations": xsp.Fit.nIterations,
             "criticalDelta": xsp.Fit.criticalDelta
+        }
+
+        # Saving the data of the fit points
+        xsp.Plot.xAxis = "keV"
+        xsp.Plot("data")
+        self.fitPoints = {
+            "x": np.asarray(xsp.Plot.x()),  # energy [keV]
+            "y": np.asarray(xsp.Plot.y()),
+            "yErr": np.asarray(xsp.Plot.yErr()),
+            "model": np.asarray(xsp.Plot.model())
         }
 
         xsp.Xset.restoreXspecState()
@@ -222,22 +323,22 @@ class SpecFit(xsp.Model):
         :return: (2D array) The covariance matrix
         """
 
-        if self.fitData is None:
+        if not self.fitDone:
             print("No data available, the fit has not been run yet.")
             return None
         else:
             # Creating covariance matrix
-            result = np.ndarray([self.model.nParameters, self.model.nParameters])
+            result = np.ndarray([self.nFree, self.nFree])
 
             # Filling diagonal and lower part
             index = 0
-            for i in range(self.model.nParameters):
+            for i in range(self.nFree):
                 for j in range(i + 1):
                     result[i, j] = self.fitResult["covariance"][index]
                     index += 1
             # Filling upper part
-            for i in range(self.model.nParameters):
-                for j in range(i + 1, self.model.nParameters):
+            for i in range(self.nFree):
+                for j in range(i + 1, self.nFree):
                     result[i, j] = result[j, i]
 
             return result
@@ -308,7 +409,7 @@ class SpecFit(xsp.Model):
 
         xscale_ = xscale.lower().strip()
         yscale_ = yscale.lower().strip()
-        if self.fitData is None:
+        if not self.fitDone:
             print("No data available, the fit has not been run yet.")
         else:
             fig, (axd, axr) = plt.subplots(nrows=2, sharex=True, gridspec_kw={'height_ratios': [5, 2], 'hspace': 0})
@@ -332,15 +433,15 @@ class SpecFit(xsp.Model):
                     "Invalid input type for yscale, must be one of 'lin' ('linear') or 'log' ('logarithmic')")
 
             axd.set_ylabel("counts s$^{-1}$ keV$^{-1}$")
-            axd.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample],
-                         yerr=self.fitData["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
-            axd.plot(self.fitData["x"], self.fitData["model"], color="limegreen", zorder=1)
+            axd.errorbar(self.fitPoints["x"][::nsample], self.fitPoints["y"][::nsample],
+                         yerr=self.fitPoints["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
+            axd.plot(self.fitPoints["x"], self.fitPoints["model"], color="limegreen", zorder=1)
 
             axr.set_xlabel("Energy (keV)")
             axr.set_ylabel("Diff.")
-            axr.errorbar(self.fitData["x"][::nsample], self.fitData["y"][::nsample] - self.fitData["model"][::nsample],
-                         yerr=self.fitData["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
-            axr.plot((self.fitData["x"][0], self.fitData["x"][-1]), (0, 0), color="limegreen", zorder=1)
+            axr.errorbar(self.fitPoints["x"][::nsample], self.fitPoints["y"][::nsample] - self.fitPoints["model"][::nsample],
+                         yerr=self.fitPoints["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
+            axr.plot((self.fitPoints["x"][0], self.fitPoints["x"][-1]), (0, 0), color="limegreen", zorder=1)
 
         return None
 
@@ -354,9 +455,9 @@ class SpecFit(xsp.Model):
         # Plotting
         if corr_matrix is not None:
             fig, ax = plt.subplots()
-            ax.set_xticks(range(self.model.nParameters), labels=self.fitResult["parnames"], rotation=45, ha="right",
+            ax.set_xticks(range(self.nFree), labels=self.freeParNames, rotation=45, ha="right",
                           rotation_mode="anchor")
-            ax.set_yticks(range(self.model.nParameters), labels=self.fitResult["parnames"])
+            ax.set_yticks(range(self.nFree), labels=self.freeParNames)
             ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
 
             # Text annotations

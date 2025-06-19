@@ -20,6 +20,39 @@ wrong_pars_bapec = [1., 0.1, 0.6, 100., 4.]
 tolerance = 0.1  # tolerance when starting with correct redshift
 
 
+def assert_specfit_has_coherent_properties(specfit: SpecFit) -> None:
+    """
+    Checks that a SpecFit object has coherent properties
+    :param specfit: (SpecFit)
+    :return: None
+    """
+    assert specfit.nParameters > 0
+    assert len(specfit.parNames) == specfit.nParameters
+    assert type(specfit.fitDone) == bool, "fitDone property must be True or False"
+    if specfit.fitDone:
+        assert specfit.nFixed + specfit.nFree == specfit.nParameters
+        for ipar in range(specfit.nParameters):
+            assert type(specfit.parFixed[ipar]) == bool
+            assert type(specfit.parFree[ipar]) == bool
+            assert specfit.parFixed[ipar] != specfit.parFree[ipar]
+
+        assert len(specfit.fixedParNames) == specfit.nFixed
+        assert len(specfit.freeParNames) == specfit.nFree
+        assert set(specfit.fixedParNames).union(set(specfit.freeParNames)) == set(specfit.parNames)
+        assert hasattr(specfit, 'fitResult')
+        assert hasattr(specfit, 'fitPoints')
+    else:
+        assert specfit.nFixed is None
+        assert specfit.nFree is None
+        assert specfit.parFixed is None
+        assert specfit.parFree is None
+        assert specfit.fixedParNames is None
+        assert specfit.freeParNames is None
+        assert not hasattr(specfit, 'fitResult')
+        assert not hasattr(specfit, 'fitPoints')
+
+    return
+
 def assert_fit_results_within_tolerance(specfit: SpecFit, reference, tol=1.) -> None:
     """
     Checks that a Xspec model containing a fit result matches the reference values within
@@ -59,7 +92,11 @@ def test_fit_two_spectra_start_with_right_parameters():
     # to their loading to ensure that the fitting procedure works even in this case. It also checks that the xspec
     # state variables are restored correctly after the fit.
     specfit_apec = SpecFit(spectrum_apec, "apec", rmf=rmf, arf=arf)
+    assert not specfit_apec.fitDone
+    assert_specfit_has_coherent_properties(specfit_apec)
     specfit_bapec = SpecFit(spectrum_bapec, "bapec", rmf=rmf, arf=arf)
+    assert not specfit_bapec.fitDone
+    assert_specfit_has_coherent_properties(specfit_bapec)
 
     n_spectra = xsp.AllData.nSpectra
     noticed1 = xsp.AllData(1).noticed
@@ -67,6 +104,9 @@ def test_fit_two_spectra_start_with_right_parameters():
     active_model = xsp.AllModels.sources[1]
 
     specfit_bapec.run(start=right_pars_bapec, method="cstat")
+    assert specfit_bapec.fitDone
+    assert_specfit_has_coherent_properties(specfit_bapec)
+
     assert xsp.AllData.nSpectra == n_spectra
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
@@ -74,6 +114,9 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert_fit_results_within_tolerance(specfit_bapec, right_pars_bapec, tol=tolerance)
 
     specfit_apec.run(start=right_pars_apec, method="cstat")
+    assert specfit_apec.fitDone
+    assert_specfit_has_coherent_properties(specfit_apec)
+
     assert xsp.AllData.nSpectra == n_spectra
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
