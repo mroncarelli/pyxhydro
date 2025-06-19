@@ -3,11 +3,15 @@
 This document explains the use of the files in this directory, that serve as an input for the tests in the parent 
 directory. They are all meant to be both light and representative of the ones used for scientific results.
 
-### `bapec_fakeit_for_test.pha`  
-This file was created with `fakeit` using the `bapec` model (*kT* = 5 keV, *Abund* = 0.3 Z<sub>Sun</sub>, *z* = 0.2, 
-*b* = 300 km/s, *norm* = 0.1). The response files are `resolve_h5ev_2019a.rmf` and 
-`resolve_pnt_heasim_noGV_20190701.arf`, the exposure was set to 
-1500 s.  
+### `apec_fakeit_for_test.pha`
+This file was created with `fakeit` using the `bapec` model (*kT* = 7 keV, *Abund* = 0.2 Z<sub>Sun</sub>, *z* = 0.15,
+*norm* = 0.1). Thermal broadening included, Anders & Grevesse (1989) abundance table. The response
+files are `resolve_h5ev_2019a.rmf` and `resolve_pnt_heasim_noGV_20190701.arf`, the exposure was set to 1500 s.
+Statistical fluctuations were turned off so that in every energy the spectrum should correspond to the model precisely.
+
+### `bapec_fakeit_for_test.pha`
+Same as `apec_fakit_for_test.pha` but using the `bapec` model (*kT* = 5 keV, *Abund* = 0.3 Z<sub>Sun</sub>, *z* = 0.2,
+*b* = 300 km/s, *norm* = 0.1).
 
 ### `resolve_pnt_heasim_noGV_20190701.arf`, `resolve_h5ev_2019a.rmf`  
 *XRISM-Resolve* response files. They were chosen between the ones available in Xspec as they are the largest ones below 10MB
