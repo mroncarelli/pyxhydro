@@ -9,8 +9,8 @@ from astropy.io import fits
 
 from xraysim.gadgetutils import phys_const
 from xraysim.specutils import absorption
-from .shared import instrumentsConfigFile, instrumentsDir, versionTuple
-from .classes import SixteInstruments
+from .__shared import instrumentsConfigFile, instrumentsDir, versionTuple
+from .__classes import SixteInstruments
 
 # Instruments object
 instruments = SixteInstruments()

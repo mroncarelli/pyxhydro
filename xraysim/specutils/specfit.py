@@ -18,7 +18,7 @@ xsp.Xset.addModelString("APECTHERMAL", "yes")
 xsp.Xset.abund = "angr"  # TODO: is a default needed?
 
 
-def notice_list_split(notice) -> list:
+def __notice_list_split(notice) -> list:
     """
     Splits a list with notice channels into intervals to be used with the notice command.
     :param notice: (list of int) Notice channels, in increasing order
@@ -48,7 +48,7 @@ def notice_list_split(notice) -> list:
     return result
 
 
-def save_xspec_state(self) -> None:
+def __save_xspec_state(self) -> None:
     """
     Saves the state of some global Xspec variables before fitting, ready to be restored after the fit has been
     performed. In detail, it saves the notice arrays in the xspec.AllData object by creating the `noticeState`
@@ -63,10 +63,10 @@ def save_xspec_state(self) -> None:
     self.activeModel = xsp.AllModels.sources[1]
 
 
-xsp.XspecSettings.saveXspecState = save_xspec_state
+xsp.XspecSettings.saveXspecState = __save_xspec_state
 
 
-def restore_xspec_state(self) -> None:
+def __restore_xspec_state(self) -> None:
     """
     Restores the state of the notice arrays in `xspec.AllData` object and of the active Model in `xspec.AllModels`.
     Deletes the `noticeState` and `activeModel` attributes from `xspec.Xset` after.
@@ -74,7 +74,7 @@ def restore_xspec_state(self) -> None:
     :return: None
     """
     for index in range(xsp.AllData.nSpectra):
-        intervals_list = notice_list_split(self.noticeState[index])
+        intervals_list = __notice_list_split(self.noticeState[index])
         if len(intervals_list) >= 1:
             command_string = str(intervals_list[0][0]) + '-' + str(intervals_list[0][1])
             for i in range(1, len(intervals_list)):
@@ -87,10 +87,10 @@ def restore_xspec_state(self) -> None:
     del xsp.Xset.activeModel
 
 
-xsp.XspecSettings.restoreXspecState = restore_xspec_state
+xsp.XspecSettings.restoreXspecState = __restore_xspec_state
 
 
-def highlight_spectrum(self, index=1) -> None:
+def __highlight_spectrum(self, index=1) -> None:
     """
     Highlights a single spectrum to prepare it for the fit by ignoring all channel of all the other spectra
     :param self: (xspec.DataManager) xspec.AllData
@@ -99,50 +99,10 @@ def highlight_spectrum(self, index=1) -> None:
     """
     for i in range(1, self.nSpectra + 1):
         if i != index and self(i).noticed != []:
-            channel_min = min(self(i).noticed)
-            channel_max = max(self(i).noticed)
-            self(i).ignore(str(channel_min) + "-" + str(channel_max))
+            self(i).ignore("**")
 
 
-xsp.DataManager.highlightSpectrum = highlight_spectrum
-
-
-def ignore_string(x) -> str:
-    """
-    Turns a variable containing a number into a string that contains a dot ('.') for floating points.
-    This is mandatory for the ignore command of Xspec as otherwise it would consider channel instead of
-    energy.
-    :param x: Energy value (either float, int or str).
-    :return: (str) The sting suited for the ignore command.
-    """
-
-    result = str(x)
-    if "." not in result:
-        result += "."
-    return result
-
-
-def ignore(spectrum: xsp.Spectrum, erange=(None, None)) -> None:
-    """
-    Sets the energy range to ignore on a spectrum.
-    :param spectrum: (xspec.Spectrum) Spectrum.
-    :param erange: (float 2, or int 2, or str 2) Energy range.
-    :return: None
-    """
-    if len(erange) >= 2:
-        if erange[0] is not None and erange[1] is not None:
-            if erange[1] <= erange[0]:
-                print("ERROR in ignore: invalid input:", erange, "Second argument must be larger than the first")
-                raise ValueError
-
-    # Setting lower energy limit
-    if erange[0] is not None:
-        spectrum.ignore("**-" + ignore_string(erange[0]))
-    # Setting lower energy limit
-    if erange[1] is not None:
-        spectrum.ignore(ignore_string(erange[1]) + "-**")
-
-    return None
+xsp.DataManager.highlightSpectrum = __highlight_spectrum
 
 
 class SpecFit:
@@ -290,6 +250,44 @@ class SpecFit:
     def __get_spectrum(self):
         return np.asarray(self.spectrum.values, dtype=sp) / self.__get_denergy()  # cts/s/keV [keV]
 
+    def __set_energy_range(self, erange=(None, None)) -> None:
+        """
+        Sets the energy range of a spectrum for the fit.
+        :param erange: (float 2, or int 2, or str 2) Energy range.
+        :return: None
+        """
+
+        def __ignore_string(x) -> str:
+            """
+            Turns a variable containing a number into a string that contains a dot ('.') for floating points.
+            This is mandatory for the ignore command of Xspec as otherwise it would consider channel instead of
+            energy.
+            :param x: Energy value (either float, int or str).
+            :return: (str) The sting suited for the ignore command.
+            """
+
+            result = str(x)
+            if "." not in result:
+                result += "."
+            return result
+
+        if len(erange) >= 2:
+            if erange[0] is not None and erange[1] is not None:
+                if erange[1] <= erange[0]:
+                    print("ERROR in ignore: invalid input:", erange, "Second argument must be larger than the first")
+                    raise ValueError
+
+        self.spectrum.notice("**")
+
+        # Setting lower energy limit
+        if erange[0] is not None:
+            self.spectrum.ignore("**-" + __ignore_string(erange[0]))
+        # Setting lower energy limit
+        if erange[1] is not None:
+            self.spectrum.ignore(__ignore_string(erange[1]) + "-**")
+
+        return None
+
     def perform(self) -> None:
         """
         Equivalent of the `xspec.Fit.perform` method adapted to the `SpecFit` class. It allows to run the fit of the
@@ -385,7 +383,7 @@ class SpecFit:
         """
 
         # Energy range
-        ignore(self.spectrum, erange)
+        self.__set_energy_range(erange)
 
         # Initial conditions
         if start is not None:

@@ -3,7 +3,7 @@ import json
 import os
 import warnings
 
-from .shared import instrumentsDir, defaultSixteCommand, specialInstrumentsList
+from .__shared import instrumentsDir, defaultSixteCommand, specialInstrumentsList
 
 
 class BColors:
