@@ -7,6 +7,8 @@ sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
 import numpy as np
+
+sp = np.float32
 import xspec as xsp
 
 xsp.Xset.allowNewAttributes = True
@@ -59,7 +61,6 @@ def save_xspec_state(self) -> None:
         self.noticeState.append(xsp.AllData(index + 1).noticed)
 
     self.activeModel = xsp.AllModels.sources[1]
-    self.plotState = {"xAxis": xsp.Plot.xAxis}
 
 
 xsp.XspecSettings.saveXspecState = save_xspec_state
@@ -84,9 +85,6 @@ def restore_xspec_state(self) -> None:
 
     xsp.AllModels.setActive(xsp.Xset.activeModel)
     del xsp.Xset.activeModel
-
-    xsp.Plot.xAxis = self.plotState["xAxis"]
-    del xsp.Xset.plotState
 
 
 xsp.XspecSettings.restoreXspecState = restore_xspec_state
@@ -265,7 +263,7 @@ class SpecFit:
         :return: (tuple) Tuple of strings containing the fixed (frozen) parameters' names, None if the fit has not
         been run.
         """
-        #return tuple([self.parNames[i] for i in range(self.nParameters) if self.__get_parfixed()[i]])
+        # return tuple([self.parNames[i] for i in range(self.nParameters) if self.__get_parfixed()[i]])
         return tuple([name for i, name in enumerate(self.parNames) if self.parFixed[i]]) if self.fitDone else None
 
     @property
@@ -277,6 +275,20 @@ class SpecFit:
         been run.
         """
         return tuple([name for i, name in enumerate(self.parNames) if self.parFree[i]]) if self.fitDone else None
+
+    def __get_counts(self):
+        return np.asarray(self.spectrum.values, dtype=sp) * self.spectrum.exposure  # [---]
+
+    def get_energy(self):
+        return 0.5 * (np.asarray(self.spectrum.energies, dtype=sp)[:, 0] +
+                      np.asarray(self.spectrum.energies, dtype=sp)[:, 1])  # [keV]
+
+    def __get_denergy(self):
+        return (np.asarray(self.spectrum.energies, dtype=sp)[:, 1] -
+                np.asarray(self.spectrum.energies, dtype=sp)[:, 0])  # [keV]
+
+    def __get_spectrum(self):
+        return np.asarray(self.spectrum.values, dtype=sp) / self.__get_denergy()  # cts/s/keV [keV]
 
     def perform(self) -> None:
         """
@@ -306,13 +318,17 @@ class SpecFit:
         }
 
         # Saving the data of the fit points
-        xsp.Plot.xAxis = "keV"
-        xsp.Plot("data")
+
         self.fitPoints = {
-            "x": np.asarray(xsp.Plot.x()),  # energy [keV]
-            "y": np.asarray(xsp.Plot.y()),
-            "yErr": np.asarray(xsp.Plot.yErr()),
-            "model": np.asarray(xsp.Plot.model())
+            "energy": 0.5 * (np.asarray(self.spectrum.energies)[:, 0] + np.asarray(self.spectrum.energies)[:, 1]),
+            # [keV]
+            "spectrum": self.__get_spectrum(),  # cts/s/keV [keV]
+            "error": np.divide(self.__get_spectrum(), np.sqrt(self.__get_counts()),
+                               out=np.zeros_like(self.__get_spectrum(), dtype=sp), where=self.__get_counts() > 0),
+            "model": (np.asarray(self.model.folded(self.spectrum.index), dtype=sp) / self.__get_denergy()),
+            "counts": self.__get_counts(),  # [---]
+            "dEne": self.__get_denergy(),  # [keV]
+            "noticed": np.asarray(self.spectrum.noticed, dtype=np.int32)
         }
 
         xsp.Xset.restoreXspecState()
@@ -399,10 +415,14 @@ class SpecFit:
         # Fitting
         self.perform()
 
-    def plot(self, nsample=1, xscale='lin', yscale='lin') -> None:
+    def plot(self, rebin=None, nsample=1, xscale='lin', yscale='lin') -> None:
         """
         Plots the spectrum data with errorbars, along with the best fit model and the residuals.
-        :param nsample: (int) If set it defines a sampling for the data points, for better visualization
+        :param rebin: (2 x float) Combining adjacent bins for higher significance: 1st value - sigma significance, 2nd
+               value (may not be present) - maximum number of bins to reach the significance. Default None, i.e. no
+               rebinning. Equivalent of `setplot rebin` command in Xspec.
+        :param nsample: (int) If set it defines a sampling for the data points, for better visualization. Not
+               considered if rebin is present. Default 1, i.e. all points are shown.
         :param xscale: (str) Scaling of the x-axis, can be either 'lin'/'linear' or 'log'/'logarithmic'. Default 'lin'.
         :param yscale: (str) Same as xscale but for the y-axis.
         """
@@ -431,17 +451,58 @@ class SpecFit:
             else:
                 raise ValueError(
                     "Invalid input type for yscale, must be one of 'lin' ('linear') or 'log' ('logarithmic')")
-
             axd.set_ylabel("counts s$^{-1}$ keV$^{-1}$")
-            axd.errorbar(self.fitPoints["x"][::nsample], self.fitPoints["y"][::nsample],
-                         yerr=self.fitPoints["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
-            axd.plot(self.fitPoints["x"], self.fitPoints["model"], color="limegreen", zorder=1)
-
             axr.set_xlabel("Energy (keV)")
             axr.set_ylabel("Diff.")
-            axr.errorbar(self.fitPoints["x"][::nsample], self.fitPoints["y"][::nsample] - self.fitPoints["model"][::nsample],
-                         yerr=self.fitPoints["yErr"][::nsample], color='black', linestyle='', fmt='.', zorder=0)
-            axr.plot((self.fitPoints["x"][0], self.fitPoints["x"][-1]), (0, 0), color="limegreen", zorder=1)
+
+            # Creating values to plot (x, y, y_error, residuals)
+            if rebin is None:
+                x = self.fitPoints["energy"][::nsample]  # [keV]
+                y = self.fitPoints["spectrum"][::nsample]  # [cts/s/keV]
+                y_error = self.fitPoints["error"][::nsample]  # [cts/s/keV]
+                residuals = self.fitPoints["spectrum"][::nsample] - self.fitPoints["model"][::nsample]  # [cts/s/keV]
+            else:
+                larr = len(self.fitPoints["energy"])
+                try:
+                    larg = len(rebin)
+                    cts_to_reach = rebin[0] ** 2
+                    if larg == 1:
+                        nmax = larr
+                    else:
+                        nmax = rebin[1]
+                except:
+                    cts_to_reach = rebin ** 2
+                    nmax = larr
+
+                x, y, y_error, residuals = [], [], [], []
+                istart = 0
+                while istart < larr:
+                    n = 1
+                    c = self.fitPoints["counts"][istart]
+                    while c < cts_to_reach and n < nmax and (istart + n) < larr:
+                        n += 1
+                        c += self.fitPoints["counts"][istart + n - 1]
+                    # Width of tbe bin [keV]
+                    delta_ene = self.fitPoints["energy"][istart + n - 1] + 0.5 * self.fitPoints["dEne"][
+                        istart + n - 1] - self.fitPoints["energy"][istart] + 0.5 * self.fitPoints["dEne"][istart]
+                    # Center of the bin [keV]
+                    x.append(self.fitPoints["energy"][istart] - 0.5 * self.fitPoints["dEne"][istart] + 0.5 * delta_ene)
+                    y_ = c / (self.spectrum.exposure * delta_ene)  # [cts/s/keV]
+                    y.append(y_)  # [cts/s/keV]
+                    y_error.append(np.sqrt(c) / (self.spectrum.exposure * delta_ene))  # [cts/s/keV]
+                    residuals.append(
+                        y_ - np.sum((self.fitPoints["model"] * self.fitPoints["dEne"])[istart:istart + n]) / delta_ene)
+                    istart = istart + n
+
+                x = np.asarray(x, dtype=np.float32)  # [keV]
+                y = np.asarray(y, dtype=np.float32)  # [cts/s/keV]
+                y_error = np.asarray(y_error, dtype=np.float32)  # [cts/s/keV]
+                residuals = np.asarray(residuals, dtype=np.float32)  # [cts/s/keV]
+
+            axd.errorbar(x, y, yerr=y_error, color='black', linestyle='', fmt='.', zorder=0)
+            axd.plot(self.fitPoints["energy"], self.fitPoints["model"], color="limegreen", zorder=1)
+            axr.errorbar(x, residuals, yerr=y_error, color='black', linestyle='', fmt='.', zorder=0)
+            axr.plot((self.fitPoints["energy"][0], self.fitPoints["energy"][-1]), (0, 0), color="limegreen", zorder=1)
 
         return None
 
