@@ -196,12 +196,12 @@ def test_bapec_fit_start_with_only_redshift_right():
 
 def test_covariance_matrix_has_correct_shape_and_diagonal_elements():
     """
-    After the fit has been done the covariance matrix should have a shape equal to the number of parameters per side
-    and the diagonal elements should correspond to the product of the fit errors for the corresponding parameters.
+    After the fit has been done the covariance matrix should have a shape equal to the number of free parameters per
+    side and the diagonal elements should correspond to the product of the fit errors for the corresponding parameters.
     """
     covariance_matrix = specFitBapec.covariance_matrix()
-    assert covariance_matrix.shape == (specFitBapec.model.nParameters, specFitBapec.model.nParameters)
-    for i in range(specFitBapec.model.nParameters):
+    assert covariance_matrix.shape == (specFitBapec.nFree, specFitBapec.nFree)
+    for i in range(specFitBapec.nFree):
         assert covariance_matrix[i, i] == pytest.approx(specFitBapec.fitResult["sigma"][i] ** 2)
 
 # Calculating correlation matrix
@@ -210,11 +210,11 @@ correlationMatrix = specFitBapec.correlation_matrix()
 
 def test_correlation_matrix_has_correct_shape_and_diagonal_elements():
     """
-    After the fit has been done the correlation matrix should have a shape equal to the number of parameters per side
-    and the diagonal elements should be equal to 1.
+    After the fit has been done the correlation matrix should have a shape equal to the number of free parameters per
+    side and the diagonal elements should be equal to 1.
     """
-    assert correlationMatrix.shape == (specFitBapec.model.nParameters, specFitBapec.model.nParameters)
-    for i in range(specFitBapec.model.nParameters):
+    assert correlationMatrix.shape == (specFitBapec.nFree, specFitBapec.nFree)
+    for i in range(specFitBapec.nFree):
         assert correlationMatrix[i, i] == pytest.approx(1)
 
 

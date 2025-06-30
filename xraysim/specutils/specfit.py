@@ -370,8 +370,9 @@ class SpecFit:
         """
         result = self.covariance_matrix()
         if result is not None:
+            free_inds = np.where(self.parFree)[0]
             for i, j in np.ndindex(result.shape):
-                result[i, j] /= self.fitResult["sigma"][i] * self.fitResult["sigma"][j]
+                result[i, j] /= self.fitResult["sigma"][free_inds[i]] * self.fitResult["sigma"][free_inds[j]]
 
         return result
 
