@@ -15,7 +15,6 @@ xsp.Xset.allowNewAttributes = True
 xsp.Xset.chatter = 0
 xsp.Xset.addModelString("APECROOT", "3.0.9")
 xsp.Xset.addModelString("APECTHERMAL", "yes")
-xsp.Xset.abund = "angr"  # TODO: is a default needed?
 
 
 def __notice_list_split(notice) -> list:
@@ -52,7 +51,8 @@ def __save_xspec_state(self) -> None:
     """
     Saves the state of some global Xspec variables before fitting, ready to be restored after the fit has been
     performed. In detail, it saves the notice arrays in the xspec.AllData object by creating the `noticeState`
-    attribute, and the name of the active Model in the xspec.AllModels object by creating the `activeModel` attribute.
+    attribute, the name of the active Model in the xspec.AllModels object by creating the `activeModel` attribute, and
+    the abundance table by creating the `abundTable` attribute.
     :param self: (xspec.XspecSettings) xspec.Xset
     :return: None
     """
@@ -61,6 +61,7 @@ def __save_xspec_state(self) -> None:
         self.noticeState.append(xsp.AllData(index + 1).noticed)
 
     self.activeModel = xsp.AllModels.sources[1]
+    self.abundTable = xsp.Xset.abund[0:4]
 
 
 xsp.XspecSettings.saveXspecState = __save_xspec_state
@@ -69,7 +70,7 @@ xsp.XspecSettings.saveXspecState = __save_xspec_state
 def __restore_xspec_state(self) -> None:
     """
     Restores the state of the notice arrays in `xspec.AllData` object and of the active Model in `xspec.AllModels`.
-    Deletes the `noticeState` and `activeModel` attributes from `xspec.Xset` after.
+    Deletes the `noticeState`, `activeModel` and `abundTable` attributes from `xspec.Xset` after.
     :param (xspec.XspecSettings) xspec.Xset
     :return: None
     """
@@ -85,6 +86,8 @@ def __restore_xspec_state(self) -> None:
 
     xsp.AllModels.setActive(xsp.Xset.activeModel)
     del xsp.Xset.activeModel
+    xsp.Xset.abund = xsp.Xset.abundTable
+    del xsp.Xset.abundTable
 
 
 xsp.XspecSettings.restoreXspecState = __restore_xspec_state
@@ -288,15 +291,17 @@ class SpecFit:
 
         return None
 
-    def perform(self) -> None:
+    def __perform(self, abund='angr') -> None:
         """
         Equivalent of the `xspec.Fit.perform` method adapted to the `SpecFit` class. It allows to run the fit of the
         `xspec.Spectrum` loaded in the `spectrum` attribute with the `xspec.Model` of the instance while preserving the
         state of the `xspec` global objects (i.e. `xspec.AllData` and `xspec.AllModels`). It also saves the fit results
         and the data points in the fitResult and fitPoints attributes.
+        :param abund: (str) Abundance table, see `abund` command in Xspec. Default 'angr' i.e. Anders & Grevesse (1989).
         :return: None
         """
         xsp.Xset.saveXspecState()
+        xsp.Xset.abund = abund
         xsp.AllData.highlightSpectrum(self.spectrum.index)
         xsp.AllModels.setActive(self.model.name)
         xsp.Fit.perform()
@@ -312,7 +317,8 @@ class SpecFit:
             "covariance": xsp.Fit.covariance,
             "method": xsp.Fit.statMethod,
             "nIterations": xsp.Fit.nIterations,
-            "criticalDelta": xsp.Fit.criticalDelta
+            "criticalDelta": xsp.Fit.criticalDelta,
+            "abund": abund
         }
 
         # Saving the data of the fit points
@@ -369,7 +375,8 @@ class SpecFit:
 
         return result
 
-    def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3):
+    def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3,
+            abund='angr'):
         """
         Standard procedure to fit spectra.
         :param erange: (float, float) Energy range [keV]. If the first (second) elements is None the lower (higher)
@@ -380,6 +387,7 @@ class SpecFit:
         :param niterations: (int) Number of iterations. Default 100.
         :param criticaldelta: (float) The absolute change in the fit statistic between iterations, less than which the
             fit is deemed to have converged.
+        :param abund: (str) Abundance table, see `abund` command in Xspec. Default 'angr' i.e. Anders & Grevesse (1989).
         """
 
         # Energy range
@@ -411,18 +419,18 @@ class SpecFit:
             xsp.Fit.criticalDelta = criticaldelta
 
         # Fitting
-        self.perform()
+        self.__perform(abund=abund)
 
-    def plot(self, rebin=None, nsample=1, xscale='lin', yscale='lin') -> None:
+    def plot(self, rebin=None, xscale='lin', yscale='lin', nsample=1) -> None:
         """
         Plots the spectrum data with errorbars, along with the best fit model and the residuals.
         :param rebin: (2 x float) Combining adjacent bins for higher significance: 1st value - sigma significance, 2nd
                value (may not be present) - maximum number of bins to reach the significance. Default None, i.e. no
                rebinning. Equivalent of `setplot rebin` command in Xspec.
-        :param nsample: (int) If set it defines a sampling for the data points, for better visualization. Not
-               considered if rebin is present. Default 1, i.e. all points are shown.
         :param xscale: (str) Scaling of the x-axis, can be either 'lin'/'linear' or 'log'/'logarithmic'. Default 'lin'.
         :param yscale: (str) Same as xscale but for the y-axis.
+        :param nsample: (int) If set it defines a sampling for the data points, for better visualization. Not
+               considered if rebin is present. Default 1, i.e. all points are shown.
         """
 
         xscale_ = xscale.lower().strip()
