@@ -4,12 +4,14 @@ import sys
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the three lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
+from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
 import numpy as np
-
 sp = np.float32
+
 import xspec as xsp
+from ..sixte import keywordList
 
 xsp.Xset.allowNewAttributes = True
 xsp.Xset.chatter = 0
@@ -111,7 +113,16 @@ xsp.DataManager.highlightSpectrum = __highlight_spectrum
 class SpecFit:
     def __init__(self, spectrum, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None):
         self.spectrum = xsp.Spectrum(spectrum, backFile=bkg, respFile=rmf, arfFile=arf)
+        self.keywords = fits.open(spectrum)[0].header
+        # Removing keywords not relevant to the simulation
+        keysToDelete = set()
+        for key in self.keywords.keys():
+            if key not in keywordList:
+                keysToDelete.add(key)
+        for key in keysToDelete:
+            del self.keywords[key]
         self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
+
 
     @property
     def nParameters(self) -> int:
