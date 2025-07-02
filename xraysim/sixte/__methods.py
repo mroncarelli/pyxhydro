@@ -9,7 +9,7 @@ from astropy.io import fits
 
 from xraysim.gadgetutils import phys_const
 from xraysim.specutils import absorption
-from .__shared import instrumentsConfigFile, instrumentsDir, versionTuple
+from .__shared import instrumentsConfigFile, instrumentsDir, keywordList, versionTuple
 from .__classes import SixteInstruments
 
 # Instruments object
@@ -229,9 +229,7 @@ def inherit_keywords(input_file: str, output_file: str, file_type=None) -> int:
     from file extension.
     :return: (int) System output of the writing operation
     """
-    keyword_list = ['INFO', 'SIM_TYPE', 'SIM_FILE', 'SP_FILE', 'SIMPUT_F', 'PARENT_F', 'PROJ', 'X_MIN', 'X_MAX',
-                    'Y_MIN', 'Y_MAX', 'Z_MIN', 'Z_MAX', 'Z_COS', 'D_C', 'NPIX', 'NENE', 'ANG_PIX', 'ANG_MAP', 'ISO_T',
-                    'SMOOTH', 'VPEC', 'NSAMPLE', 'NH', 'RA_C', 'DEC_C', 'FLUXSC', 'T_CUT']
+
     header_inp = fits.getheader(input_file, 0)
     hdulist = fits.open(output_file)
 
@@ -248,7 +246,7 @@ def inherit_keywords(input_file: str, output_file: str, file_type=None) -> int:
     else:
         hdulist[0].header.set("PARENT_F", input_file, "UNKNOWN_TYPE")
 
-    for key in keyword_list:
+    for key in keywordList:
         if key in header_inp:
             hdulist[0].header.set(key, header_inp.get(key), header_inp.comments[key])
 
