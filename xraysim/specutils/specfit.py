@@ -8,6 +8,7 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
 import numpy as np
+
 sp = np.float32
 
 import xspec as xsp
@@ -117,12 +118,11 @@ class SpecFit:
         # Removing keywords not relevant to the simulation
         keysToDelete = set()
         for key in self.keywords.keys():
-            if key not in keywordList:
+            if key not in keywordList + ['SP_FILE', 'ARF_FILE', 'RMF_FILE', 'BKG_FILE']:
                 keysToDelete.add(key)
         for key in keysToDelete:
             del self.keywords[key]
         self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
-
 
     @property
     def nParameters(self) -> int:
@@ -169,18 +169,20 @@ class SpecFit:
     def __get_parvals(self) -> tuple:
         """
         Returns a tuple with the model parameter values, taken from the model attribute.
-        :param self: (ModelFit)
         :return: (tuple) Tuple containing the parameter values.
         """
         return tuple(self.model(self.model.startParIndex + index).values[0] for index in range(self.model.nParameters))
 
     def __get_errors(self) -> tuple:
         """
-        Returns a tuple with the model parameter errors, taken from the model attribute.
-        :param self: (ModelFit)
+        Returns a tuple with the model parameter errors, taken from the model attribute, overwritten to 0 if the
+        parameter is fixed.
         :return: (tuple) Tuple containing the parameter errors.
         """
-        return tuple(self.model(self.model.startParIndex + index).sigma for index in range(self.model.nParameters))
+        return tuple(
+            self.model(self.model.startParIndex + index).sigma if self.__get_parfree()[index] else 0
+            for index in range(self.model.nParameters)
+            )
 
     @property
     def nFixed(self):
@@ -244,7 +246,6 @@ class SpecFit:
     def freeParNames(self):
         """
         Free parameters' names.
-        :param self: (ModelFit)
         :return: (tuple) Tuple of strings containing the free parameters' names, None if the fit has not
         been run.
         """
@@ -542,3 +543,93 @@ class SpecFit:
             # Text annotations
             for i, j in np.ndindex(corr_matrix.shape):
                 ax.text(j, i, "{:.3f}".format(corr_matrix[i, j]), ha="center", va="center", color="black")
+
+    def save(self, fileName: str, overwrite=True):
+        if not self.fitDone:
+            print("Cannot save before the fit has been run")
+            return None
+        else:
+            # Creating the FITS file
+            hdulist = fits.HDUList()
+
+            # Primary (empty)
+            hdulist.append(fits.PrimaryHDU([0]))
+
+            # Files related to the spectrum to save in the header
+            sp_file, arf_file, rmf_file, bkg_file = None, None, None, None
+            if hasattr(self, 'spectrum'):
+                if hasattr(self.spectrum, 'fileName'):
+                    sp_file = self.spectrum.fileName
+                if hasattr(self.spectrum, 'response'):
+                    try:
+                        arf_file = self.spectrum.response.arf
+                    except:
+                        pass
+                    try:
+                        rmf_file = self.spectrum.response.rmf
+                    except:
+                        pass
+                    try:
+                        bkg_file = self.spectrum.response.background
+                    except:
+                        pass
+
+            if sp_file is not None:
+                hdulist[0].header.set('SP_FILE', sp_file)
+            else:
+                if 'SP_FILE' in self.keywords:
+                    hdulist[0].header.set('SP_FILE', self.keywords.get('SP_FILE'))
+
+            if arf_file is not None:
+                hdulist[0].header.set('ARF_FILE', arf_file)
+            else:
+                if 'ARF_FILE' in self.keywords:
+                    hdulist[0].header.set('ARF_FILE', self.keywords.get('ARF_FILE'))
+
+            if rmf_file is not None:
+                hdulist[0].header.set('RMF_FILE', rmf_file)
+            else:
+                if 'RMF_FILE' in self.keywords:
+                    hdulist[0].header.set('RMF_FILE', self.keywords.get('RMF_FILE'))
+
+            if bkg_file is not None:
+                hdulist[0].header.set('BKG_FILE', bkg_file)
+            else:
+                if 'BKG_FILE' in self.keywords:
+                    hdulist[0].header.set('BKG_FILE', self.keywords.get(''))
+
+            # Fit results to save in the header
+            hdulist[0].header.set('STAT', self.fitResult["statistic"])
+            hdulist[0].header.set('DOF', self.fitResult["dof"])
+            hdulist[0].header.set('RSTAT', self.fitResult["rstat"])
+            hdulist[0].header.set('METHOD', self.fitResult["method"])
+            hdulist[0].header.set('N_ITER', self.fitResult["nIterations"])
+            hdulist[0].header.set('CR_DELTA', self.fitResult["criticalDelta"])
+            hdulist[0].header.set('ABUND', self.fitResult["abund"])
+
+            # Adding table with fit results
+            fit_results_columns = [
+                fits.Column(name='PARNAME', format='10A', array=self.fitResult["parnames"]),
+                fits.Column(name='VALUES', format='E', array=self.fitResult["values"]),
+                fits.Column(name='SIGMA', format='E', array=self.fitResult["sigma"]),
+                fits.Column(name='FREE', format='L', array=self.parFree)
+            ]
+            hdulist.append(fits.BinTableHDU.from_columns(fits.ColDefs(fit_results_columns), name="Results"))
+
+            # Adding covariance matrix data
+            hdulist.append(fits.ImageHDU(self.fitResult["covariance"], name='Covariance'))
+
+            # Adding table with fit points
+            fit_points_columns = [
+                fits.Column(name='ENERGY', format='E', array=self.fitPoints["energy"], unit='keV'),
+                fits.Column(name='D_ENERGY', format='E', array=self.fitPoints["dEne"], unit='keV'),
+                fits.Column(name='SPECTRUM', format='E', array=self.fitPoints["spectrum"], unit='cts/s/keV'),
+                fits.Column(name='ERROR', format='E', array=self.fitPoints["error"], unit='cts/s/keV'),
+                fits.Column(name='MODEL', format='E', array=self.fitPoints["model"], unit='cts/s/keV'),
+                fits.Column(name='COUNTS', format='E', array=self.fitPoints["counts"], unit='---'),
+                fits.Column(name='NOTICED', format='J', array=self.fitPoints["noticed"], unit='---')
+            ]
+            hdulist.append(fits.BinTableHDU.from_columns(fits.ColDefs(fit_points_columns), name='Points'))
+
+            # Writing FITS file
+            return hdulist.writeto(fileName, overwrite=overwrite)
