@@ -2,7 +2,7 @@ import os
 import sys
 
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
-# TODO: the three lines above are necessary only to make the code work in IntelliJ (useful for debugging)
+# TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging), os is used
 
 from astropy.io import fits
 import matplotlib.pyplot as plt
@@ -112,17 +112,22 @@ xsp.DataManager.highlightSpectrum = __highlight_spectrum
 
 
 class SpecFit:
-    def __init__(self, spectrum, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None):
-        self.spectrum = xsp.Spectrum(spectrum, backFile=bkg, respFile=rmf, arfFile=arf)
-        self.keywords = fits.open(spectrum)[0].header
-        # Removing keywords not relevant to the simulation
-        keysToDelete = set()
-        for key in self.keywords.keys():
-            if key not in keywordList + ['SPECFILE', 'ANCRFILE', 'RESPFILE', 'BACKFILE', 'MODEL']:
-                keysToDelete.add(key)
-        for key in keysToDelete:
-            del self.keywords[key]
-        self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
+    def __init__(self, specFile, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None):
+        if os.path.isfile(specFile):
+            self.spectrum = xsp.Spectrum(specFile, backFile=bkg, respFile=rmf, arfFile=arf)
+            self.keywords = fits.open(specFile)[0].header
+            # Removing keywords not relevant to the simulation
+            keysToDelete = set()
+            for key in self.keywords.keys():
+                if key not in keywordList + ['SPECFILE', 'ANCRFILE', 'RESPFILE', 'BACKFILE']:
+                    keysToDelete.add(key)
+            for key in keysToDelete:
+                del self.keywords[key]
+            self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
+        else:
+            print('File ' + specFile + ' not found, spectrum not loaded')
+            self.spectrum = None
+            self.model = xsp.Model(model, modName='SpecFit', setPars=setPars)
 
     @property
     def nParameters(self) -> int:
@@ -620,6 +625,11 @@ class SpecFit:
             hdulist[0].header.set('N_ITER', self.fitResult["nIterations"])
             hdulist[0].header.set('CR_DELTA', self.fitResult["criticalDelta"])
             hdulist[0].header.set('ABUND', self.fitResult["abund"])
+
+            # Inheriting keywords related to the simulation
+            for key in keywordList:
+                if key in self.keywords:
+                    hdulist[0].header.set(key, self.keywords.get(key), self.keywords.comments[key])
 
             # Adding table with fit results
             fit_results_columns = [
