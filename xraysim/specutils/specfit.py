@@ -118,7 +118,7 @@ class SpecFit:
         # Removing keywords not relevant to the simulation
         keysToDelete = set()
         for key in self.keywords.keys():
-            if key not in keywordList + ['SP_FILE', 'ARF_FILE', 'RMF_FILE', 'BKG_FILE', 'MODEL']:
+            if key not in keywordList + ['SPECFILE', 'ANCRFILE', 'RESPFILE', 'BACKFILE', 'MODEL']:
                 keysToDelete.add(key)
         for key in keysToDelete:
             del self.keywords[key]
@@ -586,28 +586,28 @@ class SpecFit:
                         pass
 
             if sp_file is not None:
-                hdulist[0].header.set('SP_FILE', sp_file)
+                hdulist[0].header.set('SPECFILE', sp_file)
             else:
-                if 'SP_FILE' in self.keywords:
-                    hdulist[0].header.set('SP_FILE', self.keywords.get('SP_FILE'))
+                if 'SPECFILE' in self.keywords:
+                    hdulist[0].header.set('SPECFILE', self.keywords.get('SPECFILE'))
 
             if arf_file is not None:
-                hdulist[0].header.set('ARF_FILE', arf_file)
+                hdulist[0].header.set('ANCRFILE', arf_file)
             else:
-                if 'ARF_FILE' in self.keywords:
-                    hdulist[0].header.set('ARF_FILE', self.keywords.get('ARF_FILE'))
+                if 'ANCRFILE' in self.keywords:
+                    hdulist[0].header.set('ANCRFILE', self.keywords.get('ANCRFILE'))
 
             if rmf_file is not None:
-                hdulist[0].header.set('RMF_FILE', rmf_file)
+                hdulist[0].header.set('RESPFILE', rmf_file)
             else:
-                if 'RMF_FILE' in self.keywords:
-                    hdulist[0].header.set('RMF_FILE', self.keywords.get('RMF_FILE'))
+                if 'RESPFILE' in self.keywords:
+                    hdulist[0].header.set('RESPFILE', self.keywords.get('RESPFILE'))
 
             if bkg_file is not None:
-                hdulist[0].header.set('BKG_FILE', bkg_file)
+                hdulist[0].header.set('BACKFILE', bkg_file)
             else:
-                if 'BKG_FILE' in self.keywords:
-                    hdulist[0].header.set('BKG_FILE', self.keywords.get(''))
+                if 'BACKFILE' in self.keywords:
+                    hdulist[0].header.set('BACKFILE', self.keywords.get('BACKFILE'))
 
             # Model to save in the header (many components may be present)
             hdulist[0].header.set('MODEL', '*'.join(self.model.componentNames))
