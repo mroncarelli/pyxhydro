@@ -246,5 +246,5 @@ def test_fitpoints_match_with_xspec_plot_values():
     xsp.Plot("data")
     assert specfit.fitPoints["energy"] == pytest.approx(xsp.Plot.x())
     assert specfit.fitPoints["spectrum"] == pytest.approx(xsp.Plot.y())
-    assert specfit.fitPoints["error"] == pytest.approx(xsp.Plot.yErr())
+    assert specfit.fitPoints["sigma"] == pytest.approx(xsp.Plot.yErr())
     assert specfit.fitPoints["model"] == pytest.approx(xsp.Plot.model())

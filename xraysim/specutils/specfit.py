@@ -173,7 +173,7 @@ class SpecFit:
         """
         return tuple(self.model(self.model.startParIndex + index).values[0] for index in range(self.model.nParameters))
 
-    def __get_errors(self) -> tuple:
+    def __get_sigma(self) -> tuple:
         """
         Returns a tuple with the model parameter errors, taken from the model attribute, overwritten to 0 if the
         parameter is fixed.
@@ -183,6 +183,16 @@ class SpecFit:
             self.model(self.model.startParIndex + index).sigma if self.__get_parfree()[index] else 0
             for index in range(self.model.nParameters)
             )
+
+    def __get_errflags(self) -> tuple:
+        """
+        Returns the 9 error flags of the parameters.
+        :return: (tuple) Tuple containing the error flags.
+        """
+        return tuple(
+            self.model(self.model.startParIndex + index).error[2] if self.__get_parfree()[index] else ''
+            for index in range(self.model.nParameters)
+        )
 
     @property
     def nFixed(self):
@@ -322,7 +332,8 @@ class SpecFit:
         self.fitResult = {
             "parnames": self.parNames,
             "values": self.__get_parvals(),
-            "sigma": self.__get_errors(),
+            "sigma": self.__get_sigma(),
+            "error_flags": self.__get_errflags(),
             "statistic": xsp.Fit.statistic,
             "dof": xsp.Fit.dof,
             "rstat": xsp.Fit.statistic / (xsp.Fit.dof - 1),
@@ -339,7 +350,7 @@ class SpecFit:
             "energy": 0.5 * (np.asarray(self.spectrum.energies)[:, 0] + np.asarray(self.spectrum.energies)[:, 1]),
             # [keV]
             "spectrum": self.__get_spectrum(),  # cts/s/keV [keV]
-            "error": np.divide(self.__get_spectrum(), np.sqrt(self.__get_counts()),
+            "sigma": np.divide(self.__get_spectrum(), np.sqrt(self.__get_counts()),
                                out=np.zeros_like(self.__get_spectrum(), dtype=sp), where=self.__get_counts() > 0),
             "model": (np.asarray(self.model.folded(self.spectrum.index), dtype=sp) / self.__get_denergy()),
             "counts": self.__get_counts(),  # [---]
@@ -478,7 +489,7 @@ class SpecFit:
             if rebin is None:
                 x = self.fitPoints["energy"][::nsample]  # [keV]
                 y = self.fitPoints["spectrum"][::nsample]  # [cts/s/keV]
-                y_error = self.fitPoints["error"][::nsample]  # [cts/s/keV]
+                y_error = self.fitPoints["sigma"][::nsample]  # [cts/s/keV]
                 residuals = self.fitPoints["spectrum"][::nsample] - self.fitPoints["model"][::nsample]  # [cts/s/keV]
             else:
                 larr = len(self.fitPoints["energy"])
@@ -615,6 +626,7 @@ class SpecFit:
                 fits.Column(name='PARNAME', format='10A', array=self.fitResult["parnames"]),
                 fits.Column(name='VALUES', format='E', array=self.fitResult["values"]),
                 fits.Column(name='SIGMA', format='E', array=self.fitResult["sigma"]),
+                fits.Column(name='ERRFLAGS', format='9A', array=self.fitResult["error_flags"]),
                 fits.Column(name='FREE', format='L', array=self.parFree)
             ]
             hdulist.append(fits.BinTableHDU.from_columns(fits.ColDefs(fit_results_columns), name="Results"))
@@ -627,7 +639,7 @@ class SpecFit:
                 fits.Column(name='ENERGY', format='E', array=self.fitPoints["energy"], unit='keV'),
                 fits.Column(name='D_ENERGY', format='E', array=self.fitPoints["dEne"], unit='keV'),
                 fits.Column(name='SPECTRUM', format='E', array=self.fitPoints["spectrum"], unit='cts/s/keV'),
-                fits.Column(name='ERROR', format='E', array=self.fitPoints["error"], unit='cts/s/keV'),
+                fits.Column(name='SIGMA', format='E', array=self.fitPoints["sigma"], unit='cts/s/keV'),
                 fits.Column(name='MODEL', format='E', array=self.fitPoints["model"], unit='cts/s/keV'),
                 fits.Column(name='COUNTS', format='E', array=self.fitPoints["counts"], unit='---'),
                 fits.Column(name='NOTICED', format='J', array=self.fitPoints["noticed"], unit='---')
