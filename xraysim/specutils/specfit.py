@@ -118,7 +118,7 @@ class SpecFit:
         # Removing keywords not relevant to the simulation
         keysToDelete = set()
         for key in self.keywords.keys():
-            if key not in keywordList + ['SP_FILE', 'ARF_FILE', 'RMF_FILE', 'BKG_FILE']:
+            if key not in keywordList + ['SP_FILE', 'ARF_FILE', 'RMF_FILE', 'BKG_FILE', 'MODEL']:
                 keysToDelete.add(key)
         for key in keysToDelete:
             del self.keywords[key]
@@ -597,6 +597,9 @@ class SpecFit:
             else:
                 if 'BKG_FILE' in self.keywords:
                     hdulist[0].header.set('BKG_FILE', self.keywords.get(''))
+
+            # Model to save in the header (many components may be present)
+            hdulist[0].header.set('MODEL', '*'.join(self.model.componentNames))
 
             # Fit results to save in the header
             hdulist[0].header.set('STAT', self.fitResult["statistic"])
