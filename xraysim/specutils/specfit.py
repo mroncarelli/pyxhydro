@@ -112,22 +112,31 @@ xsp.DataManager.highlightSpectrum = __highlight_spectrum
 
 
 class SpecFit:
-    def __init__(self, specFile, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None):
+    def __init__(self, specFile, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None,
+                 header=None):
         if os.path.isfile(specFile):
             self.spectrum = xsp.Spectrum(specFile, backFile=bkg, respFile=rmf, arfFile=arf)
             self.keywords = fits.open(specFile)[0].header
-            # Removing keywords not relevant to the simulation
+            if header:
+                for key in header:
+                    # The header of the spectrum file prevails in case of duplicates
+                    if key not in self.keywords:
+                        self.keywords.append(key, header.get(key), header.comments[key])
+            self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
+        else:
+            print('File ' + specFile + ' not found, spectrum not loaded')
+            self.spectrum = None
+            self.keywords = header
+            self.model = xsp.Model(model, modName='SpecFit', setPars=setPars)
+
+        # Removing keywords not relevant to the simulation
+        if self.keywords is not None:
             keysToDelete = set()
             for key in self.keywords.keys():
                 if key not in keywordList + ['SPECFILE', 'ANCRFILE', 'RESPFILE', 'BACKFILE']:
                     keysToDelete.add(key)
             for key in keysToDelete:
                 del self.keywords[key]
-            self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
-        else:
-            print('File ' + specFile + ' not found, spectrum not loaded')
-            self.spectrum = None
-            self.model = xsp.Model(model, modName='SpecFit', setPars=setPars)
 
     @property
     def nParameters(self) -> int:
@@ -187,7 +196,7 @@ class SpecFit:
         return tuple(
             self.model(self.model.startParIndex + index).sigma if self.__get_parfree()[index] else 0
             for index in range(self.model.nParameters)
-            )
+        )
 
     def __get_errflags(self) -> tuple:
         """
@@ -269,7 +278,7 @@ class SpecFit:
     def __get_counts(self):
         return np.asarray(self.spectrum.values, dtype=sp) * self.spectrum.exposure  # [---]
 
-    def get_energy(self):
+    def __get_energy(self):
         return 0.5 * (np.asarray(self.spectrum.energies, dtype=sp)[:, 0] +
                       np.asarray(self.spectrum.energies, dtype=sp)[:, 1])  # [keV]
 
@@ -352,8 +361,7 @@ class SpecFit:
         # Saving the data of the fit points
 
         self.fitPoints = {
-            "energy": 0.5 * (np.asarray(self.spectrum.energies)[:, 0] + np.asarray(self.spectrum.energies)[:, 1]),
-            # [keV]
+            "energy": self.__get_energy(),  # [keV]
             "spectrum": self.__get_spectrum(),  # cts/s/keV [keV]
             "sigma": np.divide(self.__get_spectrum(), np.sqrt(self.__get_counts()),
                                out=np.zeros_like(self.__get_spectrum(), dtype=sp), where=self.__get_counts() > 0),
@@ -419,36 +427,41 @@ class SpecFit:
         :param abund: (str) Abundance table, see `abund` command in Xspec. Default 'angr' i.e. Anders & Grevesse (1989).
         """
 
-        # Energy range
-        self.__set_energy_range(erange)
+        if self.spectrum is None:
+            print('Spectrum not loaded: no data to fit.')
+            return None
 
-        # Initial conditions
-        if start is not None:
-            for index, par in enumerate(start):
-                self.model(self.model.startParIndex + index).values = par
-
-        # Fixed/free parameter
-        if fixed is not None:
-            for index, frozen in enumerate(fixed):
-                self.model(self.model.startParIndex + index).frozen = frozen
         else:
-            for index in range(self.model.nParameters):
-                self.model(self.model.startParIndex + index).frozen = False
+            # Energy range
+            self.__set_energy_range(erange)
 
-        # Statistic method
-        if method is not None:
-            xsp.Fit.statMethod = method
+            # Initial conditions
+            if start is not None:
+                for index, par in enumerate(start):
+                    self.model(self.model.startParIndex + index).values = par
 
-        # Number of iterations
-        if niterations is not None:
-            xsp.Fit.nIterations = niterations
+            # Fixed/free parameter
+            if fixed is not None:
+                for index, frozen in enumerate(fixed):
+                    self.model(self.model.startParIndex + index).frozen = frozen
+            else:
+                for index in range(self.model.nParameters):
+                    self.model(self.model.startParIndex + index).frozen = False
 
-        # Critical delta
-        if criticaldelta is not None:
-            xsp.Fit.criticalDelta = criticaldelta
+            # Statistic method
+            if method is not None:
+                xsp.Fit.statMethod = method
 
-        # Fitting
-        self.__perform(abund=abund)
+            # Number of iterations
+            if niterations is not None:
+                xsp.Fit.nIterations = niterations
+
+            # Critical delta
+            if criticaldelta is not None:
+                xsp.Fit.criticalDelta = criticaldelta
+
+            # Fitting
+            self.__perform(abund=abund)
 
     def plot(self, rebin=None, xscale='lin', yscale='lin', nsample=1) -> None:
         """
@@ -497,6 +510,12 @@ class SpecFit:
                 y_error = self.fitPoints["sigma"][::nsample]  # [cts/s/keV]
                 residuals = self.fitPoints["spectrum"][::nsample] - self.fitPoints["model"][::nsample]  # [cts/s/keV]
             else:
+                exposure_ = self.spectrum.exposure if hasattr(self.spectrum, 'exposure') else self.keywords.get(
+                    'EXPOSURE')
+                if exposure_ is None:
+                    print('Exposure not present: no rebinning possible')
+                    return None
+
                 larr = len(self.fitPoints["energy"])
                 try:
                     larg = len(rebin)
@@ -522,9 +541,9 @@ class SpecFit:
                         istart + n - 1] - self.fitPoints["energy"][istart] + 0.5 * self.fitPoints["dEne"][istart]
                     # Center of the bin [keV]
                     x.append(self.fitPoints["energy"][istart] - 0.5 * self.fitPoints["dEne"][istart] + 0.5 * delta_ene)
-                    y_ = c / (self.spectrum.exposure * delta_ene)  # [cts/s/keV]
+                    y_ = c / (exposure_ * delta_ene)  # [cts/s/keV]
                     y.append(y_)  # [cts/s/keV]
-                    y_error.append(np.sqrt(c) / (self.spectrum.exposure * delta_ene))  # [cts/s/keV]
+                    y_error.append(np.sqrt(c) / (exposure_ * delta_ene))  # [cts/s/keV]
                     residuals.append(
                         y_ - np.sum((self.fitPoints["model"] * self.fitPoints["dEne"])[istart:istart + n]) / delta_ene)
                     istart = istart + n
@@ -572,47 +591,40 @@ class SpecFit:
             hdulist.append(fits.PrimaryHDU([0]))
 
             # Files related to the spectrum to save in the header
-            sp_file, arf_file, rmf_file, bkg_file = None, None, None, None
-            if hasattr(self, 'spectrum'):
-                if hasattr(self.spectrum, 'fileName'):
-                    sp_file = self.spectrum.fileName
-                if hasattr(self.spectrum, 'response'):
-                    try:
-                        arf_file = self.spectrum.response.arf
-                    except:
-                        pass
-                    try:
-                        rmf_file = self.spectrum.response.rmf
-                    except:
-                        pass
-                    try:
-                        bkg_file = self.spectrum.response.background
-                    except:
-                        pass
+            sp_file = self.spectrum.fileName if hasattr(self.spectrum, 'fileName') else None
+            arf_file, rmf_file, bkg_file = None, None, None
+            if hasattr(self.spectrum, 'response'):
+                try:
+                    arf_file = self.spectrum.response.arf
+                except:
+                    pass
+                try:
+                    rmf_file = self.spectrum.response.rmf
+                except:
+                    pass
+                try:
+                    bkg_file = self.spectrum.response.background
+                except:
+                    pass
 
-            if sp_file is not None:
-                hdulist[0].header.set('SPECFILE', sp_file)
-            else:
-                if 'SPECFILE' in self.keywords:
-                    hdulist[0].header.set('SPECFILE', self.keywords.get('SPECFILE'))
+            # Exposure to save in the header
+            exposure = self.spectrum.exposure if hasattr(self.spectrum, 'exposure') else None  # [s]
 
-            if arf_file is not None:
-                hdulist[0].header.set('ANCRFILE', arf_file)
-            else:
-                if 'ANCRFILE' in self.keywords:
-                    hdulist[0].header.set('ANCRFILE', self.keywords.get('ANCRFILE'))
+            def header_set_special(k, v, c=None):
+                """
+                Sets a value in the header if not None, or else tries to find it in self.keywords
+                """
+                if v is not None:
+                    hdulist[0].header.set(k, v, c)
+                else:
+                    if k in self.keywords:
+                        hdulist[0].header.set(k, self.keywords.get(k), self.keywords.comments[k])
 
-            if rmf_file is not None:
-                hdulist[0].header.set('RESPFILE', rmf_file)
-            else:
-                if 'RESPFILE' in self.keywords:
-                    hdulist[0].header.set('RESPFILE', self.keywords.get('RESPFILE'))
-
-            if bkg_file is not None:
-                hdulist[0].header.set('BACKFILE', bkg_file)
-            else:
-                if 'BACKFILE' in self.keywords:
-                    hdulist[0].header.set('BACKFILE', self.keywords.get('BACKFILE'))
+            header_set_special('SPECFILE', sp_file)
+            header_set_special('ANCRFILE', arf_file)
+            header_set_special('RESPFILE', rmf_file)
+            header_set_special('BACKFILE', bkg_file)
+            header_set_special('EXPOSURE', exposure, 'Exposure time (s)')
 
             # Model to save in the header (many components may be present)
             hdulist[0].header.set('MODEL', '*'.join(self.model.componentNames))
