@@ -76,7 +76,7 @@ def assert_fit_results_within_tolerance(specfit: SpecFit, reference, tol=1.) -> 
 def test_apec_no_stat_fit_start_with_right_parameters():
     # Fitting the apec spectrum produced with fakeit and no statistical fluctuations starting with the right parameters
     # should lead to the correct result, within tolerance
-    specfit = SpecFit(spectrumApecNoStat, "apec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumApecNoStat, "apec", respFile=rmf, arfFile=arf)
     specfit.run(start=right_pars_apec, method="cstat")
     assert_fit_results_within_tolerance(specfit, right_pars_apec, tol=toleranceNoStat)
 
@@ -84,7 +84,7 @@ def test_apec_no_stat_fit_start_with_right_parameters():
 def test_bapec_no_stat_fit_start_with_right_parameters():
     # Fitting the bapec spectrum produced with fakeit and no statistical fluctuations starting with the right
     # parameters should lead to the correct result, within tolerance
-    specfit = SpecFit(spectrumBapecNoStat, "bapec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumBapecNoStat, "bapec", respFile=rmf, arfFile=arf)
     specfit.run(start=right_pars_bapec, method="cstat")
     assert_fit_results_within_tolerance(specfit, right_pars_bapec, tol=toleranceNoStat)
 
@@ -92,7 +92,7 @@ def test_bapec_no_stat_fit_start_with_right_parameters():
 def test_apec_fit_start_with_right_parameters():
     # Fitting the apec spectrum produced with fakeit starting with the right parameters should
     # lead to the correct result, within tolerance
-    specfit = SpecFit(spectrumApec, "apec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumApec, "apec", respFile=rmf, arfFile=arf)
     specfit.run(start=right_pars_apec, method="cstat")
     assert_fit_results_within_tolerance(specfit, right_pars_apec, tol=tolerance)
 
@@ -100,7 +100,7 @@ def test_apec_fit_start_with_right_parameters():
 def test_bapec_fit_start_with_right_parameters():
     # Fitting the bapec spectrum produced with fakeit starting with the right parameters should
     # lead to the correct result, within tolerance
-    specfit = SpecFit(spectrumBapec, "bapec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
     specfit.run(start=right_pars_bapec, method="cstat")
     assert_fit_results_within_tolerance(specfit, right_pars_bapec, tol=tolerance)
 
@@ -110,10 +110,10 @@ def test_fit_two_spectra_start_with_right_parameters():
     # parameters should lead to the correct result, within tolerance. Spectra are fitted in inverse order with respect
     # to their loading to ensure that the fitting procedure works even in this case. It also checks that the xspec
     # state variables are restored correctly after the fit.
-    specfit_apec = SpecFit(spectrumApec, "apec", rmf=rmf, arf=arf)
+    specfit_apec = SpecFit(spectrumApec, "apec", respFile=rmf, arfFile=arf)
     assert not specfit_apec.fitDone
     assert_specfit_has_coherent_properties(specfit_apec)
-    specfit_bapec = SpecFit(spectrumBapec, "bapec", rmf=rmf, arf=arf)
+    specfit_bapec = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
     assert not specfit_bapec.fitDone
     assert_specfit_has_coherent_properties(specfit_bapec)
 
@@ -146,7 +146,7 @@ def test_fit_two_spectra_start_with_right_parameters():
 def test_apec_no_stat_fit_start_with_only_redshift_right():
     # Fitting the apec spectrum produced with fakeit and no statistical fluctuations, starting with all wrong
     # parameters except for redshift should lead to the correct result, within tolerance
-    specfit = SpecFit(spectrumApecNoStat, "apec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumApecNoStat, "apec", respFile=rmf, arfFile=arf)
     start_pars = wrong_pars_apec
     start_pars[2] = right_pars_apec[2]
     specfit.run(start=start_pars, method="cstat")
@@ -156,7 +156,7 @@ def test_apec_no_stat_fit_start_with_only_redshift_right():
 def test_bapec_no_stat_fit_start_with_only_redshift_right():
     # Fitting the bapec spectrum produced with fakeit and no statistical fluctuations, starting with all wrong
     # parameters except for redshift should lead to the correct result, within tolerance
-    specfit = SpecFit(spectrumBapecNoStat, "bapec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumBapecNoStat, "bapec", respFile=rmf, arfFile=arf)
     start_pars = wrong_pars_bapec
     start_pars[2] = right_pars_bapec[2]
     specfit.run(start=start_pars, method="cstat")
@@ -166,7 +166,7 @@ def test_bapec_no_stat_fit_start_with_only_redshift_right():
 def test_apec_fit_start_with_only_redshift_right():
     # Fitting the apec spectrum produced with fakeit, starting with all wrong parameters except for redshift should
     # lead to the correct result, within tolerance
-    specfit = SpecFit(spectrumApec, "apec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumApec, "apec", respFile=rmf, arfFile=arf)
     start_pars = wrong_pars_apec
     start_pars[2] = right_pars_apec[2] 
     specfit.run(start=start_pars, method="cstat")
@@ -177,12 +177,12 @@ def test_covariance_and_correlation_matrices_are_none_at_initialization():
     """
     Tests that the covariance and the correlation matrices are None before running the fit
     """
-    specfit = SpecFit(spectrumBapec, "bapec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
     assert specfit.covariance_matrix() is None
     assert specfit.correlation_matrix() is None
 
 
-specFitBapec = SpecFit(spectrumBapec, "bapec", rmf=rmf, arf=arf)
+specFitBapec = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
 start_pars = wrong_pars_bapec
 start_pars[2] = right_pars_bapec[2]
 specFitBapec.run(start=start_pars, method="cstat")
@@ -240,7 +240,7 @@ def test_fitpoints_match_with_xspec_plot_values():
     """
     xsp.AllData.clear()
     xsp.AllModels.clear()
-    specfit = SpecFit(spectrumApec, "apec", rmf=rmf, arf=arf)
+    specfit = SpecFit(spectrumApec, "apec", respFile=rmf, arfFile=arf)
     specfit.run(start=right_pars_apec, method="cstat")
     xsp.Plot.xAxis = "keV"
     xsp.Plot("data")

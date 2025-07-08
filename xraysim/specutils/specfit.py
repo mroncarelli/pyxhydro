@@ -112,10 +112,10 @@ xsp.DataManager.highlightSpectrum = __highlight_spectrum
 
 
 class SpecFit:
-    def __init__(self, specFile, model, bkg='USE_DEFAULT', rmf='USE_DEFAULT', arf='USE_DEFAULT', setPars=None,
-                 header=None):
-        if os.path.isfile(specFile):
-            self.spectrum = xsp.Spectrum(specFile, backFile=bkg, respFile=rmf, arfFile=arf)
+    def __init__(self, specFile, model, backFile='USE_DEFAULT', respFile='USE_DEFAULT', arfFile='USE_DEFAULT',
+                 setPars=None, header=None):
+        if specFile is not None and os.path.isfile(specFile):
+            self.spectrum = xsp.Spectrum(specFile, backFile=backFile, respFile=respFile, arfFile=arfFile)
             self.keywords = fits.open(specFile)[0].header
             if header:
                 for key in header:
@@ -124,7 +124,7 @@ class SpecFit:
                         self.keywords.append(key, header.get(key), header.comments[key])
             self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
         else:
-            print('File ' + specFile + ' not found, spectrum not loaded')
+            print('File ' + str(specFile) + ' not found, spectrum not loaded')
             self.spectrum = None
             self.keywords = header
             self.model = xsp.Model(model, modName='SpecFit', setPars=setPars)
@@ -346,6 +346,7 @@ class SpecFit:
         self.fitResult = {
             "parnames": self.parNames,
             "values": self.__get_parvals(),
+            "free": self.__get_parfree(),
             "sigma": self.__get_sigma(),
             "error_flags": self.__get_errflags(),
             "statistic": xsp.Fit.statistic,
@@ -647,9 +648,9 @@ class SpecFit:
             fit_results_columns = [
                 fits.Column(name='PARNAME', format='10A', array=self.fitResult["parnames"]),
                 fits.Column(name='VALUES', format='E', array=self.fitResult["values"]),
+                fits.Column(name='FREE', format='L', array=self.fitResult["free"]),
                 fits.Column(name='SIGMA', format='E', array=self.fitResult["sigma"]),
-                fits.Column(name='ERRFLAGS', format='9A', array=self.fitResult["error_flags"]),
-                fits.Column(name='FREE', format='L', array=self.parFree)
+                fits.Column(name='ERRFLAGS', format='9A', array=self.fitResult["error_flags"])
             ]
             hdulist.append(fits.BinTableHDU.from_columns(fits.ColDefs(fit_results_columns), name="Results"))
 
@@ -670,3 +671,84 @@ class SpecFit:
 
             # Writing FITS file
             return hdulist.writeto(fileName, overwrite=overwrite)
+
+
+def restore(file: str, path=None) -> SpecFit:
+    """
+    Restores a SpecFit instance previously saved in a file with the save method.
+    :param file: (str) The saved file.
+    :param path: (str or list/tuple of str) Path where to look for files to allow a complete restore of the SpcFit
+    instance: if set it will look for spectrum, arf, rmf and background files present in the file header also in the
+    folders indicated, in order.
+    :return: (SpecFit) The restored SpecFit instance.
+    """
+
+
+    def __path_search(file: str, path):
+        baseName = os.path.basename(file)
+        if path is not None:
+            path_ = [path] if isinstance(path, str) else path
+            i = 0
+            found = os.path.isfile(path[i] + '/' + baseName)
+            while not found and i < len(path_)-1:
+                i += 1
+                found = os.path.isfile(path[i] + '/' + baseName)
+            if found:
+                return path[i] + '/' + baseName
+            else:
+                return None
+        else:
+            return None
+
+    hdulist = fits.open(file)
+    header = hdulist[0].header
+    specFile = header.get('SPECFILE')
+    if not os.path.isfile(specFile):
+        specFile = __path_search(header.get('SPECFILE'), path)
+    ancrFile = header.get('ANCRFILE')
+    if ancrFile is not None and not os.path.isfile(ancrFile):
+        ancrFile = __path_search(ancrFile, path)
+    respFile = header.get('RESPFILE')
+    if respFile is not None and not os.path.isfile(respFile):
+        respFile = __path_search(respFile, path)
+    backFile = header.get('BACKFILE')
+    if backFile is not None and not os.path.isfile(backFile):
+        backFile = __path_search(backFile, path)
+    model = header.get('MODEL')
+    values = hdulist[1].data['VALUES']
+
+    # Initialization
+    result = SpecFit(specFile, model, backFile=backFile, respFile=respFile, arfFile=ancrFile,
+                     setPars=tuple(np.float64(values)), header=header)
+
+    # Setting fitResult
+    d1 = hdulist[1].data
+    result.fitResult = {
+        "parnames": tuple(d1['PARNAME']),
+        "values": tuple(d1['VALUES']),
+        "free": tuple(d1['FREE']),
+        "sigma": tuple(d1['SIGMA']),
+        "error_flags": tuple(d1['ERRFLAGS']),
+        "statistic": header.get('STAT'),
+        "dof": header.get('DOF'),
+        "rstat": header.get('RSTAT'),
+        "covariance": tuple(hdulist[2].data),
+        "method": header.get('METHOD'),
+        "nIterations": header.get('N_ITER'),
+        "criticalDelta": header.get('CR_DELTA'),
+        "abund": header.get('ABUND')
+    }
+
+    # Setting fitPoints
+    d3 = hdulist[3].data
+    result.fitPoints = {
+        "energy": d3['ENERGY'],  # [keV]
+        "spectrum": d3['SPECTRUM'],  # cts/s/keV [keV]
+        "sigma": d3['SIGMA'],
+        "model": d3['MODEL'],
+        "counts": d3['COUNTS'],  # [---]
+        "dEne": d3['D_ENERGY'],  # [keV]
+        "noticed": d3['NOTICED']
+    }
+
+    return result
