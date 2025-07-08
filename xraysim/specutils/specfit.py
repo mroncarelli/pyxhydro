@@ -138,6 +138,12 @@ class SpecFit:
             for key in keysToDelete:
                 del self.keywords[key]
 
+        self._isRestored = False
+
+    @property
+    def restored(self) -> bool:
+        return self._isRestored
+
     @property
     def nParameters(self) -> int:
         """
@@ -214,7 +220,7 @@ class SpecFit:
         Number of fixed (frozen) parameters of the model.
         :return: (int) The number of fixed (frozen) parameters, None if the fit has not been run yet.
         """
-        if self.fitDone:
+        if self.fitDone or self.restored:
             result = 0
             for index in range(self.nParameters):
                 if self.model(self.model.startParIndex + index).frozen:
@@ -229,7 +235,7 @@ class SpecFit:
         Number of free parameters of the model.
         :return: (int) The number of free parameters, None if the fit has not been run yet.
         """
-        if self.fitDone:
+        if self.fitDone or self.restored:
             result = 0
             for index in range(self.nParameters):
                 if not self.model(self.model.startParIndex + index).frozen:
@@ -245,7 +251,7 @@ class SpecFit:
         :return: (tuple) Tuple of bool containing True if the parameter is fixed (frozen), False if it is free. If the
                  fit has not been run, returns None.
         """
-        return self.__get_parfixed() if self.fitDone else None
+        return self.__get_parfixed() if self.fitDone or self.restored else None
 
     @property
     def parFree(self):
@@ -254,7 +260,7 @@ class SpecFit:
         :return: (tuple) Tuple of bool containing True if the parameter is free, False if it is fixed (frozen). If the
                  fit has not been run, returns None.
         """
-        return self.__get_parfree() if self.fitDone else None
+        return self.__get_parfree() if self.fitDone or self.restored else None
 
     @property
     def fixedParNames(self):
@@ -263,8 +269,10 @@ class SpecFit:
         :return: (tuple) Tuple of strings containing the fixed (frozen) parameters' names, None if the fit has not
         been run.
         """
-        # return tuple([self.parNames[i] for i in range(self.nParameters) if self.__get_parfixed()[i]])
-        return tuple([name for i, name in enumerate(self.parNames) if self.parFixed[i]]) if self.fitDone else None
+        if self.fitDone or self.restored:
+            return tuple([name for i, name in enumerate(self.parNames) if self.parFixed[i]])
+        else:
+            return None
 
     @property
     def freeParNames(self):
@@ -273,7 +281,10 @@ class SpecFit:
         :return: (tuple) Tuple of strings containing the free parameters' names, None if the fit has not
         been run.
         """
-        return tuple([name for i, name in enumerate(self.parNames) if self.parFree[i]]) if self.fitDone else None
+        if self.fitDone or self.restored:
+            return tuple([name for i, name in enumerate(self.parNames) if self.parFree[i]])
+        else:
+            return None
 
     def __get_counts(self):
         return np.asarray(self.spectrum.values, dtype=sp) * self.spectrum.exposure  # [---]
@@ -380,7 +391,7 @@ class SpecFit:
         :return: (2D array) The covariance matrix
         """
 
-        if not self.fitDone:
+        if not self.fitDone and not self.restored:
             print("No data available, the fit has not been run yet.")
             return None
         else:
@@ -476,13 +487,12 @@ class SpecFit:
                considered if rebin is present. Default 1, i.e. all points are shown.
         """
 
-        xscale_ = xscale.lower().strip()
-        yscale_ = yscale.lower().strip()
-        if not self.fitDone:
+        if not self.fitDone and not self.restored:
             print("No data available, the fit has not been run yet.")
         else:
             fig, (axd, axr) = plt.subplots(nrows=2, sharex=True, gridspec_kw={'height_ratios': [5, 2], 'hspace': 0})
 
+            xscale_ = xscale.lower().strip()
             if xscale_ in ['lin', 'linear']:
                 axd.set_xscale('linear')
                 axr.set_xscale('linear')
@@ -493,6 +503,7 @@ class SpecFit:
                 raise ValueError(
                     "Invalid input type for xscale, must be one of 'lin' ('linear') or 'log' ('logarithmic')")
 
+            yscale_ = yscale.lower().strip()
             if yscale_ in ['lin', 'linear']:
                 axd.set_yscale('linear')
             elif yscale_ in ['log', 'logarithmic']:
@@ -683,7 +694,6 @@ def restore(file: str, path=None) -> SpecFit:
     :return: (SpecFit) The restored SpecFit instance.
     """
 
-
     def __path_search(file: str, path):
         baseName = os.path.basename(file)
         if path is not None:
@@ -721,12 +731,16 @@ def restore(file: str, path=None) -> SpecFit:
     result = SpecFit(specFile, model, backFile=backFile, respFile=respFile, arfFile=ancrFile,
                      setPars=tuple(np.float64(values)), header=header)
 
+    # Flagging the output as restored
+    result._isRestored = True
+
     # Setting fitResult
     d1 = hdulist[1].data
+    free_pars = tuple(d1['FREE'])
     result.fitResult = {
         "parnames": tuple(d1['PARNAME']),
         "values": tuple(d1['VALUES']),
-        "free": tuple(d1['FREE']),
+        "free": free_pars,
         "sigma": tuple(d1['SIGMA']),
         "error_flags": tuple(d1['ERRFLAGS']),
         "statistic": header.get('STAT'),
@@ -738,6 +752,10 @@ def restore(file: str, path=None) -> SpecFit:
         "criticalDelta": header.get('CR_DELTA'),
         "abund": header.get('ABUND')
     }
+
+    # Setting free/fixed parameters in model attributes (will make fitDone property work correctly)
+    for index in range(result.model.nParameters):
+        result.model(result.model.startParIndex + index).frozen = not free_pars[index]
 
     # Setting fitPoints
     d3 = hdulist[3].data
