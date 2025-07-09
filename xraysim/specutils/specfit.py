@@ -582,10 +582,20 @@ class SpecFit:
         # Plotting
         if corr_matrix is not None:
             fig, ax = plt.subplots()
-            ax.set_xticks(range(self.nFree), labels=self.freeParNames, rotation=45, ha="right",
-                          rotation_mode="anchor")
+            plt.subplots_adjust(bottom=0.15)
+            ax.set_xticks(range(self.nFree), labels=self.freeParNames, rotation=45, ha="center", va="top",
+                          rotation_mode="default")
             ax.set_yticks(range(self.nFree), labels=self.freeParNames)
+            ax.tick_params(axis='both', which='major', length=0, pad=10)
+            ax.tick_params(axis='both', which='minor', length=5)
             ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
+            # Drawing grid lines requires some tweaks due to a bug
+            # (see https://github.com/matplotlib/matplotlib/issues/12934)
+            minor_ticks = np.arange(self.nFree+1) - 0.51
+            minor_ticks[-1] += 0.01
+            ax.set_xticks(minor_ticks, minor=True, labels=np.full(self.nFree+1, None))
+            ax.set_yticks(minor_ticks, minor=True, labels=np.full(self.nFree+1, None))
+            ax.grid(which='minor', color='black', linewidth=1)
 
             # Text annotations
             for i, j in np.ndindex(corr_matrix.shape):
