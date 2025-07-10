@@ -1,3 +1,7 @@
+"""
+Set of methods useful to compare FITS files
+"""
+
 import os
 import warnings
 
