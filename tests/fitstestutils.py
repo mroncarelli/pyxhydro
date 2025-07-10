@@ -43,7 +43,8 @@ def assert_string_in_header_matches_reference(string: str, string_reference: str
     for envVar in environmentVariablesPathList:
         if envVar in string:
             split_list = string.split(envVar)
-            assert string_reference.startswith(split_list[0]) and string_reference.endswith(split_list[-1])
+            assert string_reference.startswith(split_list[0]) and string_reference.endswith(
+                split_list[-1]), string + " != " + string_reference
             return None
         else:
             pass
