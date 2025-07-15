@@ -193,6 +193,13 @@ class SpecFit:
         """
         return tuple(self.model(self.model.startParIndex + index).values[0] for index in range(self.model.nParameters))
 
+    def __get_parunits(self) -> tuple:
+        """
+        Returns a tuple with the model parameter units, taken from the model attribute.
+        :return: (tuple) Tuple containing the parameter units.
+        """
+        return tuple(self.model(self.model.startParIndex + index).unit for index in range(self.model.nParameters))
+
     def __get_sigma(self) -> tuple:
         """
         Returns a tuple with the model parameter errors, taken from the model attribute, overwritten to 0 if the
@@ -356,6 +363,7 @@ class SpecFit:
         # Saving fit results
         self.fitResult = {
             "parnames": self.parNames,
+            "units": self.__get_parunits(),
             "values": self.__get_parvals(),
             "free": self.__get_parfree(),
             "sigma": self.__get_sigma(),
@@ -601,9 +609,55 @@ class SpecFit:
             for i, j in np.ndindex(corr_matrix.shape):
                 ax.text(j, i, "{:.3f}".format(corr_matrix[i, j]), ha="center", va="center", color="black")
 
+    def show(self) -> None:
+        """
+        Prints the fit results in readable way
+        :return: None
+        """
+        def __val2str(val: float, just='l') -> str:
+            if val < 0.1 or val > 100:
+                return "{:.3E}".format(val)
+            else:
+                if just == 'l':
+                    return "{:6.3F}".format(val).strip().ljust(9)
+                else:
+                    return "{:6.3F}".format(val).rjust(9)
+
+        def __par_string(ipar: int) -> str:
+            par_string = self.parNames[ipar].rjust(8) + "  "
+            par_string += str(self.fitResult["units"][ipar]).ljust(6) + " "
+            par_string += __val2str(self.fitResult["values"][ipar], 'r') + " "
+            if self.parFree[ipar]:
+                par_string += "± " + __val2str(self.fitResult["sigma"][ipar])
+            else:
+                par_string += "(fixed)    "
+
+            # Error flags are shown only if at least one error is present
+            errfl = str(self.fitResult["error_flags"][ipar])
+            if 'T' in errfl:
+                par_string += "  "
+                greenblock = "\033[92m\u2588\033[0m"
+                for i, ich in enumerate(errfl):
+                    if ich == 'T':
+                        par_string += "\033[91m" + str(i + 1) + "\033[0m"
+                    else:
+                        par_string += greenblock
+            return par_string
+
+        if not self.fitDone and not self.restored:
+            print("Nothing to show, the fit has not been run yet.")
+            return None
+        else:
+            for ipar in range(self.nParameters):
+                print(__par_string(ipar))
+        print("")
+        print(str(self.fitResult["method"]) + " = " + __val2str(self.fitResult["statistic"]))
+        print("D.o.f. = " + str(self.fitResult["dof"]))
+        print("Red. " + self.fitResult["method"] + " = " + __val2str(self.fitResult["rstat"]))
+
     def save(self, fileName: str, overwrite=True):
-        if not self.fitDone:
-            print("Cannot save before the fit has been run")
+        if not self.fitDone and not self.restored:
+            print("Cannot save, the fit has not been run yet.")
             return None
         else:
             # Creating the FITS file
@@ -667,7 +721,8 @@ class SpecFit:
 
             # Adding table with fit results
             fit_results_columns = [
-                fits.Column(name='PARNAME', format='10A', array=self.fitResult["parnames"]),
+                fits.Column(name='PARNAME', format='8A', array=self.fitResult["parnames"]),
+                fits.Column(name='UNITS', format='6A', array=self.fitResult["units"]),
                 fits.Column(name='VALUES', format='E', array=self.fitResult["values"]),
                 fits.Column(name='FREE', format='L', array=self.fitResult["free"]),
                 fits.Column(name='SIGMA', format='E', array=self.fitResult["sigma"]),
@@ -749,6 +804,7 @@ def restore(file: str, path=None) -> SpecFit:
     free_pars = tuple(d1['FREE'])
     result.fitResult = {
         "parnames": tuple(d1['PARNAME']),
+        "units": tuple(d1['UNITS']),
         "values": tuple(d1['VALUES']),
         "free": free_pars,
         "sigma": tuple(d1['SIGMA']),
