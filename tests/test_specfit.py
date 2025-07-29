@@ -26,7 +26,7 @@ rightParsBapec = (5., 0.3, 0.2, 300., 0.1)
 wrongParsApec = (3., 0.4, 0.15, 2.)  # redshift is correct
 wrongParsBapec = (1., 0.1, 0.2, 100., 4.)  # redshift is correct
 toleranceNoStat = 0.1  # tolerance when starting with correct redshift and no statistical fluctuations
-tolerance = 1.4  # tolerance when starting with correct redshift
+toleranceWithStat = 1.4  # tolerance when starting with correct redshift
 
 
 def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tuple, tolerance: float):
@@ -36,7 +36,7 @@ def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tu
     :param model: (str) Model name
     :param start: (tuple of float) Start parameters
     :param method: (str) Fit method
-    :param reference: (tuple of float) Refernce values to check
+    :param reference: (tuple of float) Reference values to check
     :param tolerance: (float) Relative tolerance in the results
     :return:
     """
@@ -61,13 +61,13 @@ def test_bapec_no_stat_fit_start_with_right_parameters():
 def test_apec_fit_start_with_right_parameters():
     # Fitting the apec spectrum produced with fakeit starting with the right parameters should
     # lead to the correct result, within tolerance
-    fit_test(spectrumApec, 'apec', rightParsApec, 'cstat', rightParsApec, tolerance)
+    fit_test(spectrumApec, 'apec', rightParsApec, 'cstat', rightParsApec, toleranceWithStat)
 
 
 def test_bapec_fit_start_with_right_parameters():
     # Fitting the bapec spectrum produced with fakeit starting with the right parameters should
     # lead to the correct result, within tolerance
-    fit_test(spectrumBapec, 'bapec', rightParsBapec, 'cstat', rightParsBapec, tolerance)
+    fit_test(spectrumBapec, 'bapec', rightParsBapec, 'cstat', rightParsBapec, toleranceWithStat)
 
 
 def test_fit_two_spectra_start_with_right_parameters():
@@ -95,7 +95,7 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_bapec, rightParsBapec, tol=tolerance)
+    assert_fit_results_within_tolerance(specfit_bapec, rightParsBapec, tol=toleranceWithStat)
 
     specfit_apec.run(start=rightParsApec, method="cstat")
     assert specfit_apec.fitDone
@@ -105,7 +105,7 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_apec, rightParsApec, tol=tolerance)
+    assert_fit_results_within_tolerance(specfit_apec, rightParsApec, tol=toleranceWithStat)
 
 
 def test_apec_no_stat_fit_start_with_only_redshift_right():
@@ -123,7 +123,7 @@ def test_bapec_no_stat_fit_start_with_only_redshift_right():
 def test_apec_fit_start_with_only_redshift_right():
     # Fitting the apec spectrum produced with fakeit, starting with all wrong parameters except for redshift should
     # lead to the correct result, within tolerance
-    fit_test(spectrumApec, 'apec', wrongParsApec, 'cstat', rightParsApec, tolerance)
+    fit_test(spectrumApec, 'apec', wrongParsApec, 'cstat', rightParsApec, toleranceWithStat)
 
 
 def test_covariance_and_correlation_matrices_are_none_at_initialization():
@@ -142,7 +142,7 @@ specFitBapec.run(start=wrongParsBapec, method="cstat")
 def test_bapec_fit_start_with_only_redshift_right():
     # Fitting the bapec spectrum produced with fakeit, starting with all wrong parameters except for redshift should
     # lead to the correct result, within tolerance
-    assert_fit_results_within_tolerance(specFitBapec, rightParsBapec, tol=tolerance)
+    assert_fit_results_within_tolerance(specFitBapec, rightParsBapec, tol=toleranceWithStat)
 
 
 def test_covariance_matrix_has_correct_shape_and_diagonal_elements():

@@ -5,6 +5,7 @@ sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging), os is used
 
 from astropy.io import fits
+import copy as cp
 import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
 import numpy as np
@@ -66,7 +67,6 @@ def __save_xspec_state(self) -> None:
     self.activeModel = xsp.AllModels.sources[1]
     self.abundTable = xsp.Xset.abund[0:4]
 
-
 xsp.XspecSettings.saveXspecState = __save_xspec_state
 
 
@@ -92,7 +92,6 @@ def __restore_xspec_state(self) -> None:
     xsp.Xset.abund = xsp.Xset.abundTable
     del xsp.Xset.abundTable
 
-
 xsp.XspecSettings.restoreXspecState = __restore_xspec_state
 
 
@@ -107,8 +106,9 @@ def __highlight_spectrum(self, index=1) -> None:
         if i != index and self(i).noticed != []:
             self(i).ignore("**")
 
-
 xsp.DataManager.highlightSpectrum = __highlight_spectrum
+
+xsp.ModelManager.nSpecFit = 0
 
 
 class SpecFit:
@@ -122,18 +122,20 @@ class SpecFit:
                     # The header of the spectrum file prevails in case of duplicates
                     if key not in self.keywords:
                         self.keywords.append(key, header.get(key), header.comments[key])
-            self.model = xsp.Model(model, modName='SpecFit' + str(self.spectrum.index), setPars=setPars)
+            self.model = xsp.Model(model, modName='SpecFit' + str(xsp.AllModels.nSpecFit + 1), setPars=setPars)
         else:
             print('File ' + str(specFile) + ' not found, spectrum not loaded')
             self.spectrum = None
-            self.keywords = header
-            self.model = xsp.Model(model, modName='SpecFit', setPars=setPars)
+            self.keywords = cp.deepcopy(header)
+            self.model = xsp.Model(model, modName='SpecFit' + str(xsp.AllModels.nSpecFit + 1), setPars=setPars)
+
+        xsp.AllModels.nSpecFit += 1
 
         # Removing keywords not relevant to the simulation
         if self.keywords is not None:
             keysToDelete = set()
             for key in self.keywords.keys():
-                if key not in keywordList + ['SPECFILE', 'ANCRFILE', 'RESPFILE', 'BACKFILE']:
+                if key not in keywordList + ['SPECFILE', 'ANCRFILE', 'RESPFILE', 'BACKFILE', 'EXPOSURE']:
                     keysToDelete.add(key)
             for key in keysToDelete:
                 del self.keywords[key]
@@ -749,14 +751,15 @@ class SpecFit:
             return hdulist.writeto(fileName, overwrite=overwrite)
 
 
-def restore(file: str, path=None) -> SpecFit:
+def restore(file: str, path=None, quick=False) -> SpecFit:
     """
-    Restores a SpecFit instance previously saved in a file with the save method.
+    Restores a SpecFit object previously saved in a file with the save method.
     :param file: (str) The saved file.
     :param path: (str or list/tuple of str) Path where to look for files to allow a complete restore of the SpcFit
-    instance: if set it will look for spectrum, arf, rmf and background files present in the file header also in the
+    object: if set it will look for spectrum, arf, rmf and background files present in the file header also in the
     folders indicated, in order.
-    :return: (SpecFit) The restored SpecFit instance.
+    :param quick: (bool) If set to True the spectrum is not loaded, useful for checking the results. Default False.
+    :return: (SpecFit) The restored SpecFit object.
     """
 
     def __path_search(file: str, path):
@@ -776,25 +779,25 @@ def restore(file: str, path=None) -> SpecFit:
             return None
 
     hdulist = fits.open(file)
-    header = hdulist[0].header
-    specFile = header.get('SPECFILE')
+    h0 = hdulist[0].header
+    specFile = h0.get('SPECFILE')
     if not os.path.isfile(specFile):
-        specFile = __path_search(header.get('SPECFILE'), path)
-    ancrFile = header.get('ANCRFILE')
+        specFile = __path_search(h0.get('SPECFILE'), path)
+    ancrFile = h0.get('ANCRFILE')
     if ancrFile is not None and not os.path.isfile(ancrFile):
         ancrFile = __path_search(ancrFile, path)
-    respFile = header.get('RESPFILE')
+    respFile = h0.get('RESPFILE')
     if respFile is not None and not os.path.isfile(respFile):
         respFile = __path_search(respFile, path)
-    backFile = header.get('BACKFILE')
+    backFile = h0.get('BACKFILE')
     if backFile is not None and not os.path.isfile(backFile):
         backFile = __path_search(backFile, path)
-    model = header.get('MODEL')
+    model = h0.get('MODEL')
     values = hdulist[1].data['VALUES']
 
     # Initialization
-    result = SpecFit(specFile, model, backFile=backFile, respFile=respFile, arfFile=ancrFile,
-                     setPars=tuple(np.float64(values)), header=header)
+    result = SpecFit(None if quick else specFile, model, backFile=backFile, respFile=respFile, arfFile=ancrFile,
+                     setPars=tuple(np.float64(values)), header=h0)
 
     # Flagging the output as restored
     result._isRestored = True
@@ -809,14 +812,14 @@ def restore(file: str, path=None) -> SpecFit:
         "free": free_pars,
         "sigma": tuple(d1['SIGMA']),
         "error_flags": tuple(d1['ERRFLAGS']),
-        "statistic": header.get('STAT'),
-        "dof": header.get('DOF'),
-        "rstat": header.get('RSTAT'),
+        "statistic": h0.get('STAT'),
+        "dof": h0.get('DOF'),
+        "rstat": h0.get('RSTAT'),
         "covariance": tuple(hdulist[2].data),
-        "method": header.get('METHOD'),
-        "nIterations": header.get('N_ITER'),
-        "criticalDelta": header.get('CR_DELTA'),
-        "abund": header.get('ABUND')
+        "method": h0.get('METHOD'),
+        "nIterations": h0.get('N_ITER'),
+        "criticalDelta": h0.get('CR_DELTA'),
+        "abund": h0.get('ABUND')
     }
 
     # Setting free/fixed parameters in model attributes (will make fitDone property work correctly)
