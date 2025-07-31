@@ -15,9 +15,17 @@ Spectrum file that simulates a *XRISM-Resolve* observation of a Gadget simulated
 
 A SIMPUT file containing the data for the emission of a Gadget simulated cluster.
 
-### - `reference.simput`
+### - `reference.speccube`
 
 A Spec-cube file containing the data for the emission of a Gadget simulated cluster.
+
+### - `reference.spf`
+
+A SpecFit file with the fit result of the reference.pha file with a phabs(bapec) model.
+
+### - `reference_bapec_wrong_pars.spf`
+
+A SpecFit file with the fit results of a bapec spectrum (created with fakeit) fitted with a bapec model 
 
 ### - `reference_erosita_pointed.evt`
 
