@@ -174,14 +174,14 @@ class SpecFit:
         else:
             return self.model(self.model.startParIndex + int(ind[0])).sigma > 0
 
-    def __get_parfixed(self):
+    def __get_parfixed(self) -> tuple:
         """
         Fixed (frozen) status of the model parameters, taken from the model attribute.
         :return: (tuple) Tuple of bool containing True if the parameter is fixed (frozen), False if it is free.
         """
         return tuple(self.model(self.model.startParIndex + index).frozen for index in range(self.model.nParameters))
 
-    def __get_parfree(self):
+    def __get_parfree(self) -> tuple:
         """
         Free status of the model parameters, taken from the model attribute.
         :return: (tuple) Tuple of bool containing True if the parameter is free, False if it is fixed (frozen).
@@ -210,16 +210,6 @@ class SpecFit:
         """
         return tuple(
             self.model(self.model.startParIndex + index).sigma if self.__get_parfree()[index] else 0
-            for index in range(self.model.nParameters)
-        )
-
-    def __get_errflags(self) -> tuple:
-        """
-        Returns the 9 error flags of the parameters.
-        :return: (tuple) Tuple containing the error flags.
-        """
-        return tuple(
-            self.model(self.model.startParIndex + index).error[2] if self.__get_parfree()[index] else ''
             for index in range(self.model.nParameters)
         )
 
@@ -254,6 +244,22 @@ class SpecFit:
             return None
 
     @property
+    def nValid(self):
+        """
+        Number of valid parameters of the model, i.e. parameters that are free and for which sigma has been evaluated
+        without errors.
+        :return: (int) The number of valid parameters, None if the fit has not been run yet.
+        """
+        if self.fitDone or self.restored:
+            result = 0
+            for index in range(self.nParameters):
+                if not self.model(self.model.startParIndex + index).frozen and self.fitResult["error_flags"][index][0] == 'F':
+                    result += 1
+            return result
+        else:
+            return None
+
+    @property
     def parFixed(self):
         """
         Fixed (frozen) status of the model parameters.
@@ -270,6 +276,19 @@ class SpecFit:
                  fit has not been run, returns None.
         """
         return self.__get_parfree() if self.fitDone or self.restored else None
+
+    @property
+    def parValid(self):
+        """
+        Valid status of the model parameters.
+        :return: (tuple) Tuple of bool containing True if the parameter is free, False if it is fixed (frozen). If the
+                 fit has not been run, returns None.
+        """
+        if self.fitDone or self.restored:
+            return tuple([self.__get_parfree()[index] and self.fitResult["error_flags"][index][0] == 'F'
+                          for index in range(self.model.nParameters)])
+        else:
+            return None
 
     @property
     def fixedParNames(self):
@@ -292,6 +311,18 @@ class SpecFit:
         """
         if self.fitDone or self.restored:
             return tuple([name for i, name in enumerate(self.parNames) if self.parFree[i]])
+        else:
+            return None
+
+    @property
+    def validParNames(self):
+        """
+        Valid parameters' names.
+        :return: (tuple) Tuple of strings containing the valid parameters' names, None if the fit has not
+        been run.
+        """
+        if self.fitDone or self.restored:
+            return tuple([name for i, name in enumerate(self.parNames) if self.parValid[i]])
         else:
             return None
 
@@ -347,7 +378,7 @@ class SpecFit:
 
         return None
 
-    def __perform(self, abund='angr') -> None:
+    def __perform(self, abund='angr', error=False) -> None:
         """
         Equivalent of the `xspec.Fit.perform` method adapted to the `SpecFit` class. It allows to run the fit of the
         `xspec.Spectrum` loaded in the `spectrum` attribute with the `xspec.Model` of the instance while preserving the
@@ -362,6 +393,31 @@ class SpecFit:
         xsp.AllModels.setActive(self.model.name)
         xsp.Fit.perform()
 
+        if error:
+            for index in range(self.model.nParameters):
+                if self.__get_parfree()[index]:
+                    xsp.Fit.error(str(self.model.startParIndex + index))
+
+        def get_errflags() -> tuple:
+            """
+            Returns the 10 error flags of the parameters. The first one, labeled 0 checks that the error computed by the
+            fit is >0. The other nine, labeled 1-9 are the ones defined by the Xspec error command (see
+            https://heasarc.gsfc.nasa.gov/docs/xanadu/xspec/manual/node79.html) and are present only if the `error`
+            argument is set to True, otherwise they are all set to '-', i.e. not calculated.
+            :return: (tuple) Tuple containing the error flags.
+            """
+            flagList = []
+            for index in range(self.model.nParameters):
+                if self.__get_parfree()[index]:
+                     flagList.append(
+                         ('F' if self.__get_sigma()[index] > 0 else 'T') +
+                         (self.model(self.model.startParIndex + index).error[2] if error else '---------')
+                     )
+                else:
+                    flagList.append('')
+
+            return tuple(flagList)
+
         # Saving fit results
         self.fitResult = {
             "parnames": self.parNames,
@@ -369,7 +425,7 @@ class SpecFit:
             "values": self.__get_parvals(),
             "free": self.__get_parfree(),
             "sigma": self.__get_sigma(),
-            "error_flags": self.__get_errflags(),
+            "error_flags": get_errflags(),
             "statistic": xsp.Fit.statistic,
             "dof": xsp.Fit.dof,
             "rstat": xsp.Fit.statistic / (xsp.Fit.dof - 1),
@@ -406,17 +462,17 @@ class SpecFit:
             return None
         else:
             # Creating covariance matrix
-            result = np.ndarray([self.nFree, self.nFree])
+            result = np.ndarray([self.nValid, self.nValid])
 
             # Filling diagonal and lower part
             index = 0
-            for i in range(self.nFree):
+            for i in range(self.nValid):
                 for j in range(i + 1):
                     result[i, j] = self.fitResult["covariance"][index]
                     index += 1
             # Filling upper part
-            for i in range(self.nFree):
-                for j in range(i + 1, self.nFree):
+            for i in range(self.nValid):
+                for j in range(i + 1, self.nValid):
                     result[i, j] = result[j, i]
 
             return result
@@ -428,14 +484,14 @@ class SpecFit:
         """
         result = self.covariance_matrix()
         if result is not None:
-            free_inds = np.where(self.parFree)[0]
+            valid_inds = np.where(self.parValid)[0]
             for i, j in np.ndindex(result.shape):
-                result[i, j] /= self.fitResult["sigma"][free_inds[i]] * self.fitResult["sigma"][free_inds[j]]
+                result[i, j] /= self.fitResult["sigma"][valid_inds[i]] * self.fitResult["sigma"][valid_inds[j]]
 
         return result
 
     def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3,
-            abund='angr'):
+            abund='angr', error=False):
         """
         Standard procedure to fit spectra.
         :param erange: (float, float) Energy range [keV]. If the first (second) elements is None the lower (higher)
@@ -447,6 +503,7 @@ class SpecFit:
         :param criticaldelta: (float) The absolute change in the fit statistic between iterations, less than which the
             fit is deemed to have converged.
         :param abund: (str) Abundance table, see `abund` command in Xspec. Default 'angr' i.e. Anders & Grevesse (1989).
+        :param error: (bool) If set to True the error procedure is run over all the parameters. Default False.
         """
 
         if self.spectrum is None:
@@ -483,7 +540,7 @@ class SpecFit:
                 xsp.Fit.criticalDelta = criticaldelta
 
             # Fitting
-            self.__perform(abund=abund)
+            self.__perform(abund=abund, error=error)
 
     def plot(self, rebin=None, xscale='lin', yscale='lin', nsample=1) -> None:
         """
@@ -593,18 +650,18 @@ class SpecFit:
         if corr_matrix is not None:
             fig, ax = plt.subplots()
             plt.subplots_adjust(bottom=0.15)
-            ax.set_xticks(range(self.nFree), labels=self.freeParNames, rotation=45, ha="center", va="top",
+            ax.set_xticks(range(self.nValid), labels=self.validParNames, rotation=45, ha="center", va="top",
                           rotation_mode="default")
-            ax.set_yticks(range(self.nFree), labels=self.freeParNames)
+            ax.set_yticks(range(self.nValid), labels=self.validParNames)
             ax.tick_params(axis='both', which='major', length=0, pad=10)
             ax.tick_params(axis='both', which='minor', length=5)
             ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
             # Drawing grid lines requires some tweaks due to a bug
             # (see https://github.com/matplotlib/matplotlib/issues/12934)
-            minor_ticks = np.arange(self.nFree+1) - 0.51
+            minor_ticks = np.arange(self.nValid+1) - 0.51
             minor_ticks[-1] += 0.01
-            ax.set_xticks(minor_ticks, minor=True, labels=np.full(self.nFree+1, None))
-            ax.set_yticks(minor_ticks, minor=True, labels=np.full(self.nFree+1, None))
+            ax.set_xticks(minor_ticks, minor=True, labels=np.full(self.nValid+1, None))
+            ax.set_yticks(minor_ticks, minor=True, labels=np.full(self.nValid+1, None))
             ax.grid(which='minor', color='black', linewidth=1)
 
             # Text annotations
@@ -638,12 +695,13 @@ class SpecFit:
             errfl = str(self.fitResult["error_flags"][ipar])
             if 'T' in errfl:
                 par_string += "  "
-                greenblock = "\033[92m\u2588\033[0m"
                 for i, ich in enumerate(errfl):
                     if ich == 'T':
-                        par_string += "\033[91m" + str(i + 1) + "\033[0m"
+                        par_string += "\033[91m" + str(i) + "\033[0m"  # red number -> error
+                    elif ich == 'F':
+                        par_string += "\033[92m\u2588\033[0m"  # green block -> no error
                     else:
-                        par_string += greenblock
+                        par_string += "\033[97m\u2588\033[0m"  # grey block -> error flag not present)
             return par_string
 
         if not self.fitDone and not self.restored:
@@ -728,7 +786,7 @@ class SpecFit:
                 fits.Column(name='VALUES', format='E', array=self.fitResult["values"]),
                 fits.Column(name='FREE', format='L', array=self.fitResult["free"]),
                 fits.Column(name='SIGMA', format='E', array=self.fitResult["sigma"]),
-                fits.Column(name='ERRFLAGS', format='9A', array=self.fitResult["error_flags"])
+                fits.Column(name='ERRFLAGS', format='10A', array=self.fitResult["error_flags"])
             ]
             hdulist.append(fits.BinTableHDU.from_columns(fits.ColDefs(fit_results_columns), name="Results"))
 

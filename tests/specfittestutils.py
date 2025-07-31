@@ -65,9 +65,9 @@ def assert_specfit_has_no_error_flags(specfit: SpecFit) -> None:
     if specfit.fitDone or specfit.restored:
         for index, par in enumerate(specfit.freeParNames):
             if specfit.parFree[index]:
-                assert specfit.fitResult["error_flags"][index] == 'FFFFFFFFF', "Parameter " + par + " has errors"
+                assert 'T' not in specfit.fitResult["error_flags"][index], "Parameter " + par + " has errors"
             else:
-                assert specfit.fitResult["error_flags"][index] == '', "Parameter " + par + " (fixed) has errors flags"
+                assert specfit.fitResult["error_flags"][index] == '', "Parameter " + par + " (fixed) has error flags"
     else:
         warnings.warn("Can not check error flags because the fit has not been run.")
 
