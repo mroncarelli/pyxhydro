@@ -137,7 +137,9 @@ xsp.ModelManager.nSpecFit = 0
 
 class SpecFit:
     def __init__(self, specFile, model, backFile='USE_DEFAULT', respFile='USE_DEFAULT', arfFile='USE_DEFAULT',
-                 setPars=None, header=None):
+                 setPars=None, header=None, verbose=0):
+        __savedChatter = xsp.Xset.chatter
+        xsp.Xset.chatter = verbose
         if specFile is not None and os.path.isfile(specFile):
             self.spectrum = xsp.Spectrum(specFile, backFile=backFile, respFile=respFile, arfFile=arfFile)
             self.keywords = fits.open(specFile)[0].header
@@ -148,7 +150,10 @@ class SpecFit:
                         self.keywords.append(key, header.get(key), header.comments[key])
             self.model = xsp.Model(model, modName='SpecFit' + str(xsp.AllModels.nSpecFit + 1), setPars=setPars)
         else:
-            print('File ' + str(specFile) + ' not found, spectrum not loaded')
+            if specFile is None:
+                print('Spectrum not loaded (specFile is None)')
+            else:
+                print('Spectrum not loaded: file ' + str(specFile) + ' not found, spectrum not loaded')
             self.spectrum = None
             self.keywords = cp.deepcopy(header)
             self.model = xsp.Model(model, modName='SpecFit' + str(xsp.AllModels.nSpecFit + 1), setPars=setPars)
@@ -165,6 +170,8 @@ class SpecFit:
                 del self.keywords[key]
 
         self._isRestored = False
+        xsp.Xset.chatter = __savedChatter
+        del __savedChatter
 
     @property
     def restored(self) -> bool:
@@ -852,7 +859,7 @@ class SpecFit:
             return hdulist.writeto(fileName, overwrite=overwrite)
 
 
-def restore(file: str, path=None, quick=False) -> SpecFit:
+def restore(file: str, path=None, quick=False, verbose=0) -> SpecFit:
     """
     Restores a SpecFit object previously saved in a file with the save method.
     :param file: (str) The saved file.
@@ -862,6 +869,9 @@ def restore(file: str, path=None, quick=False) -> SpecFit:
     :param quick: (bool) If set to True the spectrum is not loaded, useful for checking the results. Default False.
     :return: (SpecFit) The restored SpecFit object.
     """
+
+    __savedChatter = xsp.Xset.chatter
+    xsp.Xset.chatter = verbose
 
     def __path_search(file: str, path):
         baseName = os.path.basename(file)
@@ -938,5 +948,8 @@ def restore(file: str, path=None, quick=False) -> SpecFit:
         "dEne": d3['D_ENERGY'],  # [keV]
         "noticed": d3['NOTICED']
     }
+
+    xsp.Xset.chatter = __savedChatter
+    del __savedChatter
 
     return result
