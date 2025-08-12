@@ -16,9 +16,6 @@ import xspec as xsp
 from ..sixte import keywordList
 
 xsp.Xset.allowNewAttributes = True
-xsp.Xset.chatter = 0
-xsp.Xset.addModelString("APECROOT", "3.0.9")
-xsp.Xset.addModelString("APECTHERMAL", "yes")
 
 
 def __notice_list_split(notice) -> list:
@@ -54,29 +51,42 @@ def __notice_list_split(notice) -> list:
 def __save_xspec_state(self) -> None:
     """
     Saves the state of some global Xspec variables before fitting, ready to be restored after the fit has been
-    performed. In detail, it saves the notice arrays in the xspec.AllData object by creating the `noticeState`
-    attribute, the name of the active Model in the xspec.AllModels object by creating the `activeModel` attribute, and
-    the abundance table by creating the `abundTable` attribute.
+    performed. It is defined as a method of the xspec.Xset singleton, to which it attaches specific attributes to save
+    the data.
     :param self: (xspec.XspecSettings) xspec.Xset
     :return: None
     """
+
+    # xspec.AllData
     self.noticeState = []
     for index in range(xsp.AllData.nSpectra):
         self.noticeState.append(xsp.AllData(index + 1).noticed)
 
+    # xspec.AllModels
     self.activeModel = xsp.AllModels.sources[1]
-    self.abundTable = xsp.Xset.abund[0:4]
+
+    # xspec.Fit
+    self.savedFitMethod = xsp.Fit.method
+    self.savedFitNIterations = xsp.Fit.nIterations
+    self.savedFitCriticalDelta = xsp.Fit.criticalDelta
+
+    # xspec.Xset (self)
+    self.savedAbund = self.abund[0:4]
+    self.savedChatter = self.chatter
+    self.savedModelStrings = self.modelStrings
 
 xsp.XspecSettings.saveXspecState = __save_xspec_state
 
 
 def __restore_xspec_state(self) -> None:
     """
-    Restores the state of the notice arrays in `xspec.AllData` object and of the active Model in `xspec.AllModels`.
-    Deletes the `noticeState`, `activeModel` and `abundTable` attributes from `xspec.Xset` after.
+    Restores the state of the global Xspec variables previously saved with `xspec.Xse.saveXspecState`, and deletes the
+    attributes of `xspec.Xset` created by it.
     :param (xspec.XspecSettings) xspec.Xset
     :return: None
     """
+
+    # xspec.AllData
     for index in range(xsp.AllData.nSpectra):
         intervals_list = __notice_list_split(self.noticeState[index])
         if len(intervals_list) >= 1:
@@ -84,13 +94,27 @@ def __restore_xspec_state(self) -> None:
             for i in range(1, len(intervals_list)):
                 command_string += ',' + str(intervals_list[i][0]) + '-' + str(intervals_list[i][1])
             xsp.AllData(index + 1).notice(command_string)
-
     del self.noticeState
 
+    # xspec.AllModels
     xsp.AllModels.setActive(xsp.Xset.activeModel)
     del xsp.Xset.activeModel
-    xsp.Xset.abund = xsp.Xset.abundTable
-    del xsp.Xset.abundTable
+
+    # xspec.Fit
+    xsp.Fit.method = self.savedFitMethod
+    del self.savedFitMethod
+    xsp.Fit.nIterations = self.savedFitNIterations
+    del self.savedFitNIterations
+    xsp.Fit.criticalDelta = self.savedFitCriticalDelta
+    del self.savedFitCriticalDelta
+
+    # xspec.Xset
+    self.abund = self.savedAbund
+    del self.savedAbund
+    self.chatter = self.savedChatter
+    del self.savedChatter
+    self.modelStrings = self.savedModelStrings
+    del self.savedModelStrings
 
 xsp.XspecSettings.restoreXspecState = __restore_xspec_state
 
@@ -378,19 +402,16 @@ class SpecFit:
 
         return None
 
-    def __perform(self, abund='angr', error=False) -> None:
+    def __perform(self, error=False) -> None:
         """
         Equivalent of the `xspec.Fit.perform` method adapted to the `SpecFit` class. It allows to run the fit of the
-        `xspec.Spectrum` loaded in the `spectrum` attribute with the `xspec.Model` of the instance while preserving the
-        state of the `xspec` global objects (i.e. `xspec.AllData` and `xspec.AllModels`). It also saves the fit results
-        and the data points in the fitResult and fitPoints attributes.
-        :param abund: (str) Abundance table, see `abund` command in Xspec. Default 'angr' i.e. Anders & Grevesse (1989).
+        `xspec.Spectrum` loaded in the `spectrum` attribute with the `xspec.Model` of the instance and saves the fit
+        results and the data points in the fitResult and fitPoints attributes.
+        :param error: (bool) If set to `True` after performing the fit it will run `error` on the free parameters, and
+            save the error flags in the `fitResult` attribute. Default `False`.
         :return: None
         """
-        xsp.Xset.saveXspecState()
-        xsp.Xset.abund = abund
-        xsp.AllData.highlightSpectrum(self.spectrum.index)
-        xsp.AllModels.setActive(self.model.name)
+
         xsp.Fit.perform()
 
         if error:
@@ -400,8 +421,11 @@ class SpecFit:
 
         def get_errflags() -> tuple:
             """
+            Return an error flag 'F' or 'T' for each free parameter if its error computed by the fit is > 0 or not,
+            respectively. It adds nine '-' to allow room for error flags that may be computed later with the error
+            procedure.
             Returns the 10 error flags of the parameters. The first one, labeled 0 checks that the error computed by the
-            fit is >0. The other nine, labeled 1-9 are the ones defined by the Xspec error command (see
+            fit is > 0. The other nine, labeled 1-9 are the ones defined by the Xspec error command (see
             https://heasarc.gsfc.nasa.gov/docs/xanadu/xspec/manual/node79.html) and are present only if the `error`
             argument is set to True, otherwise they are all set to '-', i.e. not calculated.
             :return: (tuple) Tuple containing the error flags.
@@ -409,10 +433,7 @@ class SpecFit:
             flagList = []
             for index in range(self.model.nParameters):
                 if self.__get_parfree()[index]:
-                     flagList.append(
-                         ('F' if self.__get_sigma()[index] > 0 else 'T') +
-                         (self.model(self.model.startParIndex + index).error[2] if error else '---------')
-                     )
+                     flagList.append( ('F' if self.__get_sigma()[index] > 0 else 'T') + '---------')
                 else:
                     flagList.append('')
 
@@ -433,11 +454,10 @@ class SpecFit:
             "method": xsp.Fit.statMethod,
             "nIterations": xsp.Fit.nIterations,
             "criticalDelta": xsp.Fit.criticalDelta,
-            "abund": abund
+            "abund": xsp.Xset.abund[0:4]
         }
 
         # Saving the data of the fit points
-
         self.fitPoints = {
             "energy": self.__get_energy(),  # [keV]
             "spectrum": self.__get_spectrum(),  # cts/s/keV [keV]
@@ -449,7 +469,7 @@ class SpecFit:
             "noticed": np.asarray(self.spectrum.noticed, dtype=np.int32)
         }
 
-        xsp.Xset.restoreXspecState()
+        return None
 
     def covariance_matrix(self):
         """
@@ -490,8 +510,9 @@ class SpecFit:
 
         return result
 
+
     def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3,
-            abund='angr', error=False):
+            abund='angr', verbose=0, apecroot="3.0.9", apecthermal=True, error=False) -> None:
         """
         Standard procedure to fit spectra.
         :param erange: (float, float) Energy range [keV]. If the first (second) elements is None the lower (higher)
@@ -503,7 +524,9 @@ class SpecFit:
         :param criticaldelta: (float) The absolute change in the fit statistic between iterations, less than which the
             fit is deemed to have converged.
         :param abund: (str) Abundance table, see `abund` command in Xspec. Default 'angr' i.e. Anders & Grevesse (1989).
-        :param error: (bool) If set to True the error procedure is run over all the parameters. Default False.
+        :param error: (bool) If set to True the error procedure is run over all the parameters. The fitResult attribute
+         will also containg the error flags defined by the Xspec error command (see
+         https://heasarc.gsfc.nasa.gov/docs/xanadu/xspec/manual/node79.html). Default False.
         """
 
         if self.spectrum is None:
@@ -527,6 +550,14 @@ class SpecFit:
                 for index in range(self.model.nParameters):
                     self.model(self.model.startParIndex + index).frozen = False
 
+            xsp.Xset.saveXspecState()
+            xsp.Xset.chatter = verbose
+            xsp.Xset.abund = abund
+            xsp.Xset.addModelString("APECROOT", apecroot)
+            xsp.Xset.addModelString("APECTHERMAL", "yes" if apecthermal else "no")
+            xsp.AllData.highlightSpectrum(self.spectrum.index)
+            xsp.AllModels.setActive(self.model.name)
+
             # Statistic method
             if method is not None:
                 xsp.Fit.statMethod = method
@@ -540,7 +571,19 @@ class SpecFit:
                 xsp.Fit.criticalDelta = criticaldelta
 
             # Fitting
-            self.__perform(abund=abund, error=error)
+            self.__perform(error=error)
+
+            # Running error on free parameters TODO: check why it does not work
+            if error:
+                for index in range(self.model.nParameters):
+                    if self.__get_parfree()[index]:
+                        xsp.Fit.error(str(self.model.startParIndex + index))
+                        self.fitResult["error_flags"][index][1:] = self.model(self.model.startParIndex + index).error[2]
+
+            # Restoring the Xspec state
+            xsp.Xset.restoreXspecState()
+
+            return None
 
     def plot(self, rebin=None, xscale='lin', yscale='lin', nsample=1) -> None:
         """

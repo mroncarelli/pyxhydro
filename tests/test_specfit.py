@@ -203,8 +203,13 @@ def test_fitpoints_match_with_xspec_plot_values():
     xsp.AllModels.clear()
     specfit = SpecFit(spectrumApec, "apec", respFile=rmf, arfFile=arf)
     specfit.run(start=rightParsApec, method="cstat")
+    # Setting the default of SpecFit.run() for the Apec model
+    xsp.Xset.addModelString("APECROOT", "3.0.9")
+    xsp.Xset.addModelString("APECTHERMAL", "yes")
+    # Setting the Plot object
     xsp.Plot.xAxis = "keV"
     xsp.Plot("data")
+    # Checking the values
     assert specfit.fitPoints["energy"] == pytest.approx(xsp.Plot.x())
     assert specfit.fitPoints["spectrum"] == pytest.approx(xsp.Plot.y())
     assert specfit.fitPoints["sigma"] == pytest.approx(xsp.Plot.yErr())
