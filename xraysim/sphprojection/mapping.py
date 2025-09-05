@@ -283,19 +283,19 @@ def make_map(simfile: str, quantity, npix=256, center=None, size=None, proj='z',
         return qty_map
 
 
-def make_speccube(snapfile: str, spfile: str, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
+def make_speccube(snapfile: str, sptable, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
                   energy_cut=None, tcut=0., flag_ene=False, nsample=None, isothermal=None, novel=None, gaussvel=None,
                   seed=0, nosmooth=False, nh=None, simulation_type=None, progress=False):
     """
     :param snapfile: (str) Simulation snapshot file (Gadget)
-    :param spfile: (str) Spectrum file (FITS)
+    :param sptable: (dict or str) Spectrum table or spectrum table file (FITS)
     :param size: (float) Angular size of the map [deg]
     :param npix: (int) Number of pixels per map side. Default: 256.
     :param redshift: (float) Redshift where to place the simulation. Default: the redshift of the Gadget snapshot file
     :param center: (float 2) Comoving coord. of the map center [h^-1 kpc]. Default: median point of gas particles
     :param proj: (str/int) Direction of projection ('x', 'y', 'z' or 0, 1, 2)
     :param zrange: (float 2) Range (comoving) in the l.o.s. axis [h^-1 kpc]
-    :param energy_cut: (float 2) Energy interval to compute [keV]. Default: assumes the one from the spfile.
+    :param energy_cut: (float 2) Energy interval to compute [keV]. Default: assumes the one from the sptable.
     :param tcut: (float) If set defines a temperature cut below which particles are removed [K]. The temperature is the
         one from the simulation snapshot even if the isothermal keyword is active. Default: 0.
     :param flag_ene: (bool) If set to True forces the computation to be in energy units, i.e. [keV keV^-1 s^-1 cm^-2
@@ -313,7 +313,7 @@ def make_speccube(snapfile: str, spfile: str, size: float, npix=256, redshift=No
         assumes the value in sofile.
     :param simulation_type: (str) The name of the simulation set of the snapshot file. Default: None.
     :param progress: (bool) If set the progress bar is shown in output. Default: False.
-    :return: A structure (dictionary) containing several info, including:
+    :return: A structure (dictionary) containing some info, including:
                     - data: spectral cube [photons keV^-1 s^-1 cm^-2 arcmin^-2] (or [keV keV^-1 s^-1 cm^-2 arcmin^-2]
                         if flag_ene is True)
                     - x(y)range: map range in the x(y) direction in Gadget units [h^-1 kpc]
@@ -444,9 +444,14 @@ def make_speccube(snapfile: str, spfile: str, size: float, npix=256, redshift=No
     del mass, rho, ne
 
     # Reading emission table [10^-14 photons s^-1 cm^3]
-    spectable = tables.read_spectable(spfile, z_cut=(np.min(z_eff), np.max(z_eff)),
-                                      temperature_cut=(np.min(temp_kev), np.max(temp_kev)),
-                                      energy_cut=energy_cut)
+    if type(sptable) == dict:
+        spectable = sptable
+    elif type(sptable) == str:
+        spectable = tables.read_spectable(sptable, z_cut=(np.min(z_eff), np.max(z_eff)),
+                                          temperature_cut=(np.min(temp_kev), np.max(temp_kev)),
+                                          energy_cut=energy_cut)
+    else:
+        raise ValueError("Invalid sptable type: must be a string or dictionary")
 
     # In nh is provided the spectral table is converted
     if nh is not None:
@@ -481,7 +486,7 @@ def make_speccube(snapfile: str, spfile: str, size: float, npix=256, redshift=No
     result = {
         'data': np.float32(spcube),
         'simulation_file': snapfile,
-        'spectral_table': spfile,
+        'spectral_table': sptable if type(sptable) == str else "(Computed)",
         'proj': proj,
         'z_cos': redshift,
         'd_c': 1e3 * cosmo.comoving_distance(redshift).to_value(),  # [h^-1 kpc]

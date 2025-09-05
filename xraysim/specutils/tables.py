@@ -278,7 +278,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
 
 
 def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax: float, nene: int, emin: float,
-               emax: float, metal=0, apecroot=None, tbroad=True, abund='angr', flag_ene=False) -> dict:
+               emax: float, metal=0., apecroot=None, tbroad=True, abund='angr', flag_ene=False) -> dict:
     """
     Creates a 3D Apec spectral table with fixed metallicity.
     :param nz: (int) Number of redshifts, first dimension of the output table

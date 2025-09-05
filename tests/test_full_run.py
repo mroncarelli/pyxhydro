@@ -34,7 +34,7 @@ def run_type(pytestconfig):
 
 def test_full_run(run_type):
     """
-    A full run from Gadget snapshot to pha file, checking that each intermediate step produces a file compatible with
+    A full run from Gadget snapshot to spf file, checking that each intermediate step produces a file compatible with
     reference one.
     """
 

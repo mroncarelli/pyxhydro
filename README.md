@@ -44,8 +44,9 @@ setenv PYTHONPATH $XRAYSIM:$PYTHONPATH  # (optional)
 Run `./makeit.sh`. This should install/update the necessary Python packages (listed in `requirements.txt`) and 
 compile the Cython source files. This script will also create a subfolder called `xrism-resolve-test` files in your 
 `$SIXTE/share/sixte/instruments` folder containing the configuration files of a fake instrument that is useful to test 
-the code. Then run `pytest` to ensure the package is installed and configured correctly: some warnings may be issued, 
-and some test may be skipped (marked 's') but this is ok. If an error occurs, please, [submit an issue]
+the code (like XRISM-Resolve but without vignetting and perfect PSF). Then run `pytest` to ensure the package is 
+installed and configured correctly: some warnings may be issued, and some test may be skipped (marked 's') but this is 
+ok. If an error occurs, please, [submit an issue]
 (https://github.com/mroncarelli/xraysim/issues) including the error message and some detail.
 
 ## Instruments configuration
