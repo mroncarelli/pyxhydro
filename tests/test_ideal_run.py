@@ -49,7 +49,7 @@ def test_ideal_run():
     """
 
     # Creating the spectral table
-    specTable = apec_table(nz, z_min, z_max, 2, temp_keV, temp_keV+1, nene, e_min, e_max, metal,
+    specTable = apec_table(nz, z_min, z_max, 2, temp_keV-0.5, temp_keV, nene, e_min, e_max, metal,
                            abund=abund)
 
     # Creating the speccube from the snapshot assuming isothermal gas with Gaussian velocity distribution

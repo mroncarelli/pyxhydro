@@ -250,7 +250,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
         if z < z_table.min() or z > z_table.max():
             warnings.warn("Redshift " + str(z) + " out of range, no spectrum computed (returning zeros)",
                           category=RuntimeWarning)
-            return np.zeros(nene)
+            return np.zeros(nene, dtype=sp)
         else:
             iz = nearest_index_sorted(z_table, z)
             data = data[iz, :, :]
@@ -273,7 +273,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
     if it0 is None:
         warnings.warn("Temperature " + str(temperature) + " out of range, no spectrum computed (returning zeros)",
                       category=RuntimeWarning)
-        return np.zeros(nene)
+        return np.zeros(nene, dtype=sp)
     elif it0 == len(temperature_table) - 1:
         warnings.warn("Extrapolating table for temperature " + str(temperature) + " > upper bound of table",
                       category=RuntimeWarning)
