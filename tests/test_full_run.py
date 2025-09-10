@@ -32,6 +32,7 @@ def run_type(pytestconfig):
     return pytestconfig.getoption("eventlist").lower()
 
 
+@pytest.mark.filterwarnings("ignore")
 def test_full_run(run_type):
     """
     A full run from Gadget snapshot to spf file, checking that each intermediate step produces a file compatible with

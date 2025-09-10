@@ -1,5 +1,6 @@
 from astropy.io import fits
 import numpy as np
+import warnings
 
 sp = np.float32
 
@@ -116,9 +117,11 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
             raise ValueError("Invalid tcut: ", z_cut, "Must be a 2d number vector")
         i0, i1 = largest_index_smaller(z, z0), smallest_index_larger(z, z1)
         if i0 is None:
-            i0 = 0  # TODO: WARNING
+            warnings.warn("Low bound of z_cut is lower than the table minimum", category=RuntimeWarning)
+            i0 = 0
         if i1 is None:
-            i1 = len(z) - 1  # TODO: WARNING
+            warnings.warn("High bound of z_cut is higher than the table maximum", category=RuntimeWarning)
+            i1 = len(z) - 1
         z = z[i0:i1 + 1]
         spectable = spectable[i0:i1 + 1, :, :]
 
@@ -129,9 +132,13 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
             raise ValueError("Invalid tcut: ", temperature_cut, "Must be a 2d number vector")
         i0, i1 = largest_index_smaller(temperature, t0), smallest_index_larger(temperature, t1)
         if i0 is None:
-            i0 = 0  # TODO: WARNING
+            warnings.warn("Low bound of temperature_cut is lower than the table minimum",
+                          category=RuntimeWarning)
+            i0 = 0
         if i1 is None:
-            i1 = len(temperature) - 1  # TODO: WARNING
+            warnings.warn("High bound of temperature_cut is larger than the table maximum",
+                          category=RuntimeWarning)
+            i1 = len(temperature) - 1
         if i0 == i1:
             i1 += 1
             if i1 == len(temperature):
@@ -146,9 +153,11 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
             raise ValueError("Invalid tcut: ", energy_cut, "Must be a 2d number vector")
         i0, i1 = largest_index_smaller(energy, e0), smallest_index_larger(energy, e1)
         if i0 is None:
-            i0 = 0  # TODO: WARNING
+            warnings.warn("Low bound of energy_cut is lower than the table minimum", category=RuntimeWarning)
+            i0 = 0
         if i1 is None:
-            i1 = len(energy) - 1  # TODO: WARNING
+            warnings.warn("High bound of energy_cut is larger than the table maximum", category=RuntimeWarning)
+            i1 = len(energy) - 1
         energy = energy[i0:i1 + 1]
         spectable = spectable[:, :, i0:i1 + 1]
 
@@ -160,6 +169,7 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
         'units': hdulist[0].header['UNITS'],
         'flag_ene': hdulist[0].header['FLAG_ENE'] == 1,
         'model': hdulist[0].header['MODEL'],
+        'metallicity': hdulist[0].header['METAL'],
         'temperature_units': hdulist[2].header['UNITS'],
         'energy_units': hdulist[3].header['UNITS']
     }
@@ -184,7 +194,6 @@ def write_spectable(spectable: dict, file: str, overwrite=True) -> int:
     :param overwrite:
     :return: Output of fits.HDUlist.writeto()
     """
-
 
     # Creagin HDU list
     hdulist = fits.HDUList()
@@ -238,14 +247,23 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
 
     # Redshift (index 0)
     if no_z_interp:
-        iz = nearest_index_sorted(z_table, z)
-        data = data[iz, :, :]
+        if z < z_table.min() or z > z_table.max():
+            warnings.warn("Redshift " + str(z) + " out of range, no spectrum computed (returning zeros)",
+                          category=RuntimeWarning)
+            return np.zeros(nene)
+        else:
+            iz = nearest_index_sorted(z_table, z)
+            data = data[iz, :, :]
     else:
         iz0 = largest_index_smaller(z_table, z)
         if iz0 is None:
-            iz0 = 0  # TODO: WARNING
+            warnings.warn("Extrapolating table for redshift " + str(z) + " smaller than the lower boundary of table",
+                          category=RuntimeWarning)
+            iz0 = 0
         elif iz0 == len(z_table) - 1:
-            iz0 = len(z_table) - 2  # TODO: WARNING
+            warnings.warn("Extrapolating table for redshift " + str(z) + " larger than the upper bound of table",
+                          category=RuntimeWarning)
+            iz0 = len(z_table) - 2
         iz1 = iz0 + 1
         fz = (z - z_table[iz0]) / (z_table[iz1] - z_table[iz0])
         data = (1 - fz) * data[iz0, :, :] + fz * data[iz1, :, :]
@@ -253,9 +271,13 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
     # Temperature (index 1)
     it0 = largest_index_smaller(temperature_table, temperature)
     if it0 is None:
-        it0 = 0  # TODO: WARNING
+        warnings.warn("Temperature " + str(temperature) + " out of range, no spectrum computed (returning zeros)",
+                      category=RuntimeWarning)
+        return np.zeros(nene)
     elif it0 == len(temperature_table) - 1:
-        it0 = len(temperature_table) - 2  # TODO: WARNING
+        warnings.warn("Extrapolating table for temperature " + str(temperature) + " > upper bound of table",
+                      category=RuntimeWarning)
+        it0 = len(temperature_table) - 2
     it1 = it0 + 1
     ft = (np.log(temperature) - np.log(temperature_table[it0])) / (
             np.log(temperature_table[it1]) - np.log(temperature_table[it0]))
@@ -311,7 +333,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
 
     # General settings
     xsp.Xset.chatter = 0
-    xsp.AllModels.setEnergies(str(emin)+ " " + str(emax) + " " + str(nene) +" lin")
+    xsp.AllModels.setEnergies(str(emin) + " " + str(emax) + " " + str(nene) + " lin")
 
     # Optional settings
     if apecroot:
