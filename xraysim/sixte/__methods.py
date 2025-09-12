@@ -57,17 +57,15 @@ def set_simput_headers(hdulist: fits.HDUList):
     return hdulist
 
 
-def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, fluxsc=1., addto=None,
-                    appendto=None, nh=None, preserve_input=True, overwrite=True):
+def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, fluxsc=1., nh=None,
+                    preserve_input=True, overwrite=True):
     """
     :param spcube: (dict) spectral cube structure, i.e. output of make_speccube
     :param simput_file: (str) SIMPUT output file
     :param tag: (str) prefix of the source name, default None
     :param pos: (float 2) sky position in RA, DEC [deg]
-    :param npix: number of pixels per side of the output spectral map (TODO: if different from input it is rebinned)
+    :param npix: number of pixels per side of the output spectral map
     :param fluxsc: (float) flux scaling to be applied to the cube
-    :param addto: TODO
-    :param appendto: TODO
     :param nh: (float) hydrogen column density [10^22 cm^-2], if included it changes the value of the input object
         converting it to the desired one, default: None (i.e. maintains the original value of nh)
     :param preserve_input: (bool) If set to true the 'data' key in spcube_struct is left untouched and duplicated in
@@ -101,14 +99,10 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
         for iene in range(0, nene):
             spcube[:, :, iene] /= energy[iene]  # [photons keV^-1 s^-1 cm^-2]
 
-    # TODO: Implement addto here
-
     if npix is None:
         npix = npix0
     else:
         npix = npix0
-
-    # Rebinning if necessary TODO: implement something close to the CONGRID function in IDL and remove previous else
 
     # Creating coordinate arrays
     ra_pix = ra0 + np.linspace(-0.5 * size, 0.5 * size, npix, endpoint=False) + size / (2 * npix)  # [deg]
