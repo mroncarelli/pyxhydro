@@ -281,7 +281,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
     it1 = it0 + 1
     ft = (np.log(temperature) - np.log(temperature_table[it0])) / (
             np.log(temperature_table[it1]) - np.log(temperature_table[it0]))
-    valid = np.where(data[it0, :] * data[it0, :] > 0.)
+    valid = np.where((data[it0, :] > 0) & (data[it1, :] > 0.))
     result = np.zeros(nene, dtype=sp)
     result[valid] = np.exp((1 - ft) * np.log(data[it0, valid]) + ft * np.log(
         data[it1, valid]))  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
