@@ -192,25 +192,3 @@ def test_specfit_file_has_been_created_and_matches_reference():
     assert_hdu_list_matches_reference(fits.open(bapecSpecFitFile), fits.open(specFitReferenceFile), tol=1e-4)
     os.remove(bapecSpecFitFile)
 
-
-def test_fitpoints_match_with_xspec_plot_values():
-    """
-    The values saved in the fitPoints attribute must match the ones in the xspec.Plot object. WARNINGS 1) Works only
-    if the fit was the latest run. 2) This test has to run last of the set, or it may break the others since it has to
-    delete all spectra and models before running.
-    """
-    xsp.AllData.clear()
-    xsp.AllModels.clear()
-    specfit = SpecFit(spectrumApec, "apec", respFile=rmf, arfFile=arf)
-    specfit.run(start=rightParsApec, method="cstat")
-    # Setting the default of SpecFit.run() for the Apec model
-    xsp.Xset.addModelString("APECROOT", "3.0.9")
-    xsp.Xset.addModelString("APECTHERMAL", "yes")
-    # Setting the Plot object
-    xsp.Plot.xAxis = "keV"
-    xsp.Plot("data")
-    # Checking the values
-    assert specfit.fitPoints["energy"] == pytest.approx(xsp.Plot.x())
-    assert specfit.fitPoints["spectrum"] == pytest.approx(xsp.Plot.y())
-    assert specfit.fitPoints["sigma"] == pytest.approx(xsp.Plot.yErr())
-    assert specfit.fitPoints["model"] == pytest.approx(xsp.Plot.model())

@@ -53,7 +53,9 @@ def assert_fit_results_within_tolerance(specfit: SpecFit, reference, tol=1.) -> 
     for index, val in enumerate(reference):
         ind_fit = specfit.model.startParIndex + index
         if not specfit.model(ind_fit).frozen:
-            assert abs(specfit.model(ind_fit).values[0] - val) < tol * specfit.model(ind_fit).sigma
+            assert abs(specfit.model(ind_fit).values[0] - val) < tol * specfit.model(ind_fit).sigma, \
+                ("Fit result: " + str(specfit.model(ind_fit).values[0]) + ", Reference: " + str(val) +
+                 ", Tolerance: " + str(tol * specfit.model(ind_fit).sigma))
 
 
 def assert_specfit_has_no_error_flags(specfit: SpecFit) -> None:

@@ -468,8 +468,8 @@ def make_speccube(snapfile: str, sptable, size: float, npix=256, redshift=None, 
                                   redshift,
                                   units='km/s')
 
-    # Reading density (physical [10^10 h^2 M_Sun kpc^-3])
-    rho = pygr.readsnap(snapfile, 'rho', 'gas', units=0, suppress=1) / (1 + redshift) ** 3
+    # Reading comoving density and converting to physical [10^10 h^2 M_Sun kpc^-3]
+    rho = pygr.readsnap(snapfile, 'rho', 'gas', **pygro) * (1 + redshift) ** 3
 
     # Reading ionization fraction if f_cooling is on
     ne = pygr.readsnap(snapfile, 'ne', 'gas', **pygro) if f_cooling else None
