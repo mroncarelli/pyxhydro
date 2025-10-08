@@ -23,7 +23,7 @@ def f_abs_galactic(energy, nh: float):
     Morrison and McCammon (1983, ApJ, 270, 119). Mimics the wabs model in Xspec
     (https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node271.html).
     :param energy: energy: (float array) energy value [keV], must be withing the range of the table sigma_wabs.dat
-    :param nh: hydrogen column density [10^22 cm^-2]
+    :param nh: (float) hydrogen column density [10^22 cm^-2]
     :return: Galactic absorption correction, i.e. v_absorbed = f_abs_galactic * v_full
     """
     return np.exp(-nh * sigma_abs_galactic(energy))

@@ -14,6 +14,7 @@ snapshotFile = inputDir + 'snap_Gadget_sample'
 
 # Emission table parameters
 abund = "aspl"  # Xspec abundance table
+nH = 0.02  # [10^22 cm-2]
 tmin, tmax = 0.1, 50.  # Tempeature range [keV]
 nene = 6000
 e_min, e_max = 2., 8.  # Energy range [keV]
@@ -73,12 +74,13 @@ def test_isothermal_no_velocities():
     xsp.AllModels.setEnergies(str(e_min) + " " + str(e_max) + " " + str(nene) + " lin")
 
     pars = {}
-    pars[1] = temp_keV
+    pars[1] = nH  # [10^22 cm^-2]
+    pars[2] = temp_keV  # [keV]
     for ind in range(28):
-        pars[4 + ind] = metal
-    pars[32] = z
-    pars[33] = 1
-    model = xsp.Model('vvapec', 'test_ideal_run_isoth_novel', 0)
+        pars[5 + ind] = metal
+    pars[33] = z
+    pars[34] = 1
+    model = xsp.Model('wabs(vvapec)', 'test_ideal_run_isoth_novel', 0)
     model.setPars(pars)
     specRef = norm * np.array(model.values(0))  # [photons s^-1 cm^-2] (already multiplied by norm)
     xsp.AllModels.setEnergies("reset")
@@ -88,7 +90,7 @@ def test_isothermal_no_velocities():
 
     # Creating the speccube from the snapshot assuming isothermal gas with Gaussian velocity distribution
     specCube = make_speccube(snapshotFile, specTable, XRISM_FOV/60., npix, z, center=[2500., 2500.], proj='z', tcut=1e6,
-                             isothermal=temp_keV * keV2K, novel=True)
+                             isothermal=temp_keV * keV2K, nh=nH, novel=True)
 
     # del specTable
 

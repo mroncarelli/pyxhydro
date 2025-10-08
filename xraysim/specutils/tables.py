@@ -2,7 +2,7 @@ from astropy.io import fits
 import numpy as np
 import warnings
 
-sp = np.float32
+SP = np.float32
 
 import os
 import sys
@@ -169,7 +169,7 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
         'units': hdulist[0].header['UNITS'],
         'flag_ene': hdulist[0].header['FLAG_ENE'] == 1,
         'model': hdulist[0].header['MODEL'],
-        'metallicity': hdulist[0].header['METAL'],
+        'metallicity': SP(hdulist[0].header['METAL']),
         'temperature_units': hdulist[2].header['UNITS'],
         'energy_units': hdulist[3].header['UNITS']
     }
@@ -180,7 +180,7 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
     if 'PARAM' in hdulist[0].header:
         result['param'] = hdulist[0].header['PARAM']
     if 'NH' in hdulist[0].header:
-        result['nh'] = hdulist[0].header['NH']
+        result['nh'] = SP(hdulist[0].header['NH'])
 
     hdulist.close()
     return result
@@ -250,7 +250,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
         if z < z_table.min() or z > z_table.max():
             warnings.warn("Redshift " + str(z) + " out of range, no spectrum computed (returning zeros)",
                           category=RuntimeWarning)
-            return np.zeros(nene, dtype=sp)
+            return np.zeros(nene, dtype=SP)
         else:
             iz = nearest_index_sorted(z_table, z)
             data = data[iz, :, :]
@@ -273,7 +273,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
     if it0 is None:
         warnings.warn("Temperature " + str(temperature) + " out of range, no spectrum computed (returning zeros)",
                       category=RuntimeWarning)
-        return np.zeros(nene, dtype=sp)
+        return np.zeros(nene, dtype=SP)
     elif it0 == len(temperature_table) - 1:
         warnings.warn("Extrapolating table for temperature " + str(temperature) + " > upper bound of table",
                       category=RuntimeWarning)
@@ -282,7 +282,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
     ft = (np.log(temperature) - np.log(temperature_table[it0])) / (
             np.log(temperature_table[it1]) - np.log(temperature_table[it0]))
     valid = np.where((data[it0, :] > 0) & (data[it1, :] > 0.))
-    result = np.zeros(nene, dtype=sp)
+    result = np.zeros(nene, dtype=SP)
     result[valid] = np.exp((1 - ft) * np.log(data[it0, valid]) + ft * np.log(
         data[it1, valid]))  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
 
@@ -362,7 +362,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
 
     model = xsp.Model('vvapec', 'xraysim.specutils.apec_table', 0)
 
-    table = np.ndarray([nz, ntemp, nene], dtype=sp)
+    table = np.ndarray([nz, ntemp, nene], dtype=SP)
     for index_z in range(nz):
         pars[32] = z[index_z]
         for index_t in range(ntemp):
@@ -381,9 +381,9 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
 
     result = {
         'data': table,
-        'z': sp(z),
-        'temperature': sp(temperature),
-        'energy': sp(energy),
+        'z': SP(z),
+        'temperature': SP(temperature),
+        'energy': SP(energy),
         'units': "[10^-14 keV s^-1 cm^3]" if flag_ene else "[10^-14 photons s^-1 cm^3]",
         'flag_ene': flag_ene,
         'model': "vvapec",
