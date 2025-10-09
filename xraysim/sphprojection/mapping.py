@@ -201,6 +201,7 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
             conv_factor = 1e20 * (Msun2g * Xp / m_p) ** 2 / kpc2cm ** 5
             qty = (mass * pygr.readsnap(simfile, 'rho', 'gas', **pygro) ** 2 *
                    x_e / pixsize ** 2)  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
+            nrm = np.full(ngas, 0., dtype=SP)  # [---]
         elif quantity_ in ['tmw', 'tew', 'tsl']:
             if 'temp' not in locals():
                 temp = readtemperature(simfile, f_cooling=f_cooling, suppress=1)  # [K]
@@ -256,7 +257,7 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
         make_map_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm)
     else:
         make_map_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm)
-    if quantity_ in ['ne', 'nh', 'nenh']:
+    if quantity_ in ['ne', 'nh', 'nenh', 'ne2']:
         qty_map *= conv_factor
 
     qty_map[np.where(nrm_map != 0.)] /= nrm_map[np.where(nrm_map != 0.)]
