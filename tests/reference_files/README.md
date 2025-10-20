@@ -21,7 +21,7 @@ A Spec-cube file containing the data for the emission of a Gadget simulated clus
 
 ### - `reference.spf`
 
-A SpecFit file with the fit result of the reference.pha file with a phabs(bapec) model.
+A SpecFit file with the fit result of the reference.pha file with a wabs(bapec) model.
 
 ### - `reference_bapec_wrong_pars.spf`
 

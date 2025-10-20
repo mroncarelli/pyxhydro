@@ -4,7 +4,7 @@ import pytest
 
 from xraysim.gadgetutils.convert import vpec2zobs
 from xraysim.gadgetutils.phys_const import keV2K, keV2erg, pi
-from xraysim.sixte import cube2simputfile # , create_eventlist, make_pha, versionTuple
+from xraysim.sixte import cube2simputfile, create_eventlist, make_pha, versionTuple
 from xraysim.sphprojection.mapping import make_map, make_speccube
 from xraysim.specutils.specfit import *
 from xraysim.specutils.tables import apec_table
@@ -27,7 +27,7 @@ nSigma = 5.  # Used to define the redshift range in units of the velocity disper
 npix = 50
 
 # Physical parameters
-temp_keV = 5.  # Gas temperature [keV]
+temp_keV = 7.  # Gas temperature [keV]
 z = 0.5  # redshift [---]
 metal = 0.35 # Metallicity
 sigma_v = 350.  # velocity dispersion [km/s]
@@ -51,6 +51,7 @@ h_Hubble = pygr.readhead(snapshotFile, 'hubble')
 map_str = make_map(snapshotFile, 'nenH', 1, center=[2500., 2500.], size=mapSize, struct=True, tcut=1e6)
 InenHdl = map_str['map'][0, 0]  # [h^3 cn^-5] (comoving)
 norm = InenHdl * 1e-14 * h_Hubble ** 3 * (1 + z) ** 3 * mapSize ** 2 / (4 * pi * d_C ** 2) # [10^14 cm^-5] (physical)
+# convNorm = 1e-14 * lPix**2 / (4 * np.pi * d_C ** 2) * h_Hubble ** 3 * (1 + zObs) ** 3 # [h^3 cm^-5] --> [10^14 cm^-5]
 
 # Test files
 referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
@@ -107,7 +108,6 @@ def test_isothermal_no_velocities():
 
     # Extracting data from Simput file
     hduList = fits.open(simputFile)
-    os.remove(simputFile)
     flux = hduList[1].data['FLUX']  # [erg/s/cm**2]
     fld = hduList[2].data['FLUXDENSITY']  # [photons/s/cm**2/keV]
     assert fld.shape[0] == npix**2
@@ -136,12 +136,12 @@ def test_isothermal_no_velocities():
     # assert os.path.isfile(phaFile)
     #
     # # Fitting the spectrum in the pha file with parameters starting with the right values
-    # specfitRightStart = SpecFit(phaFile, "phabs(bapec)")
+    # specfitRightStart = SpecFit(phaFile, "wabs(bapec)")
     # rightStartPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
     #                   temp_keV,  # kT [keV]
     #                   metal,     # Abundance [Solar]
     #                   z,         # Redshift [---]
-    #                   sigma_v,   # Velocity dispersion [km/s]
+    #                   0.,   # Velocity dispersion [km/s]
     #                   norm)      # Normalization [10^14 cm^-5]
     #
     # fixedPars = (True, True, True, True, True, False)
@@ -150,9 +150,9 @@ def test_isothermal_no_velocities():
     # assert_fit_results_within_tolerance(specfitRightStart, (nH, temp_keV, metal, z, sigma_v,
     #                                                         norm), tol=3)
     # del specfitRightStart
-    #
+
     # # Fitting the spectrum in the pha file starting with wrong parameters
-    # specfitWrongStart = SpecFit(phaFile, "phabs(bapec)")
+    # specfitWrongStart = SpecFit(phaFile, "wabs(bapec)")
     # startPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
     #              np.random.uniform(low=2., high=9.),    # kT [keV]
     #              np.random.uniform(low=0., high=0.5),   # Abundance [Solar]

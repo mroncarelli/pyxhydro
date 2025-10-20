@@ -562,6 +562,7 @@ class SpecFit:
             xsp.Xset.abund = abund
             xsp.Xset.addModelString("APECROOT", apecroot)
             xsp.Xset.addModelString("APECTHERMAL", "yes" if apecthermal else "no")
+            xsp.Xset.addModelString("APEC_TRACE_ABUND", "Fe")
             xsp.AllData.highlightSpectrum(self.spectrum.index)
             xsp.AllModels.setActive(self.model.name)
 

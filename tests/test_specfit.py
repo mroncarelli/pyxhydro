@@ -19,8 +19,9 @@ spectrumBapecNoStat = input_dir + 'bapec_fakeit_nostat_for_test.pha'
 bapecSpecFitFile = input_dir +"bapec_specfit_created_for_test.spf"
 specFitReferenceFile = reference_dir + "reference_bapec_wrong_pars.spf"
 
-rmf = input_dir + 'resolve_h5ev_2019a.rmf'
-arf = input_dir + 'resolve_pnt_heasim_noGV_20190701.arf'
+instrumentDir = os.environ.get("SIXTE") + "/share/sixte/instruments/xrism-resolve-test/"
+rmf = instrumentDir + "rsl_Hp_5eV.rmf"
+arf = instrumentDir + "rsl_sixte_standard_GVclosed.arf"
 rightParsApec = (7., 0.2, 0.15, 0.1)
 rightParsBapec = (5., 0.3, 0.2, 300., 0.1)
 wrongParsApec = (3., 0.4, 0.15, 2.)  # redshift is correct
