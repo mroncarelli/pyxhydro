@@ -15,6 +15,11 @@
     "xml": "resolve_baseline_test.xml"
   },
   {
+    "name": "xrism-resolve-test-nocalib",
+    "subdir": "xrism-resolve-test",
+    "xml": "resolve_baseline_test_nocalib.xml"
+  },
+  {
     "name": "erosita-test",
     "subdir": "srg-test/erosita",
     "special": "erosita",
