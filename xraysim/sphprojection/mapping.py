@@ -62,12 +62,13 @@ def get_map_coord(simfile: str, proj_index: int, z=False):
         return x, y
 
 
-def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj='z', zrange=None, tcut=0.,
+def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None, proj='z', zrange=None, tcut=0,
              nsample=None, struct=False, nosmooth=False, progress=False):
     """
     :param simfile: (str) simulation file (Gadget)
-    :param quantity: (str) physical quantity to map (one of rho, rho2, Tmw, Tew, Tsl, vmw, vew, wmw, wew)
+    :param quantity: (str) physical quantity to map (one of rho, rho2, Tmw, Tew, Tsl, Taw, vmw, vew, wmw, wew)
     :param npix: (int) number of map pixels per side
+    :param alpha: (float) exponent of the temperature weight, w = n_e^2*T^alpha. Default: 0 (i.e. emission-weighted)
     :param center: (float 2) comoving coord. of the map center [h^-1 kpc]. Default: median point of gas particles
     :param size: (float) map comoving size [h^-1 kpc]. Default: encloses all gas particles
     :param proj: (str/int) direction of projection ('x', 'y', 'z' or 0, 1, 2)
@@ -154,7 +155,7 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
     if tcut > 0.:
         temp = readtemperature(simfile, f_cooling=f_cooling, suppress=1)  # [K]
         valid_mask = valid_mask & (temp > tcut)
-        if quantity_ not in ['tmw', 'tew', 'tsl']:
+        if quantity_ not in ['tmw', 'tew', 'tsl', 'taw']:
             del temp
 
     if zrange:
@@ -186,7 +187,7 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
         qty = mass * pygr.readsnap(simfile, 'rho', 'gas',
                                    **pygro) / pixsize ** 2  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
         nrm = np.full(ngas, 0., dtype=SP)  # [---]
-    elif quantity_ in ['ne', 'nenh', 'ne2', 'tmw', 'tew', 'tsl', 'vmw', 'vew', 'wmw', 'wew']:
+    elif quantity_ in ['ne', 'nenh', 'ne2', 'tmw', 'tew', 'tsl', 'taw', 'vmw', 'vew', 'wmw', 'wew']:
         x_e = pygr.readsnap(simfile, 'ne', 'gas', **pygro)  # n_e / n_H [---]
         if quantity_ == 'ne':  # Int(ne*dl) after conversion factor is applied
             conv_factor = 1e10 * Msun2g * Xp / m_p / kpc2cm ** 2
@@ -202,7 +203,7 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
             qty = (mass * pygr.readsnap(simfile, 'rho', 'gas', **pygro) ** 2 *
                    x_e / pixsize ** 2)  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
             nrm = np.full(ngas, 0., dtype=SP)  # [---]
-        elif quantity_ in ['tmw', 'tew', 'tsl']:
+        elif quantity_ in ['tmw', 'tew', 'tsl', 'taw']:
             if 'temp' not in locals():
                 temp = readtemperature(simfile, f_cooling=f_cooling, suppress=1)  # [K]
             if quantity_ == 'tmw':  # Weighted by electron density: Int(n_e*T*dl) / Int(ne*dl)
@@ -213,10 +214,15 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
                 qty = mass * rho * x_e ** 2 * temp / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K]
                 nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
                 del rho
-            elif quantity_ == 'tsl':  # Spectroscopic-like: Int(n_e^2*T^0.25*dl) / Int(ne^2*T^0.75*dl)
+            elif quantity_ == 'tsl':  # Spectroscopic-like: Int(n_e^2*T^0.25*dl) / Int(ne^2*T^-0.75*dl)
                 rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                 qty = mass * rho * x_e ** 2 * temp ** 0.25 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^0.25]
                 nrm = mass * rho * x_e ** 2 * temp ** (-0.75) / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^-0.75]
+                del rho
+            elif quantity_ == 'taw':  # Alpha-weighted: Int(n_e^2*T^(alpha+1)*dl) / Int(ne^2*T^alpha*dl)
+                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                qty = mass * rho * x_e ** 2 * temp ** (alpha+1) / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^(alpha+1)]
+                nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
                 del rho
             del temp
         elif quantity_ in ['vmw', 'vew', 'wmw', 'wew']:
@@ -243,8 +249,8 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
         del x_e
     else:
         raise ValueError("Invalid mapping quantity: " + quantity +
-                         " . Must be one of 'rho', 'ne', 'nh', 'rho2', 'nenH', 'Tmw', 'Tew', 'Tsl', 'vmw', 'vew', "
-                         "'wmw', 'wew'")
+                         " . Must be one of 'rho', 'ne', 'nh', 'rho2', 'nenH', 'Tmw', 'Tew', 'Tsl', 'Taw', 'vmw', "
+                         "'vew', 'wmw', 'wew'")
 
     # Mapping
     qty_map = np.full((npix, npix), 0., dtype=DP)
@@ -288,6 +294,7 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
             'tmw': {'map': 'K', 'norm': '10^10 h M_Sun kpc^-2'},
             'tew': {'map': 'K', 'norm': '10^20 h^3 M_Sun^2 kpc^-5'},
             'tsl': {'map': 'K', 'norm': '10^20 h^3 M_Sun^2 kpc^-5 K^-0.75'},
+            'taw': {'map': 'K', 'norm': '10^20 h^3 M_Sun^2 kpc^-5 K^alpha'},
             'vmw': {'map': 'km s^-1', 'norm': '10^10 h M_Sun kpc^-2'},
             'vew': {'map': 'km s^-1', 'norm': '10^20 h^3 M_Sun^2 kpc^-5'},
             'wmw': {'map': 'km s^-1', 'map2': 'km s^-1', 'norm': '10^10 h M_Sun kpc^-2'},
@@ -304,6 +311,8 @@ def make_map(simfile: str, quantity: str, npix=256, center=None, size=None, proj
             'norm_units': units[quantity_]['norm'],
             'coord_units': 'h^-1 kpc'
         }
+        if quantity_ == 'taw':
+            result['alpha'] = alpha
         if nosmooth:
             result['smoothing'] = 'OFF'
         if quantity_ in ['wmw', 'wew']:
