@@ -318,7 +318,7 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
             'norm_units': units[quantity_]['norm'],
             'coord_units': 'h^-1 kpc'
         }
-        if quantity_ == 'taw':
+        if quantity_ in ['taw', 'vaw', 'waw']:
             result['alpha'] = alpha
         if nosmooth:
             result['smoothing'] = 'OFF'
