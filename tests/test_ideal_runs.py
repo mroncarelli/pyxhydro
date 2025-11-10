@@ -126,7 +126,7 @@ def test_isothermal_no_velocities():
     # sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
     #                            seed=42, verbosity=0)
     # assert sys_out == [0]
-    # os.remove(simputFile)
+    os.remove(simputFile)
     #
     # # Creating a pha from the event-list file
     # if os.path.isfile(phaFile):
