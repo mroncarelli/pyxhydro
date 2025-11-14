@@ -5,7 +5,7 @@ from xraysim.specutils.tables import apec_table, write_spectable
 from .fitstestutils import assert_hdu_list_matches_reference
 
 referenceSpecTableFile = os.environ.get('XRAYSIM') + '/tests/reference_files/reference_emission_table.fits'
-specTableFile = "emission_table_created_for_test.fits"
+specTableFile = os.environ.get('XRAYSIM') + '/tests/reference_files/emission_table_created_for_test.fits'
 
 
 def test_create_apec_table_matches_reference():

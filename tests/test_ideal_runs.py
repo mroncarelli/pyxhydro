@@ -9,6 +9,8 @@ from xraysim.sphprojection.mapping import make_map, make_speccube
 from xraysim.specutils.specfit import *
 from xraysim.specutils.tables import apec_table
 
+from .specfittestutils import assert_fit_results_within_tolerance
+
 inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
 snapshotFile = inputDir + 'snap_Gadget_sample'
 
@@ -61,14 +63,10 @@ evtFile = referenceDir + "evt_file_created_for_ideal_test.evt"
 phaFile = referenceDir + "pha_file_created_for_ideal_test.pha"
 
 
-# TODO: This is a draft version of the test. The last commented part fails as there seems to be something wrong with
-# the normalization (see Issue #23)
-def test_isothermal_no_velocities():
+def wabs_bapec(nh: float, temp: float, metal: float, z: float, sigma_v: float, norm: float) -> np.ndarray:
     """
-    An ideal run from Gadget snapshot, assuming isothermal gas with no velocites.
+    Returns an absorbed (wabs) bapec spectrum.
     """
-
-    # Computing reference spectrum
     xsp.Xset.chatter = 0
     xsp.Xset.addModelString("APECTHERMAL", "yes")
     xsp.Xset.abund = abund
@@ -80,11 +78,23 @@ def test_isothermal_no_velocities():
     for ind in range(28):
         pars[5 + ind] = metal
     pars[33] = z
-    pars[34] = 1
-    model = xsp.Model('wabs(vvapec)', 'test_ideal_run_isoth_novel', 0)
+    pars[34] = sigma_v
+    pars[35] = norm
+    model = xsp.Model('wabs(bvvapec)', 'test_ideal_run_isoth_novel', 0)
     model.setPars(pars)
-    specRef = norm * np.array(model.values(0))  # [photons s^-1 cm^-2] (already multiplied by norm)
+    result = np.array(model.values(0))  # [photons s^-1 cm^-2] (already multiplied by norm)
     xsp.AllModels.setEnergies("reset")
+
+    return result
+
+
+def test_isothermal_no_velocities():
+    """
+    An ideal run from Gadget snapshot, assuming isothermal gas with no velocites.
+    """
+
+    # Computing reference spectrum
+    specRef = wabs_bapec(nH, temp_keV, metal, z, 0, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
 
     # Creating the spectral table
     specTable = apec_table(nz, z_min, z_max, 2, temp_keV-0.5, temp_keV, nene, e_min, e_max, metal, abund=abund)
@@ -93,7 +103,7 @@ def test_isothermal_no_velocities():
     specCube = make_speccube(snapshotFile, specTable, XRISM_FOV/60., npix, z, center=[2500., 2500.], proj='z', tcut=1e6,
                              isothermal=temp_keV * keV2K, nh=nH, novel=True)
 
-    # del specTable
+    del specTable
 
     # Checking that the integrated spectrum matches with the reference one
     assert specCube['energy'] == pytest.approx(energy, rel=1e-6)  # [keV]
@@ -120,48 +130,48 @@ def test_isothermal_no_velocities():
 
     assert specSimput == pytest.approx(specRef, rel=1e-3)
 
-    # Creating an event-list file from the SIMPUT file TODO decomment after solving Issue #23 (imports needed)
-    # if os.path.isfile(evtFile):
-    #     os.remove(evtFile)
-    # sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
-    #                            seed=42, verbosity=0)
-    # assert sys_out == [0]
+    # Creating an event-list file from the SIMPUT file
+    if os.path.isfile(evtFile):
+        os.remove(evtFile)
+    sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
+                               seed=42, verbosity=0)
+    assert sys_out == [0]
     os.remove(simputFile)
-    #
-    # # Creating a pha from the event-list file
-    # if os.path.isfile(phaFile):
-    #     os.remove(phaFile)
-    # make_pha(evtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(evtFile, phaFile)
-    # os.remove(evtFile)
-    # assert os.path.isfile(phaFile)
-    #
-    # # Fitting the spectrum in the pha file with parameters starting with the right values
-    # specfitRightStart = SpecFit(phaFile, "wabs(bapec)")
-    # rightStartPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
-    #                   temp_keV,  # kT [keV]
-    #                   metal,     # Abundance [Solar]
-    #                   z,         # Redshift [---]
-    #                   0.,   # Velocity dispersion [km/s]
-    #                   norm)      # Normalization [10^14 cm^-5]
-    #
-    # fixedPars = (True, True, True, True, True, False)
-    # specfitRightStart.run(start=rightStartPars, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
-    #
-    # assert_fit_results_within_tolerance(specfitRightStart, (nH, temp_keV, metal, z, sigma_v,
-    #                                                         norm), tol=3)
-    # del specfitRightStart
 
-    # # Fitting the spectrum in the pha file starting with wrong parameters
-    # specfitWrongStart = SpecFit(phaFile, "wabs(bapec)")
-    # startPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
-    #              np.random.uniform(low=2., high=9.),    # kT [keV]
-    #              np.random.uniform(low=0., high=0.5),   # Abundance [Solar]
-    #              z,                                     # Redshift [---]
-    #              np.random.uniform(low=0., high=500.),  # Velocity dispersion [km/s]
-    #              1.)                                    # Normalization [10^14 cm^-5]
-    #
-    # fixedPars = (True, False, False, False, False, False)
-    # specfitWrongStart.run(start=startPars, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
-    #
-    # assert_fit_results_within_tolerance(specfitWrongStart, (nH, temp_keV, metal, z, sigma_v,
-    #                                                         norm), tol=3.5)
+    # Creating a pha from the event-list file
+    if os.path.isfile(phaFile):
+        os.remove(phaFile)
+    make_pha(evtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(evtFile, phaFile)
+    os.remove(evtFile)
+    assert os.path.isfile(phaFile)
+
+    # Fitting the spectrum in the pha file with parameters starting with the right values
+    specfitRightStart = SpecFit(phaFile, "wabs(bapec)")
+    rightStartPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
+                      temp_keV,  # kT [keV]
+                      metal,     # Abundance [Solar]
+                      z,         # Redshift [---]
+                      sigma_v,   # Velocity dispersion [km/s]
+                      norm)      # Normalization [10^14 cm^-5]
+
+    fixedPars = (False, False, False, False, False, False)
+    specfitRightStart.run(start=rightStartPars, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
+
+    assert_fit_results_within_tolerance(specfitRightStart, (nH, temp_keV, metal, z, sigma_v,
+                                                            norm), tol=3)
+    del specfitRightStart
+
+    # Fitting the spectrum in the pha file starting with wrong parameters
+    specfitWrongStart = SpecFit(phaFile, "wabs(bapec)")
+    startPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
+                 np.random.uniform(low=2., high=9.),    # kT [keV]
+                 np.random.uniform(low=0., high=0.5),   # Abundance [Solar]
+                 z,                                     # Redshift [---]
+                 np.random.uniform(low=0., high=500.),  # Velocity dispersion [km/s]
+                 1.)                                    # Normalization [10^14 cm^-5]
+
+    fixedPars = (True, False, False, False, False, False)
+    specfitWrongStart.run(start=startPars, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
+
+    assert_fit_results_within_tolerance(specfitWrongStart, (nH, temp_keV, metal, z, sigma_v,
+                                                            norm), tol=3.5)
