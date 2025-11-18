@@ -1,15 +1,23 @@
 from astropy import cosmology
+from astropy.io import fits
+import os
+import numpy as np
 import pygadgetreader as pygr
 import pytest
+import sys
+sys.path.append(os.environ.get("HEADAS") + "/lib/python")
+# TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging)
+import xspec as xsp
 
 from xraysim.gadgetutils.convert import vpec2zobs
 from xraysim.gadgetutils.phys_const import keV2K, keV2erg, pi
 from xraysim.sixte import cube2simputfile, create_eventlist, make_pha, versionTuple
 from xraysim.sphprojection.mapping import make_map, make_speccube
-from xraysim.specutils.specfit import *
+from xraysim.specutils.specfit import SpecFit
 from xraysim.specutils.tables import apec_table
 
-from .specfittestutils import assert_fit_results_within_tolerance
+from .randomutils import TrueRandomGenerator
+from .specfittestutils import assert_fit_results_within_error
 
 inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
 snapshotFile = inputDir + 'snap_Gadget_sample'
@@ -17,7 +25,6 @@ snapshotFile = inputDir + 'snap_Gadget_sample'
 # Emission table parameters
 abund = "aspl"  # Xspec abundance table
 nH = 0.02  # [10^22 cm-2]
-tmin, tmax = 0.1, 50.  # Tempeature range [keV]
 nene = 6000
 e_min, e_max = 2., 8.  # Energy range [keV]
 d_ene = (e_max - e_min) / nene  # Energy bin [keV]
@@ -28,20 +35,31 @@ nSigma = 5.  # Used to define the redshift range in units of the velocity disper
 # Map parameters
 npix = 50
 
-# Physical parameters
-temp_keV = 7.  # Gas temperature [keV]
-z = 0.5  # redshift [---]
-metal = 0.35 # Metallicity
-sigma_v = 350.  # velocity dispersion [km/s]
+# Setting physical parameters of the tests with a true random generator
+tMin, tMax = 2, 9
+zMin, zMax = 0, 1.5
+metalMin, metalMax = 0.2, 1
+sigmaVMin, sigmaVMax = 50, 500
+
+TRG = TrueRandomGenerator()
+errMsg = "Random seed: " + str(TRG.initialSeed)  # Assertion error message if test fails
+temp = TRG.uniform(tMin, tMax)  # Gas temperature [keV]
+z = int(TRG.uniform(zMin, zMax) / dz) * dz  # redshift [---] (multiple of dz so that its values is in the table)
+metal = TRG.uniform(metalMin, metalMax)  # metallicity [Solar]
+sigma_v = TRG.uniform(sigmaVMin, sigmaVMax)  # velocity dispersion [km/s]
+
+
+# Temperature ranges in the table
+nt, tMinTable, tMaxTable = 3, temp / 1.5, temp * 1.5
 
 # Calculating z_min and z_max for the spectral table: they correspond to z ± nSigma * sigma_v, rounded with dz
-z_min = np.floor(vpec2zobs(-nSigma * sigma_v, z, 'km/s') / dz) * dz
-z_max = np.ceil(vpec2zobs(nSigma * sigma_v, z, 'km/s') / dz) * dz
-nz = int((z_max - z_min) / dz) + 1
+zMinTable = np.floor(vpec2zobs(-nSigma * sigma_v, z, 'km/s') / dz) * dz
+zMaxTable = np.ceil(vpec2zobs(nSigma * sigma_v, z, 'km/s') / dz) * dz
+nz = int(np.round((zMaxTable - zMinTable) / dz)) + 1
 if nz < 3:
-    z_min -= dz
-    z_max += dz
-    nz = int((z_max - z_min) / dz) + 1
+    zMinTable -= dz
+    zMaxTable += dz
+    nz = int(np.round((zMaxTable - zMinTable) / dz)) + 1
 
 # Calculating normalization
 cosmo = cosmology.FlatLambdaCDM(H0=100., Om0=0.3)
@@ -74,13 +92,13 @@ def wabs_bapec(nh: float, temp: float, metal: float, z: float, sigma_v: float, n
 
     pars = {}
     pars[1] = nH  # [10^22 cm^-2]
-    pars[2] = temp_keV  # [keV]
+    pars[2] = temp  # [keV]
     for ind in range(28):
         pars[5 + ind] = metal
     pars[33] = z
     pars[34] = sigma_v
     pars[35] = norm
-    model = xsp.Model('wabs(bvvapec)', 'test_ideal_run_isoth_novel', 0)
+    model = xsp.Model('wabs(bvvapec)', 'test_ideal_run', 0)
     model.setPars(pars)
     result = np.array(model.values(0))  # [photons s^-1 cm^-2] (already multiplied by norm)
     xsp.AllModels.setEnergies("reset")
@@ -90,25 +108,25 @@ def wabs_bapec(nh: float, temp: float, metal: float, z: float, sigma_v: float, n
 
 def test_isothermal_no_velocities():
     """
-    An ideal run from Gadget snapshot, assuming isothermal gas with no velocites.
+    An ideal run from Gadget snapshot, assuming isothermal gas with no velocities.
     """
 
     # Computing reference spectrum
-    specRef = wabs_bapec(nH, temp_keV, metal, z, 0, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
+    specRef = wabs_bapec(nH, temp, metal, z, 0, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
 
     # Creating the spectral table
-    specTable = apec_table(nz, z_min, z_max, 2, temp_keV-0.5, temp_keV, nene, e_min, e_max, metal, abund=abund)
+    specTable = apec_table(nz, zMinTable, zMaxTable, nt, tMinTable, tMaxTable, nene, e_min, e_max, metal, abund=abund)
 
     # Creating the speccube from the snapshot assuming isothermal gas with Gaussian velocity distribution
-    specCube = make_speccube(snapshotFile, specTable, XRISM_FOV/60., npix, z, center=[2500., 2500.], proj='z', tcut=1e6,
-                             isothermal=temp_keV * keV2K, nh=nH, novel=True)
+    specCube = make_speccube(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+                             tcut=1e6, isothermal=temp * keV2K, nh=nH, novel=True)
 
     del specTable
 
     # Checking that the integrated spectrum matches with the reference one
-    assert specCube['energy'] == pytest.approx(energy, rel=1e-6)  # [keV]
+    assert specCube['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
     specSpecCube = specCube['data'].sum(axis=(0, 1)) * d_ene * specCube['pixel_size'] ** 2  # [photons s^-1 cm^2]
-    assert specSpecCube == pytest.approx(specRef, rel=1e-3)  # [photons s^-1 cm^2]
+    assert specSpecCube == pytest.approx(specRef, rel=1e-3), errMsg  # [photons s^-1 cm^2]
 
     # Creating the SIMPUT file
     if os.path.isfile(simputFile):
@@ -120,22 +138,22 @@ def test_isothermal_no_velocities():
     hduList = fits.open(simputFile)
     flux = hduList[1].data['FLUX']  # [erg/s/cm**2]
     fld = hduList[2].data['FLUXDENSITY']  # [photons/s/cm**2/keV]
-    assert fld.shape[0] == npix**2
-    assert fld.shape[1] == nene
+    assert fld.shape[0] == npix**2, errMsg
+    assert fld.shape[1] == nene, errMsg
     specSimput = np.zeros(nene)
     for ind in range(npix**2):
-        assert hduList[2].data['ENERGY'][ind, :] == pytest.approx(energy, rel=1e-6)
+        assert hduList[2].data['ENERGY'][ind, :] == pytest.approx(energy, rel=1e-6), errMsg
         flux_ = np.sum(fld[ind, :] * energy) * d_ene * keV2erg  # [erg s^-1 cm^-2]
         specSimput += flux[ind] / flux_ * fld[ind] * d_ene  # [photons s^-1 cm^-2]
 
-    assert specSimput == pytest.approx(specRef, rel=1e-3)
+    assert specSimput == pytest.approx(specRef, rel=1e-3), errMsg
 
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
     sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
                                seed=42, verbosity=0)
-    assert sys_out == [0]
+    assert sys_out == [0], errMsg
     os.remove(simputFile)
 
     # Creating a pha from the event-list file
@@ -143,35 +161,35 @@ def test_isothermal_no_velocities():
         os.remove(phaFile)
     make_pha(evtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(evtFile, phaFile)
     os.remove(evtFile)
-    assert os.path.isfile(phaFile)
+    assert os.path.isfile(phaFile), errMsg
 
     # Fitting the spectrum in the pha file with parameters starting with the right values
     specfitRightStart = SpecFit(phaFile, "wabs(bapec)")
-    rightStartPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
-                      temp_keV,  # kT [keV]
-                      metal,     # Abundance [Solar]
-                      z,         # Redshift [---]
-                      sigma_v,   # Velocity dispersion [km/s]
+    rightStartPars = (nH,  # nH [10^22 cm^-2]
+                      temp,  # kT [keV]
+                      metal,  # Abundance [Solar]
+                      z,  # Redshift [---]
+                      0.,  # Velocity dispersion [km/s]
                       norm)      # Normalization [10^14 cm^-5]
 
-    fixedPars = (False, False, False, False, False, False)
+    fixedPars = (True, False, False, False, True, False)
     specfitRightStart.run(start=rightStartPars, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_tolerance(specfitRightStart, (nH, temp_keV, metal, z, sigma_v,
-                                                            norm), tol=3)
+    #assert_fit_results_nominal_within_tolerance(specfitRightStart, rightStartPars, tol=1e-3)
+    assert_fit_results_within_error(specfitRightStart, rightStartPars, tol=1.5, msg=errMsg)
     del specfitRightStart
 
     # Fitting the spectrum in the pha file starting with wrong parameters
     specfitWrongStart = SpecFit(phaFile, "wabs(bapec)")
-    startPars = (nH, # np.random.uniform(low=0., high=0.03),  # nH [10^22 cm^-2]
-                 np.random.uniform(low=2., high=9.),    # kT [keV]
-                 np.random.uniform(low=0., high=0.5),   # Abundance [Solar]
-                 z,                                     # Redshift [---]
-                 np.random.uniform(low=0., high=500.),  # Velocity dispersion [km/s]
+    startPars = (nH,  # nH [10^22 cm^-2]
+                 TRG.uniform(low=tMin, high=tMax),  # kT [keV]
+                 TRG.uniform(low=metalMin, high=metalMax),  # Abundance [Solar]
+                 z,  # Redshift [---]
+                 0.,  # Velocity dispersion [km/s]
                  1.)                                    # Normalization [10^14 cm^-5]
 
-    fixedPars = (True, False, False, False, False, False)
+    fixedPars = (True, False, False, False, True, False)
     specfitWrongStart.run(start=startPars, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_tolerance(specfitWrongStart, (nH, temp_keV, metal, z, sigma_v,
-                                                            norm), tol=3.5)
+    assert_fit_results_within_error(specfitWrongStart, (nH, temp, metal, z, sigma_v,
+                                                        norm), tol=3, msg=errMsg)

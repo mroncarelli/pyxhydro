@@ -7,7 +7,8 @@ sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 import pytest
 
 from .fitstestutils import assert_hdu_list_matches_reference
-from .specfittestutils import *
+from .specfittestutils import (assert_specfit_has_no_error_flags, assert_fit_results_within_error,
+                               assert_specfit_has_coherent_properties)
 from xraysim.specutils.specfit import *
 
 input_dir = os.environ.get('XRAYSIM') + '/tests/inp/'
@@ -44,7 +45,7 @@ def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tu
     specfit = SpecFit(spectrum, model, respFile=rmf, arfFile=arf)
     specfit.run(start=start, method=method)
     assert_specfit_has_no_error_flags(specfit)
-    assert_fit_results_within_tolerance(specfit, reference, tol=tolerance)
+    assert_fit_results_within_error(specfit, reference, tol=tolerance)
 
 
 def test_apec_no_stat_fit_start_with_right_parameters():
@@ -96,7 +97,7 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_bapec, rightParsBapec, tol=toleranceWithStat)
+    assert_fit_results_within_error(specfit_bapec, rightParsBapec, tol=toleranceWithStat)
 
     specfit_apec.run(start=rightParsApec, method="cstat")
     assert specfit_apec.fitDone
@@ -106,7 +107,7 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_apec, rightParsApec, tol=toleranceWithStat)
+    assert_fit_results_within_error(specfit_apec, rightParsApec, tol=toleranceWithStat)
 
 
 def test_apec_no_stat_fit_start_with_only_redshift_right():
@@ -143,7 +144,7 @@ specFitBapec.run(start=wrongParsBapec, method="cstat")
 def test_bapec_fit_start_with_only_redshift_right():
     # Fitting the bapec spectrum produced with fakeit, starting with all wrong parameters except for redshift should
     # lead to the correct result, within tolerance
-    assert_fit_results_within_tolerance(specFitBapec, rightParsBapec, tol=toleranceWithStat)
+    assert_fit_results_within_error(specFitBapec, rightParsBapec, tol=toleranceWithStat)
 
 
 def test_covariance_matrix_has_correct_shape_and_diagonal_elements():
