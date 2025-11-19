@@ -1,3 +1,19 @@
+'''
+This file contains tests designed to test the code in ideal cases, from spectra and map creation to spectral fitting.
+The gas in the simulation is considered isothermal and, when present, velocities are assumed with Gaussian
+distribution. The physical parameters are chosen randomly with a true random generator: this means that for every
+run the physical parameters change and so do the starting values of the fit parameters. The reproducibility is assured
+by the initial random seed that is shown in the error message in case of test failure: in order to reproduce the error
+one must put the initial seed as an argument of the TRG object initialization, i.e. substituting
+
+TRG = TrueRandomGenerator()
+
+with
+
+TRG = TrueRandomGenerator(`randomSeedFromErrorMessage`)
+'''
+
+
 from astropy import cosmology
 from astropy.io import fits
 import os
@@ -75,8 +91,11 @@ map_str = make_map(snapshotFile, 'nenH', 1, center=[2500., 2500.], size=mapSize,
 InenHdl = map_str['map'][0, 0]  # [h^3 cn^-5] (comoving)
 norm = InenHdl * 1e-14 * h_Hubble ** 3 * (1 + z) ** 3 * mapSize ** 2 / (4 * pi * d_C ** 2) # [10^14 cm^-5] (physical)
 
-rightParsV0 = (nH, temp, metal, z, 0, norm)      # Normalization [10^14 cm^-5]
-rightPars = (nH, temp, metal, z, sigma_v, norm)      # Normalization [10^14 cm^-5]
+# Fit parameters settings
+fitParsV0 = (nH, temp, metal, z, 0, norm)
+fitPars = (fitParsV0[0], fitParsV0[1], fitParsV0[2], fitParsV0[3], sigma_v, fitParsV0[5])
+startPV0 = (nH, TRG.uniform(low=tMin, high=tMax), TRG.uniform(low=metalMin, high=metalMax), z, 0, 1)
+startP = (startPV0[0], startPV0[1], startPV0[2], startPV0[3], TRG.uniform(low=sigmaVMin, high=sigmaVMax), startPV0[5])
 
 # Test files
 referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
@@ -86,7 +105,7 @@ evtFile = referenceDir + "evt_file_created_for_ideal_test.evt"
 phaFile = referenceDir + "pha_file_created_for_ideal_test.pha"
 
 
-def wabs_bapec(nh: float, temp: float, metal: float, z: float, sigma_v: float, norm: float) -> np.ndarray:
+def wabs_bapec(nh: float, t: float, met: float, redshift: float, broad: float, nrm: float) -> np.ndarray:
     """
     Returns an absorbed (wabs) bapec spectrum.
     """
@@ -95,14 +114,12 @@ def wabs_bapec(nh: float, temp: float, metal: float, z: float, sigma_v: float, n
     xsp.Xset.abund = abund
     xsp.AllModels.setEnergies(str(e_min) + " " + str(e_max) + " " + str(nene) + " lin")
 
-    pars = {}
-    pars[1] = nH  # [10^22 cm^-2]
-    pars[2] = temp  # [keV]
+    pars = {1: nh, 2: t}
     for ind in range(28):
-        pars[5 + ind] = metal
-    pars[33] = z
-    pars[34] = sigma_v
-    pars[35] = norm
+        pars[5 + ind] = met
+    pars[33] = redshift
+    pars[34] = broad
+    pars[35] = nrm
     model = xsp.Model('wabs(bvvapec)', 'test_ideal_run', 0)
     model.setPars(pars)
     result = np.array(model.values(0))  # [photons s^-1 cm^-2] (already multiplied by norm)
@@ -117,37 +134,40 @@ def test_isothermal_no_velocities():
     """
 
     # Computing reference spectrum
-    specRef = wabs_bapec(nH, temp, metal, z, 0, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
+    sp_ref = wabs_bapec(nH, temp, metal, z, 0, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
 
 
-    # Creating the speccube from the snapshot assuming isothermal gas with no velocities velocity distribution
-    specCube = make_speccube(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+    # Creating the spectral cube from the snapshot assuming isothermal gas with Gaussian velocity distribution
+    sp_cube = make_speccube(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
                              tcut=1e6, isothermal=temp * keV2K, nh=nH, novel=True)
 
     # Checking that the integrated spectrum matches with the reference one
-    assert specCube['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
-    specSpecCube = specCube['data'].sum(axis=(0, 1)) * d_ene * specCube['pixel_size'] ** 2  # [photons s^-1 cm^2]
-    assert specSpecCube == pytest.approx(specRef, rel=1e-3), errMsg  # [photons s^-1 cm^2]
+    assert sp_cube['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
+
+    sp = sp_cube['data'].sum(axis=(0, 1)) * d_ene * sp_cube['pixel_size'] ** 2  # [photons s^-1 cm^2]
+    assert sp.sum() == pytest.approx(sp_ref.sum(), rel=1e-4), errMsg
+    assert sp == pytest.approx(sp_ref, rel=1e-3), errMsg  # [photons s^-1 cm^2]
 
     # Creating the SIMPUT file
     if os.path.isfile(simputFile):
         os.remove(simputFile)
-    cube2simputfile(specCube, simputFile)
-    del specCube
+    cube2simputfile(sp_cube, simputFile)
+    del sp_cube
 
     # Extracting data from Simput file
-    hduList = fits.open(simputFile)
-    flux = hduList[1].data['FLUX']  # [erg/s/cm**2]
-    fld = hduList[2].data['FLUXDENSITY']  # [photons/s/cm**2/keV]
+    hdu_list = fits.open(simputFile)
+    flux = hdu_list[1].data['FLUX']  # [erg/s/cm**2]
+    fld = hdu_list[2].data['FLUXDENSITY']  # [photons/s/cm**2/keV]
     assert fld.shape[0] == npix**2, errMsg
     assert fld.shape[1] == nene, errMsg
-    specSimput = np.zeros(nene)
+    sp_simput = np.zeros(nene)
     for ind in range(npix**2):
-        assert hduList[2].data['ENERGY'][ind, :] == pytest.approx(energy, rel=1e-6), errMsg
+        assert hdu_list[2].data['ENERGY'][ind, :] == pytest.approx(energy, rel=1e-6), errMsg
         flux_ = np.sum(fld[ind, :] * energy) * d_ene * keV2erg  # [erg s^-1 cm^-2]
-        specSimput += flux[ind] / flux_ * fld[ind] * d_ene  # [photons s^-1 cm^-2]
+        sp_simput += flux[ind] / flux_ * fld[ind] * d_ene  # [photons s^-1 cm^-2]
 
-    assert specSimput == pytest.approx(specRef, rel=1e-3), errMsg
+    assert sp_simput.sum() == pytest.approx(sp_ref.sum(), rel=1e-4), errMsg
+    assert sp_simput == pytest.approx(sp_ref, rel=1e-3), errMsg
 
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
@@ -165,24 +185,94 @@ def test_isothermal_no_velocities():
     assert os.path.isfile(phaFile), errMsg
 
     # Fitting the spectrum in the pha file with parameters starting with the right values
-    specfitRightStart = SpecFit(phaFile, "wabs(bapec)")
+    spfit_right_start = SpecFit(phaFile, "wabs(bapec)")
 
-    fixedPars = (True, False, False, False, True, False)
-    specfitRightStart.run(start=rightParsV0, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
+    fixed_pars = (True, False, False, False, True, False)
+    spfit_right_start.run(start=fitParsV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_error(specfitRightStart, rightParsV0, tol=1.5, msg=errMsg)
-    del specfitRightStart
+    assert_fit_results_within_error(spfit_right_start, fitParsV0, tol=3, msg=errMsg)
+    del spfit_right_start
 
     # Fitting the spectrum in the pha file starting with wrong parameters
-    specfitWrongStart = SpecFit(phaFile, "wabs(bapec)")
-    startPars = (nH,  # nH [10^22 cm^-2]
-                 TRG.uniform(low=tMin, high=tMax),  # kT [keV]
-                 TRG.uniform(low=metalMin, high=metalMax),  # Abundance [Solar]
-                 z,  # Redshift [---]
-                 0,  # Velocity dispersion [km/s]
-                 1)                                    # Normalization [10^14 cm^-5]
+    spfit_wrong_start = SpecFit(phaFile, "wabs(bapec)")
+    os.remove(phaFile)
+    fixed_pars = (True, False, False, False, True, False)
+    spfit_wrong_start.run(start=startPV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    fixedPars = (True, False, False, False, True, False)
-    specfitWrongStart.run(start=startPars, fixed=fixedPars, method='cstat', abund=abund, erange=(e_min, e_max))
+    assert_fit_results_within_error(spfit_wrong_start, fitParsV0, tol=4, msg=errMsg)
 
-    assert_fit_results_within_error(specfitWrongStart, rightParsV0, tol=4, msg=errMsg)
+
+def test_isothermal_gaussian_velocities():
+    """
+    An ideal run from Gadget snapshot, assuming isothermal gas with Gaussian velocities.
+    """
+
+    # Computing reference spectrum
+    sp_ref = wabs_bapec(nH, temp, metal, z, sigma_v, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
+
+
+    # Creating the spectral cube from the snapshot assuming isothermal gas with Gaussian velocity distribution
+    sp_cube = make_speccube(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+                             tcut=1e6, isothermal=temp * keV2K, nh=nH, gaussvel=(0, sigma_v))
+
+    # Checking that the integrated spectrum matches with the reference one
+    assert sp_cube['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
+
+    sp = sp_cube['data'].sum(axis=(0, 1)) * d_ene * sp_cube['pixel_size'] ** 2  # [photons s^-1 cm^2]
+
+    # Checking only the sum because with random gaussian velocities bin to bin differences are too high
+    assert sp.sum() == pytest.approx(sp_ref.sum(), rel=5e-4), errMsg  # [photons s^-1 cm^2]
+
+    # Creating the SIMPUT file
+    if os.path.isfile(simputFile):
+        os.remove(simputFile)
+    cube2simputfile(sp_cube, simputFile)
+    del sp_cube
+
+    # Extracting data from Simput file
+    hdu_list = fits.open(simputFile)
+    flux = hdu_list[1].data['FLUX']  # [erg/s/cm**2]
+    fld = hdu_list[2].data['FLUXDENSITY']  # [photons/s/cm**2/keV]
+    assert fld.shape[0] == npix**2, errMsg
+    assert fld.shape[1] == nene, errMsg
+    sp_simput = np.zeros(nene)
+    for ind in range(npix**2):
+        assert hdu_list[2].data['ENERGY'][ind, :] == pytest.approx(energy, rel=1e-6), errMsg
+        flux_ = np.sum(fld[ind, :] * energy) * d_ene * keV2erg  # [erg s^-1 cm^-2]
+        sp_simput += flux[ind] / flux_ * fld[ind] * d_ene  # [photons s^-1 cm^-2]
+
+    # Checking only the sum because with random gaussian velocities bin to bin differences are too high
+    assert sp_simput.sum() == pytest.approx(sp_ref.sum(), rel=5e-4), errMsg  # [photons s^-1 cm^2]
+
+    # Creating an event-list file from the SIMPUT file
+    if os.path.isfile(evtFile):
+        os.remove(evtFile)
+    sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
+                               seed=42, verbosity=0)
+    assert sys_out == [0], errMsg
+    os.remove(simputFile)
+
+    # Creating a pha from the event-list file
+    if os.path.isfile(phaFile):
+        os.remove(phaFile)
+    make_pha(evtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(evtFile, phaFile)
+    os.remove(evtFile)
+    assert os.path.isfile(phaFile), errMsg
+
+    # Fitting the spectrum in the pha file with parameters starting with the right values
+    spfit_right_start = SpecFit(phaFile, "wabs(bapec)")
+
+    fixed_pars = (True, False, False, False, True, False)
+    spfit_right_start.run(start=fitPars, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
+
+    assert_fit_results_within_error(spfit_right_start, fitPars, tol=3, msg=errMsg)
+    del spfit_right_start
+
+    # Fitting the spectrum in the pha file starting with wrong parameters
+    spfit_wrong_start = SpecFit(phaFile, "wabs(bapec)")
+    os.remove(phaFile)
+
+    fixed_pars = (True, False, False, False, False, False)
+    spfit_wrong_start.run(start=startP, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
+
+    assert_fit_results_within_error(spfit_wrong_start, fitPars, tol=4, msg=errMsg)
