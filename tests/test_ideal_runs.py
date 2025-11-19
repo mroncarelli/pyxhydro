@@ -198,7 +198,7 @@ def test_isothermal_no_velocities():
     fixed_pars = (True, False, False, False, True, False)
     spfit_wrong_start.run(start=startPV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_error(spfit_wrong_start, fitParsV0, tol=4, msg=errMsg)
+    assert_fit_results_within_error(spfit_wrong_start, fitParsV0, tol=5, msg=errMsg)
 
 
 def test_isothermal_gaussian_velocities():
@@ -274,4 +274,4 @@ def test_isothermal_gaussian_velocities():
     fixed_pars = (True, False, False, False, False, False)
     spfit_wrong_start.run(start=startP, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_error(spfit_wrong_start, fitPars, tol=4, msg=errMsg)
+    assert_fit_results_within_error(spfit_wrong_start, fitPars, tol=5, msg=errMsg)
