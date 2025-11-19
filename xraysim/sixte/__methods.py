@@ -9,7 +9,7 @@ from astropy.io import fits
 
 from xraysim.gadgetutils import phys_const
 from xraysim.specutils import absorption
-from .__shared import instrumentsConfigFile, instrumentsDir, keywordList, versionTuple
+from .__shared import instrumentsConfigFile, instrumentsDir, keywordList
 from .__classes import SixteInstruments
 
 # Instruments object
@@ -287,11 +287,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
         sixte_command = instrument_.command
         special = instrument_.special
 
-        if versionTuple < (3,) and sixte_command == 'erosim':
-            # SIXTE in version 2 or lower handles eROSITA in a special way, so that the xml file is not needed
-            xmlfile_ = None
-        else:
-            xmlfile_ = xmlfile if xmlfile else path + (',' + path).join(instrument_.xml.replace(' ', '').split(','))
+        xmlfile_ = xmlfile if xmlfile else path + (',' + path).join(instrument_.xml.replace(' ', '').split(','))
 
         if advxml:
             advxml_ = advxml
@@ -316,7 +312,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
     clobber_ = 'yes' if overwrite else 'no'
 
     # eROSITA special case
-    if (versionTuple >= (3,) and special == 'erosita') or (versionTuple < (3,) and sixte_command == 'erosim'):
+    if special == 'erosita':
         if attitude_:
             command_list = erosita_survey(simputfile, attitude_, exposure, evtfile, xmlfile=xmlfile_)
             itask = 1
@@ -336,8 +332,6 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
         # Standard instrument
         command_list = [sixte_command + ' XMLFile=' + xmlfile_ + ' Simput=' + simputfile +
                         ' Exposure=' + str(exposure) + ' RA=' + str(ra) + ' Dec=' + str(dec) + ' evtfile=' + evtfile]
-        if versionTuple < (3,) and advxml_:  # only for Sixte version 2 and earlier
-            command_list[0] += ' AdvXml=' + advxml_
 
         itask = 0
 
@@ -370,7 +364,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
             result.append(sys_out)
         if all(value == 0 for value in result):
             inherit_keywords(simputfile, evtfile, file_type="evt")
-            if (versionTuple >= (3,) and special == 'erosita') or (versionTuple < (3,) and sixte_command == 'erosim'):
+            if special == 'erosita':
                 # For the eROSITA simulation I also need to add manually the XML file in the header history, as SIXTE
                 # does not do it or does it wrong. I take for reference the one of CCD 1.
                 correct_erosita_history_header(evtfile, xmlfile_)
@@ -392,13 +386,9 @@ def erosita_pointed(simputfile: str, exposure: float, evtfile: str, ra: float, d
     :return: (list) List with one SIXTE command
     """
 
-    if versionTuple < (3,):
-        result = ['erosim Prefix=' + os.path.splitext(evtfile)[0] + '_' + ' Simput=' + simputfile + ' Exposure=' +
-                  str(exposure) + ' RA=' + str(ra) + ' Dec=' + str(dec)]
-    else:
-        result = ['sixtesim Prefix=' + os.path.dirname(evtfile) + '/' + ' XMLFile=' + xmlfile + ' Simput=' + simputfile
-                  + ' Exposure=' + str(exposure) + ' RA=' + str(ra) + ' Dec=' + str(dec) + ' evtfile=' +
-                  os.path.basename(evtfile)]
+    result = ['sixtesim Prefix=' + os.path.dirname(evtfile) + '/' + ' XMLFile=' + xmlfile + ' Simput=' + simputfile
+              + ' Exposure=' + str(exposure) + ' RA=' + str(ra) + ' Dec=' + str(dec) + ' evtfile=' +
+              os.path.basename(evtfile)]
 
     return result
 
@@ -418,11 +408,8 @@ def erosita_survey(simputfile: str, attitude: str, exposure, evtfile: str, xmlfi
 
     root_file_name = os.path.splitext(evtfile)[0]
     result = []
-    if versionTuple < (3,):
-        runsim_command = 'erosim Prefix=' + root_file_name + '_' + ' Simput=' + simputfile
-    else:
-        runsim_command = ('sixtesim Prefix=' + os.path.dirname(evtfile) + '/' + ' XMLFile=' + xmlfile + ' Simput=' +
-                          simputfile + ' Exposure=0 MJDREF=51543.8750 evtfile=' + os.path.basename(evtfile))
+    runsim_command = ('sixtesim Prefix=' + os.path.dirname(evtfile) + '/' + ' XMLFile=' + xmlfile + ' Simput=' +
+                      simputfile + ' Exposure=0 MJDREF=51543.8750 evtfile=' + os.path.basename(evtfile))
 
     hdu_list = fits.open(attitude)
     t0 = hdu_list[1].data['TIME'][0]  # MJD of the survey start [s]
@@ -445,10 +432,7 @@ def erosita_ccd_eventfile(evtfile: str, ccd: int):
     :param ccd: (int) CCD number
     :return: (str) eROSITA ventfile
     """
-    if versionTuple < (3,):
-        return os.path.splitext(evtfile)[0] + '_ccd' + str(ccd) + '_evt.fits'
-    else:
-        return os.path.dirname(evtfile) + '/tel' + str(ccd) + '_' + os.path.basename(evtfile)
+    return os.path.dirname(evtfile) + '/tel' + str(ccd) + '_' + os.path.basename(evtfile)
 
 
 def correct_erosita_history_header(evtfile: str, xmlfile=None):
@@ -459,10 +443,7 @@ def correct_erosita_history_header(evtfile: str, xmlfile=None):
     :return: (int) Output of the FITS file writing
     """
     hdulist = fits.open(evtfile)
-    if versionTuple < (3,):
-        xml_file = instrumentsDir + '/srg/erosita/erosita_1.xml'
-    else:
-        xml_file = xmlfile.split(',')[0]
+    xml_file = xmlfile.split(',')[0]
 
     history = list(hdulist[0].header['HISTORY'])
     index_line = xmlfile_line(history)  # index of the line with XMLFile

@@ -1,6 +1,7 @@
 import os
 from distutils.spawn import find_executable
 from importlib.util import find_spec
+from xraysim import sixte
 
 commandList = ['sixtesim', 'makespec']
 envVariableList = ['XRAYSIM', 'SIXTE']
@@ -14,6 +15,13 @@ def test_programs_are_installed():
     """
     for command in commandList:
         assert find_executable(command) is not None
+
+
+def sixte_version_3_or_higher():
+    """
+    Tests that the SIXTE version is 3 or higher.
+    """
+    assert sixte.versionTuple >= (3, 0)
 
 
 def test_environment_variables_are_set():
