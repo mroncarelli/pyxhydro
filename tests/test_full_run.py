@@ -28,7 +28,7 @@ spfFile = referenceDir + "spf_file_created_for_test.spf"
 # evtFile and phaFile match the reference as it may fail in some operative systems. With the `complete` option (pytest
 # --eventlist complete) the contents are checked and the test fails if they don't match.
 @pytest.fixture(scope="session")
-def run_type(pytestconfig):
+def run_type(pytestconfig) -> str:
     return pytestconfig.getoption("eventlist").lower()
 
 

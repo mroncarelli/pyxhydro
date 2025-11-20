@@ -1,6 +1,8 @@
 import os
 import numpy as np
 
+# Global variable used to store the random seed
+globalRandomSeed = None
 
 class TrueRandomGenerator:
     """
