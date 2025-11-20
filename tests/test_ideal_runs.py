@@ -1,17 +1,13 @@
-'''
+"""
 This file contains tests designed to test the code in ideal cases, from spectra and map creation to spectral fitting.
 The gas in the simulation is considered isothermal and, when present, velocities are assumed with Gaussian
 distribution. The physical parameters are chosen randomly with a true random generator: this means that for every
 run the physical parameters change and so do the starting values of the fit parameters. The reproducibility is assured
 by the initial random seed that is shown in the error message in case of test failure: in order to reproduce the error
-one must put the initial seed as an argument of the TRG object initialization, i.e. substituting
+one must take not of the seed (i.e. 12345678) and call
 
-TRG = TrueRandomGenerator()
-
-with
-
-TRG = TrueRandomGenerator(`randomSeedFromErrorMessage`)
-'''
+pytest --seed 12345678
+"""
 
 
 from astropy import cosmology
@@ -32,7 +28,7 @@ from xraysim.sphprojection.mapping import make_map, make_speccube
 from xraysim.specutils.specfit import SpecFit
 from xraysim.specutils.tables import apec_table
 
-from .randomutils import TrueRandomGenerator
+from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .specfittestutils import assert_fit_results_within_error
 
 inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
@@ -57,7 +53,7 @@ zMin, zMax = 0, 1.5
 metalMin, metalMax = 0.2, 1
 sigmaVMin, sigmaVMax = 50, 500
 
-TRG = TrueRandomGenerator()
+TRG = TrueRandomGenerator(globalRandomSeed)
 errMsg = "Random seed: " + str(TRG.initialSeed)  # Assertion error message if test fails
 nH = TRG.uniform(nHMin, nHMax)  # Hydrogen column density [10^22 cm-2]
 temp = TRG.uniform(tMin, tMax)  # Gas temperature [keV]

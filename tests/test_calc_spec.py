@@ -1,8 +1,16 @@
+"""
+The tests in this file have parameters that are chosen randomly with a true random generator: this means that for every
+run these parameters change. The reproducibility is assured by the initial random seed that is shown in the error
+message in case of test failure: in order to reproduce the error one must take not of the seed (i.e. 12345678) and call
+
+pytest --seed 12345678
+"""
+
 import os
-import numpy as np
 import pytest
 
 from xraysim.specutils.tables import read_spectable, calc_spec
+from .randomutils import TrueRandomGenerator, globalRandomSeed
 
 specTableFile = os.environ.get('XRAYSIM') + '/tests/reference_files/reference_emission_table.fits'
 specTable = read_spectable(specTableFile)
@@ -12,8 +20,8 @@ zMin, zMax = specTable.get('z').min(), specTable.get('z').max()
 tMin, tMax = specTable.get('temperature').min(), specTable.get('temperature').max()
 
 # Here I use this method to generate some true random numbers to differentiate the tests.
-seed = int.from_bytes(os.urandom(4))  # 4-bytes int generated with a true random function
-rs = np.random.RandomState(seed)  # Initialization of the random state
+TRG = TrueRandomGenerator(globalRandomSeed)
+errMsg = "Random seed: " + str(TRG.initialSeed)  # Assertion error message if test fails
 
 
 @pytest.mark.filterwarnings("ignore")
@@ -29,27 +37,27 @@ def test_table_values():
 @pytest.mark.filterwarnings("ignore")
 def test_spectra_with_z_smaller_than_table_min_must_be_all_zeros():
     # Spectra of any temperature with z smaller than the table minimum must contain all zeros if no_z_interp is True.
-    temp = rs.random() * (tMax - tMin) + tMin  # [keV]
+    temp = TRG.uniform(tMin, tMax)  # [keV]
     spec = calc_spec(specTable, specTable.get('z').min() - 1e-3, temp, no_z_interp=True)
-    assert spec.all() == 0, "Temperature = " + str(temp) + " Seed: " + str(seed)
+    assert spec.all() == 0, errMsg + ", Temperature = " + str(temp)
 
 
 @pytest.mark.filterwarnings("ignore")
 def test_spectra_with_z_larger_than_table_min_must_be_all_zeros():
     # Spectra of any temperature with z larger than the table minimum must contain all zeros if no_z_interp is True.
-    temp = rs.random() * (tMax - tMin) + tMin  # [keV]
+    temp = TRG.uniform(tMin, tMax)  # [keV]
     spec = calc_spec(specTable, specTable.get('z').max() + 1e-3, temp, no_z_interp=True)
-    assert spec.all() == 0, "Temperature = " + str(temp) + " Seed: " + str(seed)
+    assert spec.all() == 0, errMsg + ", Temperature = " + str(temp)
 
 
 @pytest.mark.filterwarnings("ignore")
 def test_spectra_with_temperature_smaller_than_table_min_must_be_all_zeros():
     # Spectra of any z with temperature smaller than the table minimum must contain all zeros.
-    z = rs.random() * (zMax - zMin) + zMin  # [---]
+    z = TRG.uniform(zMin, zMax)  # [---]
     spec1 = calc_spec(specTable, z, 0.999 * tMin, no_z_interp=True)
-    assert spec1.all() == 0, "Redshift = " + str(z) + " Seed: " + str(seed)
+    assert spec1.all() == 0, errMsg + ", Redshift = " + str(z)
     spec2 = calc_spec(specTable, z, 0.999 * tMin, no_z_interp=False)
-    assert spec2.all() == 0, "Redshift = " + str(z) + " Seed: " + str(seed)
+    assert spec2.all() == 0, errMsg + ", Redshift = " + str(z)
 
 
 # TODO Refine this test: flat smoothing is not enough, Gaussian smoothing might work

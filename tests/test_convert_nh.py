@@ -1,3 +1,11 @@
+"""
+The tests in this file have parameters that are chosen randomly with a true random generator: this means that for every
+run these parameters change. The reproducibility is assured by the initial random seed that is shown in the error
+message in case of test failure: in order to reproduce the error one must take not of the seed (i.e. 12345678) and call
+
+pytest --seed 12345678
+"""
+
 import os
 import pytest
 
@@ -10,6 +18,7 @@ sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
 import xspec as xsp
+from .randomutils import TrueRandomGenerator, globalRandomSeed
 
 spfile_path = os.path.join(os.path.dirname(__file__), "reference_files/reference_emission_table.fits")
 specTable = tables.read_spectable(spfile_path)
@@ -25,8 +34,8 @@ e_min = energyTable[0] - 0.5 * dE
 e_max = energyTable[-1] + 0.5 * dE
 
 # Here I use this method to generate some true random numbers to differentiate the tests.
-seed = int.from_bytes(os.urandom(4))  # 4-bytes int generated with a true random function
-rs = np.random.RandomState(seed)  # Initialization of the random state
+TRG = TrueRandomGenerator(globalRandomSeed)
+errMsg = "Random seed: " + str(TRG.initialSeed)  # Assertion error message if test fails
 
 nH_min, nH_max = 0., 0.1
 
@@ -69,9 +78,9 @@ def test_spectrum_from_table_with_convert_nh_must_match_pyxspec():
     directly using the wabs(vvapec) model with PyXspec.
     """
     metal = specTable.get('metallicity')
-    iz = int(np.floor(rs.random() * nz))
-    it = int(np.floor(rs.random() * nt))
-    nh = rs.random() * (nH_max - nH_min) + nH_min
+    iz = TRG.int(0, nz)
+    it = TRG.int(0, nt)
+    nh = TRG.uniform(nH_min, nH_max)
     spectrum_ref = wabs_apec_spectrum(nh, specTable.get("temperature")[it], specTable.get("z")[iz], metal, 1)
     spectrum_calc = spabs.convert_nh(specTable, nh).get("data")[iz, it, :]
-    assert spectrum_calc == pytest.approx(spectrum_ref, rel=1e-3)
+    assert spectrum_calc == pytest.approx(spectrum_ref, rel=1e-3), errMsg
