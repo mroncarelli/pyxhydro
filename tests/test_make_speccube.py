@@ -21,6 +21,7 @@ test_file = data_dir + 'file_created_for_test.speccube'
 spec_cube = make_speccube(snapshot_file, spfile, size=size, npix=npix, redshift=0.1, nh=nh, center=center, proj=proj,
                           tcut=1.e6)
 
+
 def test_structure(inp=spec_cube):
     """
     The output dictionary must contain all the keywords that must be present in every output
