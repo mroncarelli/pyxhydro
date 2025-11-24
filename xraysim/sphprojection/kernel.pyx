@@ -352,7 +352,7 @@ def make_speccube_loop(double[:, :, ::1] spcube, iter_, float[:] x, float[:] y, 
     cdef int nx = spcube.shape[0]
     cdef int ny = spcube.shape[1]
     cdef Py_ssize_t nz = spcube.shape[2]
-    cdef Py_ssize_t i0, i1  # TODO substitute i1 with j0
+    cdef Py_ssize_t i0, j0
 
     for ipart in iter_:
         # Calculating spectrum of the particle [photons s^-1 cm^-2]
