@@ -67,12 +67,10 @@ should be listed one after the other, as a JSON array, keeping the `[]` at the b
 instruments are already set up in the `sixte_instruments.json` file, including the `xrism-resolve-test` fake instrument 
 mentioned above, and they should work if you have downloaded the corresponding files. 
 
-For older Sixte versions (before version 3) also an additional advanced xml file may be required in the same subfolder: 
-you can add the `adv_xml` attribute to configure it (see `sixte_instruments_v2.json` for some example). Configuring 
-*eRosita* requires the additional attribute `"special": "erosita"`, and the 7 .xml files corresponding to the different 
-telescope modules listed in the `xml` attribute, comma separated. For the survey mode the `attitude` attribute must 
-also be added containing the attitude file (see the instruments `erosita` and `erass1` in the `sixte_instruments.json` 
-file).
+Configuring*eRosita* requires the additional attribute `"special": "erosita"`, and the 7 .xml files corresponding to 
+the different telescope modules listed in the `xml` attribute, comma separated. For the survey mode the `attitude` 
+attribute must also be added containing the attitude file (see the instruments `erosita` and `erass1` in the 
+`sixte_instruments.json` file).
 
 In order to verify if your instruments are set up correctly, open a Python console and run
 ```
