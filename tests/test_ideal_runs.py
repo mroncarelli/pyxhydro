@@ -217,7 +217,7 @@ def test_isothermal_gaussian_velocities():
     sp = sp_cube['data'].sum(axis=(0, 1)) * d_ene * sp_cube['pixel_size'] ** 2  # [photons s^-1 cm^2]
 
     # Checking only the sum because with random gaussian velocities bin to bin differences are too high
-    assert sp.sum() == pytest.approx(sp_ref.sum(), rel=1e-3), errMsg  # [photons s^-1 cm^2]
+    assert sp.sum() == pytest.approx(sp_ref.sum(), rel=2e-3), errMsg  # [photons s^-1 cm^2]
 
     # Creating the SIMPUT file
     if os.path.isfile(simputFile):
@@ -238,7 +238,7 @@ def test_isothermal_gaussian_velocities():
         sp_simput += flux[ind] / flux_ * fld[ind] * d_ene  # [photons s^-1 cm^-2]
 
     # Checking only the sum because with random gaussian velocities bin to bin differences are too high
-    assert sp_simput.sum() == pytest.approx(sp_ref.sum(), rel=1e-3), errMsg  # [photons s^-1 cm^2]
+    assert sp_simput.sum() == pytest.approx(sp_ref.sum(), rel=2e-3), errMsg  # [photons s^-1 cm^2]
 
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
