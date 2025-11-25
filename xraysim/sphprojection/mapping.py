@@ -7,7 +7,8 @@ from tqdm import tqdm
 from xraysim.gadgetutils.phys_const import Xp, m_p, Msun2g, kpc2cm
 from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
 from xraysim.gadgetutils import convert, phys_const
-from xraysim.sphprojection.kernel import intkernel, make_map_loop, make_map_loop2, make_speccube_loop
+from xraysim.sphprojection.kernel import intkernel, make_map_loop, make_map_loop2, make_speccube_loop, \
+    make_alpha_weight_loop, make_alpha_weight_loop2
 from xraysim.sphprojection.linkedlist import linkedlist2d
 from xraysim.specutils import tables, absorption
 
@@ -19,6 +20,7 @@ pygro = {'units': 0, 'suppress': 1}
 # Float data types
 SP = np.float32
 DP = np.float64
+
 
 def get_proj_index(proj: str) -> int:
     """
@@ -75,7 +77,7 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
     :param zrange: (float 2) range in the l.o.s. axis
     :param tcut: (float) if set defines a temperature cut below which particles are removed [K]. Default: 0.
     :param nsample: (int), if set defines a sampling for the particles (useful to speed up). Default: 1 (no sampling)
-    :param struct: (bool) if set outputs a structure (dictionary) containing several info. Default: False
+    :param struct: (bool) if set outputs a structure (dictionary) containing relevant info. Default: False
                     - norm: normalization map
                     - x(y)range: map range in the x(y) direction
                     - pixel_size: pixel size
@@ -95,7 +97,6 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
     quantity_ = quantity.lower()
 
     # Reading header variables
-    redshift = pygr.readhead(simfile, 'redshift')
     ngas = pygr.readhead(simfile, 'gascount')
     f_cooling = pygr.readhead(simfile, 'f_cooling')
 
@@ -109,7 +110,7 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
 
     # Reading smoothing length or assigning it to zero if smoothing is turned off
     hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else pygr.readsnap(simfile, 'hsml', 'gas',
-                                                                 **pygro)  # [h^-1 kpc] comoving
+                                                                          **pygro)  # [h^-1 kpc] comoving
 
     # Defining center and map size
     if center is None:
@@ -179,6 +180,12 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
             mass[ipart] *= intkernel_vec((zrange[1] - z[ipart]) / hsml_z[ipart]) - intkernel_vec((zrange[0] - z[ipart]))
         del z, hsml_z
 
+    multi_alpha = quantity_ in ['taw', 'vaw', 'waw'] and type(alpha) in [tuple, list, np.ndarray]
+    if multi_alpha:
+        alpha_arr = np.asarray(alpha, dtype=SP)
+        nalpha = len(alpha_arr)
+
+    # Case select for quantity to map
     if quantity_ == 'rho':  # Int(rho*dl)
         nrm = np.full(ngas, 0., dtype=SP)  # [---]
         qty = mass / pixsize ** 2  # comoving [10^10 h M_Sun kpc^-2]
@@ -207,49 +214,66 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
                    x_e / pixsize ** 2)  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
             conv_factor = 1e20 * (Msun2g * Xp / m_p) ** 2 / kpc2cm ** 5
         elif quantity_ in ['tmw', 'tew', 'tsl', 'taw']:
-            if quantity_ == 'tmw':  # Weighted by electron density: Int(n_e*T*dl) / Int(ne*dl)
-                nrm = mass * x_e / pixsize ** 2  # comoving [10^10 h M_Sun kpc^-2]
-            elif quantity_ == 'tew':  # Weighted by electron density squared: Int(n_e^2*T*dl) / Int(ne^2*dl)
-                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
-                nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
-                del rho
-            elif quantity_ == 'tsl':  # Spectroscopic-like: Int(n_e^2*T^0.25*dl) / Int(ne^2*T^-0.75*dl)
-                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
-                nrm = mass * rho * x_e ** 2 * temp ** (-0.75) / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^-0.75]
-                del rho
-            elif quantity_ == 'taw':  # Alpha-weighted: Int(n_e^2*T^(alpha+1)*dl) / Int(ne^2*T^alpha*dl)
-                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
-                nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
-                del rho
-            qty = nrm * temp  # [nrm units] * [K]
-            del temp
+            if multi_alpha:
+                nrm = mass * pygr.readsnap(simfile, 'rho', 'gas',
+                                           **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                qty = temp  # [K]
+            else:
+                if quantity_ == 'tmw':  # Weighted by electron density: Int(n_e*T*dl) / Int(ne*dl)
+                    nrm = mass * x_e / pixsize ** 2  # comoving [10^10 h M_Sun kpc^-2]
+                elif quantity_ == 'tew':  # Weighted by electron density squared: Int(n_e^2*T*dl) / Int(ne^2*dl)
+                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                    del rho
+                elif quantity_ == 'tsl':  # Spectroscopic-like: Int(n_e^2*T^0.25*dl) / Int(ne^2*T^-0.75*dl)
+                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    nrm = mass * rho * x_e ** 2 * temp ** (-0.75) / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^-0.75]
+                    del rho
+                elif quantity_ == 'taw':  # Alpha-weighted: Int(n_e^2*T^(alpha+1)*dl) / Int(ne^2*T^alpha*dl)
+                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
+                    del rho
+                qty = nrm * temp  # [nrm units] * [K]
+                del temp
         elif quantity_ in ['vmw', 'vew', 'vaw']:
             vel = readvelocity(simfile, units='km/s', suppress=1)[:, proj_index]  # [km s^-1]
-            if quantity_ == 'vmw':  # Weighted by electron density: Int(n_e*v*dl) / Int(n_e*dl)
-                nrm = mass * x_e / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
-            elif quantity_ == 'vew':  # Weighted by electron density squared: Int(n_e^2*v*dl) / Int(n_e^2*dl)
-                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
-                nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
-                del rho
-            elif quantity_ == 'vaw':  # Alpha-weighted: Int(n_e^2*T^alpha*v*dl) / Int(n_e^2*T^alpha*dl)
-                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
-                nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
-                del rho, temp
-            qty = nrm * vel   # [nrm units] * [km s^-1]
+            if multi_alpha:
+                nrm = mass * pygr.readsnap(simfile, 'rho', 'gas',
+                                           **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                qty = vel  # [km s^-1]
+            else:
+                if quantity_ == 'vmw':  # Weighted by electron density: Int(n_e*v*dl) / Int(n_e*dl)
+                    nrm = mass * x_e / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
+                elif quantity_ == 'vew':  # Weighted by electron density squared: Int(n_e^2*v*dl) / Int(n_e^2*dl)
+                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                    del rho
+                elif quantity_ == 'vaw':  # Alpha-weighted: Int(n_e^2*T^alpha*v*dl) / Int(n_e^2*T^alpha*dl)
+                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
+                    del rho, temp
+                qty = nrm * vel  # [nrm units] * [km s^-1]
             del mass, vel
         elif quantity_ in ['wmw', 'wew', 'waw']:
             vel = readvelocity(simfile, units='km/s', suppress=1)[:, proj_index]  # [km s^-1]
-            if quantity_ == 'wmw':  # Weighted by electron density: Int(n_e*v^2*dl) / Int(n_e*dl) - v_mw^2
-                nrm = mass * x_e / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
-            elif quantity_ == 'wew':  # Weighted by electron density squared: Int(n_e^2*v^2*dl) / Int(n_e^2*dl) - v_ew^2
-                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
-                nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
-                del rho
-            elif quantity_ == 'waw':  # Alpha-weighted: Int(n_e^2*T^alpha*v^2*dl) / Int(n_e^2*T^alpha*dl) - v_aw^2
-                rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
-                nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
-            qty = nrm * vel ** 2   # [nrm units] * [km^2 s^-2]
-            qty2 = nrm * vel  # [nrm units] * [km s^-1]
+            if multi_alpha:
+                nrm = mass * pygr.readsnap(simfile, 'rho', 'gas',
+                                           **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                qty = vel ** 2  # [km^2 s^-2]
+                qty2 = vel  # [km s^-1]
+            else:
+                if quantity_ == 'wmw':  # Weighted by electron density: Int(n_e*v^2*dl) / Int(n_e*dl) - v_mw^2
+                    nrm = mass * x_e / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
+                elif quantity_ == 'wew':  # Weighted by electron density squared: Int(n_e^2*v^2*dl) / Int(n_e^2*dl) - v_ew^2
+                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
+                    del rho
+                elif quantity_ == 'waw':  # Alpha-weighted: Int(n_e^2*T^alpha*v^2*dl) / Int(n_e^2*T^alpha*dl) - v_aw^2
+                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
+                    del rho
+                qty = nrm * vel ** 2  # [nrm units] * [km^2 s^-2]
+                qty2 = nrm * vel  # [nrm units] * [km s^-1]
             del mass, vel
         del x_e
     else:
@@ -258,16 +282,27 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
                          "'vew', 'vaw', 'wmw', 'wew' 'waw'")
 
     # Mapping
-    qty_map = np.full((npix, npix), 0., dtype=DP)
-    nrm_map = np.full((npix, npix), 0., dtype=DP)
+    if multi_alpha:
+        qty_map = np.full((npix, npix, nalpha), 0., dtype=DP)
+        nrm_map = np.full((npix, npix, nalpha), 0., dtype=DP)
+    else:
+        qty_map = np.full((npix, npix), 0., dtype=DP)
+        nrm_map = np.full((npix, npix), 0., dtype=DP)
 
     iter_ = tqdm(particle_list[::nsample]) if progress else particle_list[::nsample]
 
     if quantity_ in ['wmw', 'wew', 'waw']:
-        qty2_map = np.full((npix, npix), 0., dtype=DP)
-        make_map_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm)
+        if multi_alpha:
+            qty2_map = np.full((npix, npix, nalpha), 0., dtype=DP)
+            make_alpha_weight_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm, temp, alpha_arr)
+        else:
+            qty2_map = np.full((npix, npix), 0., dtype=DP)
+            make_map_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm)
     else:
-        make_map_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm)
+        if multi_alpha:
+            make_alpha_weight_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm, temp, alpha_arr)
+        else:
+            make_map_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm)
     if quantity_ in ['ne', 'nh', 'nenh', 'ne2']:
         qty_map *= conv_factor
 
@@ -275,10 +310,17 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
     if quantity_ in ['wmw', 'wew', 'waw']:
         qty2_map[np.where(nrm_map != 0.)] /= nrm_map[np.where(nrm_map != 0.)]
         # Numerical noise may cause some pixels of qty_map to have smaller values than the corresponding ones, squared,
-        # in qty2_map: this would cause the presence of nan in the result. The loop below puts 0 in those pixels.
-        for ipix in range(npix):
-            for jpix in range(npix):
-                qty_map[ipix, jpix] = np.sqrt(max(qty_map[ipix, jpix] - qty2_map[ipix, jpix] ** 2, 0.))
+        # in qty2_map: this would cause the presence of nan in the result. The loops below puts 0 in those pixels.
+        if multi_alpha:
+            for ipix in range(npix):
+                for jpix in range(npix):
+                    for k in range(nalpha):
+                        qty_map[ipix, jpix, k] = np.sqrt(max(qty_map[ipix, jpix, k] - qty2_map[ipix, jpix, k] ** 2, 0.))
+        else:
+            for ipix in range(npix):
+                for jpix in range(npix):
+                    qty_map[ipix, jpix] = np.sqrt(max(qty_map[ipix, jpix] - qty2_map[ipix, jpix] ** 2, 0.))
+
 
     # Conversion to float32 for output
     qty_map = SP(qty_map)
@@ -401,7 +443,7 @@ def make_speccube(snapfile: str, sptable, size: float, npix=256, redshift=None, 
 
     # Reading smoothing length or assigning it to zero if smoothing is turned off
     hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else pygr.readsnap(snapfile, 'hsml', 'gas',
-                                                                 **pygro)  # [h^-1 kpc] comoving
+                                                                          **pygro)  # [h^-1 kpc] comoving
 
     # Geometry conversion
     cosmo = cosmology.FlatLambdaCDM(H0=100., Om0=0.3)
@@ -499,8 +541,9 @@ def make_speccube(snapfile: str, sptable, size: float, npix=256, redshift=None, 
     if type(sptable) == dict:
         spectable = sptable
     elif type(sptable) == str:
-        spectable = tables.read_spectable(sptable, z_cut=(np.min(z_eff), np.max(z_eff)),
-                                          temperature_cut=(np.min(temp_kev), np.max(temp_kev)),
+        spectable = tables.read_spectable(sptable, z_cut=(np.min(z_eff[particle_list]), np.max(z_eff[particle_list])),
+                                          temperature_cut=(
+                                              np.min(temp_kev[particle_list]), np.max(temp_kev[particle_list])),
                                           energy_cut=energy_cut)
     else:
         raise ValueError("Invalid sptable type: must be a string or dictionary")

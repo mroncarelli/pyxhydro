@@ -167,6 +167,42 @@ cdef add_to_map(double[:, ::1] qty_map, double[:, ::1] nrm_map, float qty, float
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
+cdef add_to_multi_map(double[:, :, ::1] qty_map, double[:, :, ::1] nrm_map, float[:] qty_arr, float[:] nrm_arr,
+                      float[:] wx, float[:] wy, Py_ssize_t i0, Py_ssize_t j0, Py_ssize_t nz):
+    """
+    Adds particle quantities to qty_map and nrm_map using kernel weights. Full Cython to maximize speed. Assumes that
+    qty_map and nrm_map have the same shape, this must be checked before calling this method.
+    """
+    cdef Py_ssize_t len_wx = wx.shape[0]
+    cdef Py_ssize_t len_wy = wy.shape[0]
+    cdef Py_ssize_t i, j, k, ipix, jpix
+    cdef float w, ww
+
+    # Checks to avoid bound errors
+    # (checks that qty_map and nrm_map have the same shape must be done before calling this method)
+    if not (i0 >= 0 and i0 + len_wx <= qty_map.shape[0]):
+        raise ValueError("ERROR in add_to_map_multi. Out of bounds in 1st index.")
+    if not (j0 >= 0 and j0 + len_wy <= qty_map.shape[1]):
+        raise ValueError("ERROR in add_to_map_multi. Out of bounds in 2nd index.")
+    if nz > qty_map.shape[2]:
+        raise ValueError("ERROR in add_to_map_multi. Out of bounds in 3rd index.")
+
+    for i in range(len_wx):
+        w = wx[i]
+        ipix = i0 + i
+        for j in range(len_wy):
+            ww = w * wy[j]
+            jpix = j0 + j
+            for k in range(nz):
+                qty_map[ipix, jpix, k] += ww * qty_arr[k]
+                nrm_map[ipix, jpix, k] += ww * nrm_arr[k]
+
+    return None
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
 cdef add_to_map2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::1] nrm_map, float qty, float qty2,
                  float nrm, float[:] wx, float[:] wy, Py_ssize_t i0, Py_ssize_t j0):
     """
@@ -195,6 +231,44 @@ cdef add_to_map2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::1]
             qty_map[ipix, jpix] += qty_wx * wy[j]
             qty2_map[ipix, jpix] += qty2_wx * wy[j]
             nrm_map[ipix, jpix] += nrm_wx * wy[j]
+
+    return None
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+cdef add_to_multi_map2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_map, double[:, :, ::1] nrm_map,
+                       float[:] qty_arr, float[:] qty2_arr, float[:] nrm_arr, float[:] wx, float[:] wy, Py_ssize_t i0,
+                       Py_ssize_t j0, Py_ssize_t nz):
+    """
+    Adds particle quantities to qty_map and nrm_map using kernel weights. Full Cython to maximize speed. Assumes that
+    qty_map and nrm_map have the same shape, this must be checked before calling this method.
+    """
+    cdef Py_ssize_t len_wx = wx.shape[0]
+    cdef Py_ssize_t len_wy = wy.shape[0]
+    cdef Py_ssize_t i, j, k, ipix, jpix
+    cdef float w, ww
+
+    # Checks to avoid bound errors
+    # (checks that qty_map and nrm_map have the same shape must be done before calling this method)
+    if not (i0 >= 0 and i0 + len_wx <= qty_map.shape[0]):
+        raise ValueError("ERROR in add_to_map_multi. Out of bounds in 1st index.")
+    if not (j0 >= 0 and j0 + len_wy <= qty_map.shape[1]):
+        raise ValueError("ERROR in add_to_map_multi. Out of bounds in 2nd index.")
+    if nz > qty_map.shape[2]:
+        raise ValueError("ERROR in add_to_map_multi. Out of bounds in 3rd index.")
+
+    for i in range(len_wx):
+        w = wx[i]
+        ipix = i0 + i
+        for j in range(len_wy):
+            ww = w * wy[j]
+            jpix = j0 + j
+            for k in range(nz):
+                qty_map[ipix, jpix, k] += ww * qty_arr[k]
+                qty2_map[ipix, jpix, k] += ww * qty2_arr[k]
+                nrm_map[ipix, jpix, k] += ww * nrm_arr[k]
 
     return None
 
@@ -253,6 +327,34 @@ def make_map_loop(double[:, ::1] qty_map, double[:, ::1] nrm_map, iter_, float[:
     return None
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+def make_alpha_weight_loop(double[:, :, ::1] qty_map, double[:, :, ::1] nrm_map, iter_, float[:] x, float[:] y,
+                           float[:] hsml, float[:] qty, float[:] nrm, float[:] temp, float[:] alpha):
+    """
+    Cython version of make_alpha_weight_loop in mapping.py.
+    """
+    cdef float[:] wx, wy
+    cdef int nx = qty_map.shape[0]
+    cdef int ny = qty_map.shape[1]
+    cdef int nalpha = alpha.shape[0]
+    cdef float[:] qty_arr = np.empty(nalpha, dtype=np.float32), nrm_arr = np.empty(nalpha, dtype=np.float32)
+    cdef Py_ssize_t i0, j0, k
+
+    for ipart in iter_:
+        for k in range(nalpha):
+            nrm_arr[k] = nrm[ipart] * temp[ipart] ** alpha[k]
+            qty_arr[k] = nrm_arr[k] * qty[ipart]
+        # Getting the kernel weights in the two directions
+        wx, i0 = kernel_mapping(x[ipart], hsml[ipart], nx)
+        wy, j0 = kernel_mapping(y[ipart], hsml[ipart], ny)
+        # Adding quantity and normalization to the corresponding maps using weights
+        add_to_multi_map(qty_map, nrm_map, qty_arr, nrm_arr, wx, wy, i0, j0, nalpha)
+
+    return None
+
+
 def make_map_loop2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::1] nrm_map, iter_, float[:] x,
                    float[:] y, float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm):
     """
@@ -275,6 +377,38 @@ def make_map_loop2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::
 
     return None
 
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+def make_alpha_weight_loop2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_map, double[:, :, ::1] nrm_map, iter_,
+                            float[:] x, float[:] y, float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm,
+                            float[:] temp, float[:] alpha):
+    """
+    Cython version of second make_alpha_weight_loop in mapping.py.
+    """
+    cdef float[:] wx, wy
+    cdef int nx = qty_map.shape[0]
+    cdef int ny = qty_map.shape[1]
+    cdef int nalpha = alpha.shape[0]
+    cdef float[:] qty_arr = np.empty(nalpha, dtype=np.float32), qty2_arr = np.empty(nalpha, dtype=np.float32)
+    cdef float[:] nrm_arr = np.empty(nalpha, dtype=np.float32)
+    cdef Py_ssize_t i0, j0, k
+
+    for ipart in iter_:
+        for k in range(nalpha):
+            nrm_arr[k] = nrm[ipart] * temp[ipart] ** alpha[k]
+            qty_arr[k] = nrm_arr[k] * qty[ipart]
+            qty2_arr[k] = nrm_arr[k] * qty2[ipart]
+        # Getting the kernel weights in the two directions
+        wx, i0 = kernel_mapping(x[ipart], hsml[ipart], nx)
+        wy, j0 = kernel_mapping(y[ipart], hsml[ipart], ny)
+        # Adding quantity and normalization to the corresponding maps using weights
+        add_to_multi_map2(qty_map, qty2_map, nrm_map, qty_arr, qty2_arr, nrm_arr, wx, wy, i0, j0, nalpha)
+
+    return None
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
@@ -287,7 +421,7 @@ def make_speccube_loop(double[:, :, ::1] spcube, iter_, float[:] x, float[:] y, 
     cdef int nx = spcube.shape[0]
     cdef int ny = spcube.shape[1]
     cdef Py_ssize_t nz = spcube.shape[2]
-    cdef Py_ssize_t i0, i1
+    cdef Py_ssize_t i0, j0
 
     for ipart in iter_:
         # Calculating spectrum of the particle [photons s^-1 cm^-2]
