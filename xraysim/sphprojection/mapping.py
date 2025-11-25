@@ -8,7 +8,7 @@ from xraysim.gadgetutils.phys_const import Xp, m_p, Msun2g, kpc2cm
 from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
 from xraysim.gadgetutils import convert, phys_const
 from xraysim.sphprojection.kernel import intkernel, make_map_loop, make_map_loop2, make_speccube_loop, \
-    make_alpha_weight_loop
+    make_alpha_weight_loop, make_alpha_weight_loop2
 from xraysim.sphprojection.linkedlist import linkedlist2d
 from xraysim.specutils import tables, absorption
 
@@ -294,13 +294,13 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
     if quantity_ in ['wmw', 'wew', 'waw']:
         if multi_alpha:
             qty2_map = np.full((npix, npix, nalpha), 0., dtype=DP)
-            make_map_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm)  # TODO
+            make_alpha_weight_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm, temp, alpha_arr)
         else:
             qty2_map = np.full((npix, npix), 0., dtype=DP)
             make_map_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm)
     else:
         if multi_alpha:
-            make_alpha_weight_loop(qty_map, nrm_map, iter_, x, y, hsml, nrm, temp, alpha_arr, qty)
+            make_alpha_weight_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm, temp, alpha_arr)
         else:
             make_map_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm)
     if quantity_ in ['ne', 'nh', 'nenh', 'ne2']:
@@ -310,10 +310,17 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
     if quantity_ in ['wmw', 'wew', 'waw']:
         qty2_map[np.where(nrm_map != 0.)] /= nrm_map[np.where(nrm_map != 0.)]
         # Numerical noise may cause some pixels of qty_map to have smaller values than the corresponding ones, squared,
-        # in qty2_map: this would cause the presence of nan in the result. The loop below puts 0 in those pixels.
-        for ipix in range(npix):
-            for jpix in range(npix):
-                qty_map[ipix, jpix] = np.sqrt(max(qty_map[ipix, jpix] - qty2_map[ipix, jpix] ** 2, 0.))
+        # in qty2_map: this would cause the presence of nan in the result. The loops below puts 0 in those pixels.
+        if multi_alpha:
+            for ipix in range(npix):
+                for jpix in range(npix):
+                    for k in range(nalpha):
+                        qty_map[ipix, jpix, k] = np.sqrt(max(qty_map[ipix, jpix, k] - qty2_map[ipix, jpix, k] ** 2, 0.))
+        else:
+            for ipix in range(npix):
+                for jpix in range(npix):
+                    qty_map[ipix, jpix] = np.sqrt(max(qty_map[ipix, jpix] - qty2_map[ipix, jpix] ** 2, 0.))
+
 
     # Conversion to float32 for output
     qty_map = SP(qty_map)
