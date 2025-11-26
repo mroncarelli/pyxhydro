@@ -9,7 +9,6 @@ one must take not of the seed (i.e. 12345678) and call
 pytest --seed 12345678
 """
 
-
 from astropy import cosmology
 from astropy.io import fits
 import os
@@ -23,7 +22,7 @@ import xspec as xsp
 
 from xraysim.gadgetutils.convert import vpec2zobs
 from xraysim.gadgetutils.phys_const import keV2K, keV2erg, pi
-from xraysim.sixte import cube2simputfile, create_eventlist, make_pha, versionTuple
+from xraysim.sixte import cube2simputfile, create_eventlist, make_pha
 from xraysim.sphprojection.mapping import make_map, make_speccube
 from xraysim.specutils.specfit import SpecFit
 from xraysim.specutils.tables import apec_table
@@ -176,7 +175,7 @@ def test_isothermal_no_velocities():
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(evtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(evtFile, phaFile)
+    make_pha(evtFile, phaFile)
     os.remove(evtFile)
     assert os.path.isfile(phaFile), errMsg
 
@@ -251,7 +250,7 @@ def test_isothermal_gaussian_velocities():
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(evtFile, phaFile, grading=1) if versionTuple < (3,) else make_pha(evtFile, phaFile)
+    make_pha(evtFile, phaFile)
     os.remove(evtFile)
     assert os.path.isfile(phaFile), errMsg
 
