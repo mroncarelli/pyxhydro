@@ -612,7 +612,12 @@ def get_xmlpath(evtfile: str):
     :param evtfile: (str) Event-list file.
     :return: (str) Path of the XML file, None if not found.
     """
-    history = fits.open(evtfile)[0].header['HISTORY']
+
+    try:
+        history = fits.open(evtfile)[0].header['HISTORY']
+    except:
+        return None
+
     iline = xmlfile_line(history)
 
     if iline is None:
@@ -650,9 +655,6 @@ def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     :return: System output of SIXTE makespec command (or string containing the command if no_exec is set to True)
     """
 
-    # List of columns in the eventfile
-    column_list = fits.open(evtfile)[1].data.names
-
     # Defining filter list to be used (if not empty) with the EventFilter keyword of makespec
     filter_list = []
 
@@ -662,23 +664,24 @@ def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     if isinstance(grading, type(None)):
         pass
     else:
-        if 'GRADING' in column_list:
-            if isinstance(grading, int):
-                filter_list.append("GRADING==" + str(grading))
-            elif isinstance(grading, tuple) or isinstance(grading, list):
-                if all(type(item) is int for item in grading):
-                    tag_grading = " '(GRADING==" + str(grading[0])
-                    for item in grading[1:]:
-                        tag_grading += " || GRADING==" + str(item)
-                    tag_grading += ")'"
-                    filter_list.append(tag_grading)
+        if not no_exec:
+            if 'GRADING' in fits.open(evtfile)[1].data.names:
+                if isinstance(grading, int):
+                    filter_list.append("GRADING==" + str(grading))
+                elif isinstance(grading, tuple) or isinstance(grading, list):
+                    if all(type(item) is int for item in grading):
+                        tag_grading = " '(GRADING==" + str(grading[0])
+                        for item in grading[1:]:
+                            tag_grading += " || GRADING==" + str(item)
+                        tag_grading += ")'"
+                        filter_list.append(tag_grading)
+                    else:
+                        raise ValueError(error_msg_grading)
                 else:
                     raise ValueError(error_msg_grading)
             else:
-                raise ValueError(error_msg_grading)
-        else:
-            # Grading filter is ignored as it is not present in the event-list (warning issued)
-            print(warning_msg_grading)
+                # Grading filter is ignored as it is not present in the event-list (warning issued)
+                print(warning_msg_grading)
 
     # Pixel Id
     error_msg_pixid = "ERROR in make_pha. Pixid values must be integer, iterable of integers or None."
