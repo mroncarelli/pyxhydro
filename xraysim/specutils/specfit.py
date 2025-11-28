@@ -593,7 +593,7 @@ class SpecFit:
 
             return None
 
-    def plot(self, rebin=None, xscale='lin', yscale='lin', nsample=1) -> None:
+    def plot(self, rebin=None, xscale='lin', yscale='lin', xlim=None, ylim=None, nsample=1) -> None:
         """
         Plots the spectrum data with errorbars, along with the best fit model and the residuals.
         :param rebin: (2 x float) Combining adjacent bins for higher significance: 1st value - sigma significance, 2nd
@@ -601,6 +601,8 @@ class SpecFit:
                rebinning. Equivalent of `setplot rebin` command in Xspec.
         :param xscale: (str) Scaling of the x-axis, can be either 'lin'/'linear' or 'log'/'logarithmic'. Default 'lin'.
         :param yscale: (str) Same as xscale but for the y-axis.
+        :param xlim: (2 x float) Lower and upper limits of the x-axis.
+        :param ylim: (2 x float) Same as xscale but for the y-axis.
         :param nsample: (int) If set it defines a sampling for the data points, for better visualization. Not
                considered if rebin is present. Default 1, i.e. all points are shown.
         """
@@ -620,6 +622,13 @@ class SpecFit:
             else:
                 raise ValueError(
                     "Invalid input type for xscale, must be one of 'lin' ('linear') or 'log' ('logarithmic')")
+
+            if xlim is not None:
+                axd.set_xlim(xlim)
+                axr.set_xlim(xlim)
+
+            if ylim is not None:
+                axd.set_ylim(ylim)
 
             yscale_ = yscale.lower().strip()
             if yscale_ in ['lin', 'linear']:
