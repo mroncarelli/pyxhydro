@@ -10,14 +10,14 @@
     "xml": "resolve_baseline_GVclosed.xml"
   },
   {
+    "name": "xrism-resolve-gvopen",
+    "subdir": "xrism/resolve",
+    "xml": "resolve_baseline_GVopen.xml"
+  },
+  {
     "name": "xrism-resolve-test",
     "subdir": "xrism-resolve-test",
     "xml": "resolve_baseline_test.xml"
-  },
-  {
-    "name": "xrism-resolve-test-nocalib",
-    "subdir": "xrism-resolve-test",
-    "xml": "resolve_baseline_test_nocalib.xml"
   },
   {
     "name": "erosita-test",
