@@ -98,14 +98,12 @@ def test_isothermal_spectrum(inp=speccubeIsothermalNovel, out=testSimputFile):
 
     # Checking energy from the SIMPUT file
     for energy in hdulist[2].data['ENERGY']:
-        for val, val_reference in zip(energy, energy_reference):
-            assert val == pytest.approx(val_reference, rel=1.e-6)
+        assert energy == pytest.approx(energy_reference, rel=1e-6)
 
     # Checking spectra from the SIMPUT file
     for spectrum in hdulist[2].data['FLUXDENSITY']:
         spectrum_norm = spectrum / spectrum.mean()  # normalize to mean = 1
-        for val, val_reference in zip(spectrum_norm, spectrum_reference):
-            assert val == pytest.approx(val_reference, rel=1.e-6)
+        assert spectrum_norm == pytest.approx(spectrum_reference, rel=1e-6)
 
 
 def test_created_file_matches_reference(inp=speccube, out=testSimputFile, reference=referenceSimputFile):

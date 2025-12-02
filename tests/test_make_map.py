@@ -304,11 +304,12 @@ def test_waw_with_alpha_vector_matches_scalar():
             # due to the roundings.
             map1 = map_alpha_vec["map"][:, :, index]
             map0 = map_alpha["map"]
-            for ii, jj, in zip(range(npix, npix)):
-                if map1[ii, jj] < 1 or map0[ii, jj] < 1:
-                    assert map1[ii, jj] == pytest.approx(map0[ii, jj], abs=0.5), errMsg
-                else:
-                    assert map1[ii, jj] == pytest.approx(map0[ii, jj], rel=1e-4), errMsg            # Here the difference must be tested in absolute value (km/s) since values may be negative or ~0
+            for ii in range(npix):
+                for jj in range(npix):
+                    val0 = map0[ii, jj]
+                    val1 = map1[ii, jj]
+                    # Testing the difference also in absolute value (km/s) since values may be negative or ~0
+                    assert val1 == pytest.approx(val0, abs=2) or val1 == pytest.approx(val0, rel=1e-4), errMsg
             assert map_alpha_vec["map2"][:, :, index] == pytest.approx(map_alpha["map2"], abs=1e-3), errMsg
             assert map_alpha_vec["norm"][:, :, index] == pytest.approx(map_alpha["norm"], rel=relTol), errMsg
             assert alpha_scalar == map_alpha["alpha"], errMsg

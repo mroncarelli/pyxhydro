@@ -9,6 +9,8 @@ from xraysim.specutils.tables import read_spectable, calc_spec
 
 from .fitstestutils import assert_hdu_list_matches_reference
 
+SP = np.float32
+
 data_dir = os.environ.get('XRAYSIM') + '/tests/inp/'
 reference_dir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 snapshot_file = data_dir + 'snap_Gadget_sample'
@@ -66,9 +68,7 @@ def test_energy(inp=spec_cube):
     """
     energy = inp.get('energy')
     energy_table = read_spectable(spfile).get('energy')
-    assert len(energy) == len(energy_table)
-    for ene, ene_table in zip(energy, energy_table):
-        assert ene == pytest.approx(ene_table)
+    assert energy == pytest.approx(energy_table)
 
 
 def test_isothermal_spectrum_with_temperature_from_table():
@@ -87,13 +87,12 @@ def test_isothermal_spectrum_with_temperature_from_table():
                                   isothermal=temp_iso, novel=True, nsample=nsample).get('data')
 
     nene_speccube = spec_cube_iso.shape[2]
-    spec_iso = np.ndarray(nene_speccube, dtype='float32')
+    spec_iso = np.ndarray(nene_speccube, dtype=SP)
     for iene in range(nene_speccube):
         spec_iso[iene] = spec_cube_iso[:, :, iene].sum()
     spec_iso /= spec_iso.mean()  # normalize to mean = 1
 
-    for val, val_reference in zip(spec_iso, spec_reference):
-        assert val / val_reference == pytest.approx(1., rel=1.e-5)
+    assert spec_iso == pytest.approx(spec_reference, rel=1e-5)
 
 
 def test_isothermal_spectrum():
@@ -114,13 +113,12 @@ def test_isothermal_spectrum():
     spec_cube_iso = make_speccube(snapshot_file, spfile, size=size, npix=5, redshift=z, center=center, proj=proj,
                                   isothermal=temp_iso, novel=True, nsample=nsample).get('data')
 
-    spec_iso = np.ndarray(nene, dtype='float32')
+    spec_iso = np.ndarray(nene, dtype=SP)
     for iene in range(nene):
         spec_iso[iene] = spec_cube_iso[:, :, iene].sum()
     spec_iso /= spec_iso.mean()  # normalize to mean = 1
 
-    for val, val_reference in zip(spec_iso, spec_reference):
-        assert val / val_reference == pytest.approx(1., rel=1.e-5)
+    assert spec_iso == pytest.approx(spec_reference, rel=1e-5)
 
 
 def test_created_file_matches_reference(speccube_inp=spec_cube, reference=reference_file):
