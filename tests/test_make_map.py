@@ -43,7 +43,7 @@ errMsg = "Random seed: " + str(TRG.initialSeed)  # Assertion error message if te
 alpha = TRG.uniform(alphaMin, alphaMax)  # randomly generated vale of alpha
 alpha_vec = np.asarray([TRG.uniform(alphaMin, alphaMax), TRG.uniform(alphaMin, alphaMax),
                         TRG.uniform(alphaMin, alphaMax)])
-
+alpha_vec.sort()  # Sorting in ascending value (useful for one test)
 
 def test_total_mass():
     """
@@ -115,7 +115,7 @@ def test_average_tmw():
 
 def test_average_tew():
     """
-    The average emission-weighted (n_e^2) temperature in the projected map must be the same as the snapshot one
+    The average emission-weighted (W = n_e^2) temperature in the projected map must be the same as the snapshot one
     """
     rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
     x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
@@ -128,7 +128,8 @@ def test_average_tew():
 
 def test_average_tsl():
     """
-    The average spectroscopic-like (n_e^2*T^-0.75) temperature in the projected map must be the same as the snapshot one
+    The average spectroscopic-like (W = n_e^2*T^-0.75) temperature in the projected map must be the same as the snapshot
+    one
     """
     rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
     x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
@@ -138,6 +139,16 @@ def test_average_tsl():
     map_str = make_map(snapshotFile, 'Tsl', npix=npix, struct=True)
     val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)
     assert val_map == pytest.approx(val_snap, rel=relTol)
+
+
+def test_tew_must_be_greater_or_equal_to_tsl():
+    """
+    A map of the projected emission-weighted (W = n_e^2) temperature must be greater or equal to the corresponding
+    spectroscopic-like (W = n_e^2*T^-0.75) temperature in every pixel.
+    """
+    map_tew = make_map(snapshotFile, 'Tew', npix=npix, struct=False)
+    map_tsl = make_map(snapshotFile, 'Tsl', npix=npix, struct=False)
+    assert np.all(map_tew >= map_tsl * (1 - relTol))
 
 
 def test_average_taw():
@@ -168,6 +179,17 @@ def test_taw_with_alpha_vector_matches_scalar():
             assert map_alpha_vec["map"][:, :, index] == pytest.approx(map_alpha["map"], rel=relTol), errMsg
             assert map_alpha_vec["norm"][:, :, index] == pytest.approx(map_alpha["norm"], rel=relTol), errMsg
             assert alpha_scalar == map_alpha["alpha"], errMsg
+
+
+def test_taw_with_larger_alpha_greater_or_equal_to_smaller_alpha():
+    """
+    The alpha-weighted temperature maps with larger values must be grater or equal to the corresponding maps with
+    smaller values of alpha. The values in alpha_vec must be sorted in ascending order.
+    """
+    for iproj in range(3):
+        map_alpha_vec = make_map(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_vec, struct=False)
+        for index in range(1, len(alpha_vec)):
+            assert np.all(map_alpha_vec[:, :, index] >= map_alpha_vec[:, :, index - 1] * (1 - relTol))
 
 
 def test_total_electron_momentum():
