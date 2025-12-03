@@ -41,22 +41,18 @@ class Instrument:
     This class define a Sixte instrument, with the attributes necessary to
     """
 
-    def __init__(self, name: str, subdir: str, xml: str, command=None, special=None,
-                 adv_xml=None, attitude=None):
+    def __init__(self, name: str, subdir: str, xml: str, command=None, special=None, attitude=None):
         self.name = name
         self.subdir = subdir
         self.xml = xml
         self.command = command if command else defaultSixteCommand
         self.special = special
-        self.adv_xml = adv_xml  # only Sixte version 2 or lower
         self.attitude = attitude
 
     def show(self):
         print("Name: " + self.name)
         print("Subdir: " + self.subdir)
         print("Xml: " + self.xml)
-        if self.adv_xml:
-            print("Adv. Xml: " + self.adv_xml)
         print("Command: " + self.command)
         if self.special:
             print("Special: " + self.special)
@@ -81,10 +77,6 @@ class Instrument:
                 full_xml = path + '/' + xml.strip()
                 if not os.path.isfile(full_xml):
                     messages.append("Instrument " + self.name + " xml file does not exist: " + full_xml)
-                if self.adv_xml is not None:
-                    full_adv_xml = path + '/' + self.adv_xml
-                    if not os.path.isfile(full_adv_xml):
-                        messages.append("Instrument " + self.name + " xml file does not exist: " + full_xml)
 
         if find_executable(self.command) is None:
             messages.append("Instrument " + self.name + " command does not exist: " + self.command)
@@ -114,8 +106,8 @@ def load_instrument(inp: dict) -> Instrument:
     Initializes an instrument from a dictionary record.
     :param inp: (dict) Dictionary record usually derived from a JSON file
     """
-    return Instrument(inp['name'], inp['subdir'], inp['xml'],
-                      inp.get('command'), inp.get('special'), inp.get('adv_xml'), inp.get('attitude'))
+    return Instrument(inp['name'], inp['subdir'], inp['xml'], inp.get('command'), inp.get('special'),
+                      inp.get('attitude'))
 
 
 class SixteInstruments:
@@ -154,8 +146,6 @@ class SixteInstruments:
                     print(" - " + name)
                     print("     Subdir: " + instr.subdir)
                     print("     Xml: " + instr.xml)
-                    if instr.adv_xml:
-                        print("     Adv. Xml: " + instr.adv_xml)
                     print("     Command: " + instr.command)
                     if instr.special:
                         print("     Special: " + instr.special)
