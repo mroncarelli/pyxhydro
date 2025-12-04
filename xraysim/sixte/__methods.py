@@ -248,7 +248,7 @@ def inherit_keywords(input_file: str, output_file: str, file_type=None) -> int:
 
 
 def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, pointing=None, xmlfile=None,
-                     photonlist=None, attitude=None, background=True, seed=None, overwrite=True, verbosity=None,
+                     photonlist=None, attitude=None, background=True, seed=None, overwrite=True, verbose=None,
                      logfile=None, no_exec=False):
     """
     Creates a simulated X-ray event-list by running the SIXTE simulator (see the manuale from the SIXTE webpage
@@ -266,8 +266,8 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
     :param background: (bool) If set to True includes the instrumental background, default True
     :param seed: (int) Random seed, default None
     :param overwrite: (bool) If set overwrites previous output file (evtfile) if exists, default True
-    :param verbosity: (int) Verbosity level, with 0 being the lowest (see SIXTE manual 'chatter') and 7 highest.
-    Default: None, i.e. SIXTE default (4).
+    :param verbose: (int) Verbosity level, with 0 being the lowest (see SIXTE manual 'chatter') and 7 highest.
+        Default: None, i.e. SIXTE default (4).
     :param logfile: (str) if set the output is not written on screen but saved in the file
     :param no_exec: (bool) If set to True no simulation is run but the SIXTE command is printed out instead. Default:
         False.
@@ -337,16 +337,16 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
     if type(seed) is int:
         command_list[itask] += ' seed=' + str(seed)
 
-    if type(verbosity) is int:
-        if verbosity < 0:
+    if type(verbose) is int:
+        if verbose < 0:
             command_list[itask] += ' chatter=0'
         else:
-            command_list[itask] += ' chatter=' + str(verbosity)
+            command_list[itask] += ' chatter=' + str(verbose)
 
     if type(logfile) is str and logfile != '':
         command_list[itask] += ' > ' + logfile + ' 2>&1'
-    elif verbosity == 0:
-        # If verbosity=0 creates a temporary file where to put the SIXTE screen output, which is usually quite large
+    elif verbose == 0:
+        # If verbose=0 creates a temporary file where to put the SIXTE screen output, which is usually quite large
         command_list[itask] += ' > ' + tempfile.NamedTemporaryFile().name + ' 2>&1'
 
     if no_exec:
@@ -636,7 +636,7 @@ def get_xmlpath(evtfile: str):
 
 
 def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None, logfile=None, overwrite=True,
-             no_exec=False):
+             verbose=None, no_exec=False):
     """ Creates a .pha file containing the spectrum extracted from an event file using the SIXTE makespec command
     :param evtfile: (str) Event file
     :param phafile: (str) Output file
@@ -645,6 +645,8 @@ def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     :param grading: (int or int list) Grading of photons to be included in the spectrum (default, None, i.e. all photons)
     :param logfile: (str) If set the output is not written on screen but saved in the file
     :param overwrite: (bool) If set overwrites previous output file (phafile) if exists, default True
+    :param verbose: (int) Verbosity level, with 0 being the lowest (see SIXTE manual 'chatter') and 7 highest.
+        Default: None, i.e. SIXTE default (4).
     :param no_exec: (bool) If set to True no simulation is run but the SIXTE command is printed out instead
     :return: System output of SIXTE makespec command (or string containing the command if no_exec is set to True)
     """
@@ -708,8 +710,17 @@ def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     if tag_filter != '':
         command += ' EventFilter="' + tag_filter + '"'
 
+    if type(verbose) is int:
+        if verbose < 0:
+            command += ' chatter=0'
+        else:
+            command += ' chatter=' + str(verbose)
+
     if type(logfile) is str and logfile != '':
         command += ' > ' + logfile + ' 2>&1'
+    elif verbose == 0:
+        # If verbose=0 creates a temporary file where to put the SIXTE screen output, which is usually quite large
+        command += ' > ' + tempfile.NamedTemporaryFile().name + ' 2>&1'
 
     if no_exec:
         return command

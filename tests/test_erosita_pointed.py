@@ -45,7 +45,7 @@ def test_erosita_pointed(run_type):
     if os.path.isfile(evtFile):
         os.remove(evtFile)
     sys_out = create_eventlist(referenceSimputFile, testInstrumentName, 1.e4, evtFile,
-                               background=False, seed=42, verbosity=0)
+                               background=False, seed=42, verbose=0)
     assert sys_out == [0, 0]
 
     # Removing CCD files

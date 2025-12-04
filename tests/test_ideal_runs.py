@@ -168,7 +168,7 @@ def test_isothermal_no_velocities():
     if os.path.isfile(evtFile):
         os.remove(evtFile)
     sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
-                               seed=42, verbosity=0)
+                               seed=42, verbose=0)
     assert sys_out == [0], errMsg
     os.remove(simputFile)
 
@@ -243,7 +243,7 @@ def test_isothermal_gaussian_velocities():
     if os.path.isfile(evtFile):
         os.remove(evtFile)
     sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
-                               seed=42, verbosity=0)
+                               seed=42, verbose=0)
     assert sys_out == [0], errMsg
     os.remove(simputFile)
 
