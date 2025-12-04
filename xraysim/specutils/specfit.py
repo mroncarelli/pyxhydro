@@ -111,10 +111,10 @@ def __restore_xspec_state(self) -> None:
     # xspec.Xset
     self.abund = self.savedAbund
     del self.savedAbund
-    self.chatter = self.savedChatter
-    del self.savedChatter
     self.modelStrings = self.savedModelStrings
     del self.savedModelStrings
+    self.chatter = self.savedChatter
+    del self.savedChatter
 
 xsp.XspecSettings.restoreXspecState = __restore_xspec_state
 
@@ -541,6 +541,15 @@ class SpecFit:
             return None
 
         else:
+            xsp.Xset.saveXspecState()
+            xsp.Xset.chatter = verbose
+            xsp.Xset.abund = abund
+            xsp.Xset.addModelString("APECROOT", apecroot)
+            xsp.Xset.addModelString("APECTHERMAL", "yes" if apecthermal else "no")
+            xsp.Xset.addModelString("APEC_TRACE_ABUND", "Fe")
+            xsp.AllData.highlightSpectrum(self.spectrum.index)
+            xsp.AllModels.setActive(self.model.name)
+
             # Energy range
             self.__set_energy_range(erange)
 
@@ -556,15 +565,6 @@ class SpecFit:
             else:
                 for index in range(self.model.nParameters):
                     self.model(self.model.startParIndex + index).frozen = False
-
-            xsp.Xset.saveXspecState()
-            xsp.Xset.chatter = verbose
-            xsp.Xset.abund = abund
-            xsp.Xset.addModelString("APECROOT", apecroot)
-            xsp.Xset.addModelString("APECTHERMAL", "yes" if apecthermal else "no")
-            xsp.Xset.addModelString("APEC_TRACE_ABUND", "Fe")
-            xsp.AllData.highlightSpectrum(self.spectrum.index)
-            xsp.AllModels.setActive(self.model.name)
 
             # Statistic method
             if method is not None:
