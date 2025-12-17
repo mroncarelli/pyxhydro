@@ -8,6 +8,8 @@ from xraysim.sphprojection.mapping import read_speccube
 from xraysim.gadgetutils.convert import ra_corr
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 
+SP = np.float32
+
 TRG = TrueRandomGenerator(globalRandomSeed)
 errMsg = "Random seed: " + str(TRG.initialSeed)  # Assertion error message if test fails
 
@@ -28,6 +30,7 @@ spCube = read_speccube(referenceSpcubeFile)
 emin = spCube["energy"][0] - 0.5 * spCube["energy_interval"][0]
 emax = spCube["energy"][-1] + 0.5 * spCube["energy_interval"][-1]
 size = spCube["size"] * 60  # [arcmin]
+pixelSize = spCube["pixel_size"]  # [arcmin]
 xmin, xmax = -0.5 * size, 0.5 * size  # [arcmin]
 ymin, ymax = -0.5 * size, 0.5 * size  # [arcmin]
 
@@ -39,13 +42,16 @@ yrange.sort()  # [arcmin]
 erange = TRG.uniform(emin, emax, size=2)  # [arcmin]
 erange.sort()  # [arcmin]
 
-# Ranges when considering the field-of-view
-xrangeFOV = (-0.5 * instrumentFOV, 0.5 * instrumentFOV)  # [arcmin]
-yrangeFOV = (-0.5 * instrumentFOV, 0.5 * instrumentFOV)  # [arcmin]
-
-# Ranges when considering both
-xrange2 = (max(xrangeFOV[0], xrange[0]), min(xrangeFOV[1], xrange[1]))  # [arcmin]
-yrange2 = (max(yrangeFOV[0], yrange[0]), min(yrangeFOV[1], yrange[1]))  # [arcmin]
+# For photon counts derived from the eventlist the range is reduced to avoid border effect. I also include a
+# minimum range to avoid very small areas
+xmin2, xmax2 = -0.5 * instrumentFOV + pixelSize, 0.5 * instrumentFOV - pixelSize # [arcmin]
+ymin2, ymax2 = -0.5 * instrumentFOV + pixelSize, 0.5 * instrumentFOV - pixelSize  # [arcmin]
+xrange2 = (0, 0)
+while xrange2[1] - xrange2[0] < pixelSize:
+    xrange2 = TRG.uniform(xmin2, xmax2, size=2)
+yrange2 = (0, 0)
+while yrange2[1] - yrange2[0] < pixelSize:
+    yrange2 = TRG.uniform(ymin2, ymax2, size=2)
 
 
 def test_countrate_of_speccube_must_be_the_same_with_different_input_type():
@@ -130,20 +136,41 @@ def test_countrate_outside_erange_must_be_zero():
     assert countrate(referenceSimputFile, arfFile, erange=(emin - 2, emin -1)) == 0
 
 
-def nevt_filter(table: fits.fitsrec.FITS_rec, xrange=None, yrange=None, erange=None):
+def nevt_filter(table: fits.fitsrec.FITS_rec, simput_file=None, xrange=None, yrange=None, erange=None):
     """
-    Counts the number of events given a filter.
+    Counts the number of events given a filter. For the position in the sky it is based on the coordinate of the source.
     :param table: (fits.fitsrec.FITS_rec) Event-list table.
+    :param simput_file: (str) Simput file name, necessary only if xrange or yrange are present. Default None
     :param xrange: (2 x float) Range in the x-axis, i.e. RA [arcmin]. Default None.
     :param yrange: (2 x float) Range in the y-axis, i.e. DEC [arcmin]. Default None.
     :param erange: (2 x float) Energy range [keV]. Default None.
     :return: (int) Number of events that match the filter.
     """
 
-    if xrange is not None:
-        table = table[np.where((table['RA'] * 60 >= xrange[0]) & (table['RA'] * 60 < xrange[1]))[0]]
-    if yrange is not None:
-        table = table[np.where((table['DEC'] * 60 >= yrange[0]) & (table['DEC'] * 60 < yrange[1]))[0]]
+    if xrange is not None or yrange is not None:
+        src = fits.open(simput_file)[1].data
+        if xrange is not None and yrange is None:
+            ra_arcmin = src['RA'] * 60.  # [arcmin]
+            src = src[np.where((ra_arcmin >= xrange[0]) & (ra_arcmin < xrange[1]))[0]]
+            del ra_arcmin
+        elif xrange is None and yrange is not None:
+            dec_arcmin = src['DEC'] * 60.  # [arcmin]
+            src = src[np.where((dec_arcmin >= yrange[0]) & (dec_arcmin < yrange[1]))[0]]
+            del dec_arcmin
+        elif xrange is not None and yrange is not None:
+            ra_arcmin = src['RA'] * 60.
+            dec_arcmin = src['DEC'] * 60.
+            src = src[np.where((ra_arcmin >= xrange[0]) & (ra_arcmin < xrange[1]) &
+                                 (dec_arcmin >= yrange[0]) & (dec_arcmin < yrange[1]))[0]]
+            del ra_arcmin, dec_arcmin
+
+        index_list = []
+        for index in range(len(table)):
+            if table['SRC_ID'][index] in src['SRC_ID']:
+                index_list.append(index)
+
+        table = table[index_list]
+
     if erange is not None:
         table = table[np.where((table['SIGNAL'] >= erange[0]) & (table['SIGNAL'] < erange[1]))[0]]
 
@@ -154,10 +181,10 @@ def test_counts_in_eventlist_must_match_with_countrate():
     """
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrangeFOV, yrange=yrangeFOV) * tExp
+    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile) * tExp
     ncts_from_eventlist = nevt_filter(evtTable)
 
-    assert ncts_from_ctrate == pytest.approx(ncts_from_eventlist, abs= sigmaTol * np.sqrt(ncts_from_eventlist))
+    assert ncts_from_ctrate == pytest.approx(ncts_from_eventlist, abs=sigmaTol * np.sqrt(ncts_from_eventlist))
 
 
 def test_counts_in_eventlist_must_match_with_countrate_with_xrange():
@@ -165,10 +192,10 @@ def test_counts_in_eventlist_must_match_with_countrate_with_xrange():
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure with the same
     xrange.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrange2, yrange=yrangeFOV) * tExp
-    ncts_from_eventlist = nevt_filter(evtTable, xrange=xrange)
+    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrange2) * tExp
+    ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, xrange=xrange2)
 
-    assert ncts_from_ctrate == pytest.approx(ncts_from_eventlist, abs= sigmaTol * np.sqrt(ncts_from_eventlist)), errMsg
+    assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg
 
 
 def test_counts_in_eventlist_must_match_with_countrate_with_yrange():
@@ -176,10 +203,10 @@ def test_counts_in_eventlist_must_match_with_countrate_with_yrange():
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure with the same
     yrange.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrangeFOV, yrange=yrange2) * tExp
-    ncts_from_eventlist = nevt_filter(evtTable, yrange=yrange)
+    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, yrange=yrange2) * tExp
+    ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, yrange=yrange2)
 
-    assert ncts_from_ctrate == pytest.approx(ncts_from_eventlist, abs= sigmaTol * np.sqrt(ncts_from_eventlist)), errMsg
+    assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg
 
 
 def test_counts_in_eventlist_must_match_with_countrate_with_erange():
@@ -187,10 +214,10 @@ def test_counts_in_eventlist_must_match_with_countrate_with_erange():
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure with the same
     energy range.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrangeFOV, yrange=yrangeFOV, erange=erange) * tExp
-    ncts_from_eventlist = nevt_filter(evtTable, erange=erange)
+    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, erange=erange) * tExp
+    ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, erange=erange)
 
-    assert ncts_from_ctrate == pytest.approx(ncts_from_eventlist, abs= sigmaTol * np.sqrt(ncts_from_eventlist)), errMsg
+    assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg
 
 
 def test_counts_in_eventlist_must_match_with_countrate_with_xrange_yrange_erange():
@@ -199,6 +226,6 @@ def test_counts_in_eventlist_must_match_with_countrate_with_xrange_yrange_erange
     xrange, yrange and energy range.
     """
     ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrange2, yrange=yrange2, erange=erange) * tExp
-    ncts_from_eventlist = nevt_filter(evtTable, xrange=xrange, yrange=yrange, erange=erange)
+    ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, xrange=xrange2, yrange=yrange2, erange=erange)
 
-    assert ncts_from_ctrate == pytest.approx(ncts_from_eventlist, abs= sigmaTol * np.sqrt(ncts_from_eventlist)), errMsg
+    assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg

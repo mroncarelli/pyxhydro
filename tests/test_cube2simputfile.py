@@ -15,7 +15,7 @@ referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 snapshotFile = inputDir + 'snap_Gadget_sample'
 spFile = referenceDir + 'reference_emission_table.fits'
 referenceSimputFile = referenceDir + 'reference.simput'
-npix, size, redshift, center, proj, flag_ene, tcut, nsample, nh = 25, 1.05, 0.1, [2500., 2500.], 'z', False, 1.e6, 1, 0.01
+npix, size, redshift, center, proj, flag_ene, tcut, nsample, nh = 25, 0.05, 0.1, [2500., 2500.], 'z', False, 1.e6, 1, 0.01
 t_iso_keV = 6.3  # [keV]
 t_iso = t_iso_keV * keV2K  # 73108018.313372612  # [K] (= 6.3 keV)
 nene = fits.open(spFile)[0].header.get('NENE')
