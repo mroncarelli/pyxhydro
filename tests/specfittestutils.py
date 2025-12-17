@@ -42,12 +42,14 @@ def assert_specfit_has_coherent_properties(specfit: SpecFit, msg='') -> None:
     return
 
 
-def assert_fit_results_within_error(specfit: SpecFit, reference, tol=1, msg='') -> None:
+def assert_fit_results_within_error(specfit: SpecFit, reference, sigma_tol=1, rel=0, msg='') -> None:
     """
-    Checks that a SpecFit result matches the reference values within tolerance based on the error of the fit
+    Checks that a SpecFit result matches the reference values within tolerance based on the error of the fit. An
+    additional relative tolerance based on the absolute value may be added.
     :param specfit: (SpecFit) SpeFit containing the fit results
     :param reference: (float, tuple) Reference values
-    :param tol: Tolerance in units of statistical error
+    :param sigma_tol: Tolerance in units of statistical error
+    :param rel: Tolerance in units of the reference values
     :param msg: (str) If provided it is written in the assertion error message
     :return: None
     """
@@ -58,9 +60,10 @@ def assert_fit_results_within_error(specfit: SpecFit, reference, tol=1, msg='') 
     for index, val in enumerate(reference):
         ind_fit = specfit.model.startParIndex + index
         if not specfit.model(ind_fit).frozen:
-            assert abs(specfit.model(ind_fit).values[0] - val) < tol * specfit.model(ind_fit).sigma, \
+            total_tolerance = sigma_tol * specfit.model(ind_fit) + rel * val
+            assert abs(specfit.model(ind_fit).values[0] - val) < total_tolerance, \
                 ("Fit result: " + str(specfit.model(ind_fit).values[0]) + ", Reference: " + str(val) +
-                 ", Tolerance: " + str(tol * specfit.model(ind_fit).sigma) + msg_)
+                 ", Tolerance: " + str(total_tolerance) + msg_)
 
 
 def assert_fit_results_nominal_within_tolerance(specfit: SpecFit, reference, tol=1., msg='') -> None:
