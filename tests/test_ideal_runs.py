@@ -185,7 +185,7 @@ def test_isothermal_no_velocities():
     fixed_pars = (True, False, False, False, True, False)
     spfit_right_start.run(start=fitParsV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_error(spfit_right_start, fitParsV0, tol=3, msg=errMsg)
+    assert_fit_results_within_error(spfit_right_start, fitParsV0, sigma_tol=2, rel=5e-3, msg=errMsg)
     del spfit_right_start
 
     # Fitting the spectrum in the pha file starting with wrong parameters
@@ -194,7 +194,7 @@ def test_isothermal_no_velocities():
     fixed_pars = (True, False, False, False, True, False)
     spfit_wrong_start.run(start=startPV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_error(spfit_wrong_start, fitParsV0, tol=5, msg=errMsg)
+    assert_fit_results_within_error(spfit_wrong_start, fitParsV0, sigma_tol=3, rel=5e-3, msg=errMsg)
 
 
 def test_isothermal_gaussian_velocities():
@@ -260,7 +260,7 @@ def test_isothermal_gaussian_velocities():
     fixed_pars = (True, False, False, False, True, False)
     spfit_right_start.run(start=fitPars, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_error(spfit_right_start, fitPars, tol=4, msg=errMsg)
+    assert_fit_results_within_error(spfit_right_start, fitPars, sigma_tol=2, rel=5e-3, msg=errMsg)
     del spfit_right_start
 
     # Fitting the spectrum in the pha file starting with wrong parameters
@@ -270,4 +270,4 @@ def test_isothermal_gaussian_velocities():
     fixed_pars = (True, False, False, False, False, False)
     spfit_wrong_start.run(start=startP, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
-    assert_fit_results_within_error(spfit_wrong_start, fitPars, tol=5, msg=errMsg)
+    assert_fit_results_within_error(spfit_wrong_start, fitPars, sigma_tol=3, rel=5e-3, msg=errMsg)
