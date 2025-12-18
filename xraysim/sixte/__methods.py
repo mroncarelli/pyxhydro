@@ -213,36 +213,26 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
     return hdulist.writeto(simput_file, overwrite=overwrite)
 
 
-def inherit_keywords(input_file: str, output_file: str, file_type=None) -> int:
+def __inherit_keywords(input_file: str, output_file: str, add_keys=None) -> int:
     """
     Writes a list of keywords (if present) from the Primary header of the input file into the Primary header of the
     output file.
     :param input_file: (str) Input FITS file.
     :param output_file: (str) Output FITS file that will be modified.
-    :param file_type: (str) Output file type: can be either "evt", "evtlist" or "pha". Default None, i.e. derived
-    from file extension.
+    :param add_keys: (dict) List of additional keywords/values to add to the output file.
     :return: (int) System output of the writing operation
     """
 
     header_inp = fits.getheader(input_file, 0)
     hdulist = fits.open(output_file)
 
-    if type(file_type) == str:
-        dummy = file_type.lower().strip()
-        file_type_ = dummy if dummy in ["evt", "evtlist", "pha"] else output_file.split(".")[-1]
-    else:
-        file_type_ = output_file.split(".")[-1]
-
-    if file_type_ in ["evt", "evtlist"]:
-        hdulist[0].header.set("SIMPUT_F", input_file)
-    elif file_type_ == "pha":
-        hdulist[0].header.set("EVT_FILE", input_file)
-    else:
-        hdulist[0].header.set("PARENT_F", input_file, "UNKNOWN_TYPE")
-
     for key in keywordList:
         if key in header_inp:
             hdulist[0].header.set(key, header_inp.get(key), header_inp.comments[key])
+
+    if add_keys is not None:
+        for key in add_keys:
+            hdulist[0].header.set(key, add_keys.get(key))
 
     return hdulist.writeto(output_file, overwrite=True)
 
@@ -357,7 +347,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
             sys_out = os.system(command_)
             result.append(sys_out)
         if all(value == 0 for value in result):
-            inherit_keywords(simputfile, evtfile, file_type="evt")
+            __inherit_keywords(simputfile, evtfile, add_keys={"SIMPUT_F": simputfile})
             if special == 'erosita':
                 # For the eROSITA simulation I also need to add manually the XML file in the header history, as SIXTE
                 # does not do it or does it wrong. I take for reference the one of CCD 1.
@@ -727,5 +717,5 @@ def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     else:
         sys_out = os.system(command)
         if sys_out == 0:
-            inherit_keywords(evtfile, phafile, file_type="pha")
+            __inherit_keywords(evtfile, phafile, add_keys={"EVT_FILE": evtfile})
         return sys_out
