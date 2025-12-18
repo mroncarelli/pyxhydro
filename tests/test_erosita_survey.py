@@ -10,12 +10,12 @@ from .fitstestutils import assert_hdu_list_matches_reference
 inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
 referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 referenceDirSixteV2 = os.environ.get('XRAYSIM') + '/tests/reference_files/sixte_v2/'
-referenceSimputFile = referenceDir + 'reference.simput'
+referenceSimputFile = referenceDir + 'reference_erosita.simput'
 referenceGTIFile = referenceDir + 'reference_erosita_survey.gti'
 referenceEvtFile = referenceDir + 'reference_erosita_survey.evt'
 referencePhaFile = referenceDir + 'reference_erosita_survey.pha'
 
-simputFile = referenceDir + "reference.simput"
+simputFile = referenceDir + "reference_erosita.simput"
 GTIFile = referenceDir + "evt_file_erosita_survey_created_for_test.gti"
 evtFile = referenceDir + "evt_file_erosita_survey_created_for_test.evt"
 evtFile_ccdList = []
