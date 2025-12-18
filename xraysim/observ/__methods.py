@@ -5,17 +5,21 @@ Set of methods connected to observational quantities.
 import numpy as np
 from astropy.io import fits
 from gadgetutils.phys_const import keV2erg
+from xraysim import sixte
 from xraysim.sphprojection.mapping import read_speccube
 
 SP = np.float32
 
-def countrate(inp, arf, xrange=None, yrange=None, erange=None) -> float:
+def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> float:
     """
     Calculates the expected countrate of a spectral cube for a given response.
     :param inp: (fits.HDUList or str) Spectral cube. The input can be either a speccube (mapping module), or a Simput
         file or a string with the name of the file that contains them.
-    :param arf: (fits.HDUList or str) The response containing the effective area as a function of energy. The input
-    can be either a response HDUList or a string with the name of the file that contains it.
+    :param arf: (fits.HDUList or sixte.Instrument or str) The response containing the effective area as a function of
+        energy. The input can be either a response HDUList (or string with the file) or and Instrument of the sixte
+        module (or a string with the instrument name).
+    :param telescope: (int) The telescope number to use, considered only it the arf is provided via a sixte.Instrument.
+        Default 1.
     :param xrange: (2 x float) Range in the x-axis [arcmin]. For spectral cube assumes 0 in the center. Default None.
     :param yrange: (2 x float) Range in the y-axis [arcmin]. For spectral cube assumes 0 in the center. Default None.
     :param erange: (2 x float) Energy range [keV]. Default None.
@@ -143,12 +147,20 @@ def countrate(inp, arf, xrange=None, yrange=None, erange=None) -> float:
     # Checking arf input type and extracting data based on it
     type_arf = type(arf)
     if type_arf == str:
-        arf_hdulist = fits.open(arf)
+        instrument = sixte.instruments.get(arf)
+        if instrument is not None:
+            arf_hdulist = fits.open(instrument.path + "/" + instrument.arf[telescope - 1])
+        else:
+            try:
+                arf_hdulist = fits.open(arf)
+            except:
+                raise ValueError("Invalid input: " + arf + " is not an instrument name or FITS file.")
     elif type_arf == fits.hdu.hdulist.HDUList:
         arf_hdulist = arf
+    elif type_arf == sixte.Instrument:
+        arf_hdulist = fits.open(arf.path + "/" + arf.arf[telescope - 1])
     else:
-        raise ValueError("Invalid input type. Must be a FITS HUDList of an ancillary response file or a string with a "
-                         "file name that contains it.")
+        raise ValueError("Invalid input type. Must be a FITS HUDList, sixte.Instrument or a string.")
 
     energy_arf = 0.5 * (arf_hdulist[1].data['ENERG_LO'] + arf_hdulist[1].data['ENERG_HI'])  # [keV]
     effarea_arf = arf_hdulist[1].data['SPECRESP']  # [cm^2]

@@ -6,6 +6,7 @@ import pytest
 from xraysim.observ import countrate
 from xraysim.sphprojection.mapping import read_speccube
 from xraysim.gadgetutils.convert import ra_corr
+from xraysim import sixte
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 
 SP = np.float32
@@ -23,7 +24,10 @@ evtTable['RA'] = ra_corr(evtTable['RA'], units='deg', zero=True)  # Correcting R
 instrumentFOV = 3  # [arcmin]
 tExp = fits.open(referenceEvtFile)[1].header['EXPOSURE']  # [s]
 sigmaTol = 3
-arfFile = "/Users/mauro/Sixte/share/sixte/instruments/xrism-resolve-test/rsl_sixte_standard_GVclosed.arf"
+instrumentName = 'xrism-resolve-test'
+instrument = sixte.instruments.get(instrumentName)
+arfFile = instrument.path + "/" + instrument.arf[0]
+#    "/Users/mauro/Sixte/share/sixte/instruments/xrism-resolve-test/rsl_sixte_standard_GVclosed.arf"
 
 # Getting minima and maxima of coordinates
 spCube = read_speccube(referenceSpcubeFile)
@@ -59,6 +63,17 @@ def test_countrate_of_speccube_must_be_the_same_with_different_input_type():
     The countrate of a speccube calculated from the file or from the speccube dictionary must be identical.
     """
     assert (countrate(referenceSpcubeFile, arfFile) == countrate(read_speccube(referenceSpcubeFile), arfFile))
+
+
+def test_countrate_must_be_the_same_with_different_arf_input_type():
+    """
+    The countrate of a speccube when the arf input is a file name, and HDUList, a sixte.Instrument or the instrument
+    name must be identical.
+    """
+    ctrate_ref = countrate(referenceSpcubeFile, arfFile)
+    assert countrate(referenceSpcubeFile, fits.open(arfFile)) == ctrate_ref
+    assert countrate(referenceSpcubeFile, instrument) == ctrate_ref
+    assert countrate(referenceSpcubeFile, instrumentName) == ctrate_ref
 
 
 def test_countrate_of_simput_file_must_be_the_same_with_different_input_type():

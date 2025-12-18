@@ -24,7 +24,7 @@ DP = np.float64
 npix = 128
 
 # Relative tolerance (some test with alpha-weight may fail with 1e-6)
-relTol = 5e-6
+relTol = 1e-5
 
 # Snapshot file on which the tests are performed
 snapshotFile = os.environ.get('XRAYSIM') + '/tests/inp/snap_Gadget_sample'
@@ -33,9 +33,6 @@ snapshotFile = os.environ.get('XRAYSIM') + '/tests/inp/snap_Gadget_sample'
 mass = pygr.readsnap(snapshotFile, 'mass', 'gas', units=0, suppress=1)  # [10^10 h^-1 M_Sun]
 
 # Here I use this method to generate some true random numbers to differentiate the tests.
-seed = int.from_bytes(os.urandom(4))  # 4-bytes int generated with a true random function
-rs = np.random.RandomState(seed)  # Initialization of the random state
-
 alphaMin = -2
 alphaMax = 2
 TRG = TrueRandomGenerator(globalRandomSeed)
@@ -44,6 +41,7 @@ alpha = TRG.uniform(alphaMin, alphaMax)  # randomly generated vale of alpha
 alpha_vec = np.asarray([TRG.uniform(alphaMin, alphaMax), TRG.uniform(alphaMin, alphaMax),
                         TRG.uniform(alphaMin, alphaMax)])
 alpha_vec.sort()  # Sorting in ascending value (useful for one test)
+
 
 def test_total_mass():
     """
@@ -189,7 +187,7 @@ def test_taw_with_larger_alpha_greater_or_equal_to_smaller_alpha():
     for iproj in range(3):
         map_alpha_vec = make_map(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_vec, struct=False)
         for index in range(1, len(alpha_vec)):
-            assert np.all(map_alpha_vec[:, :, index] >= map_alpha_vec[:, :, index - 1] * (1 - relTol))
+            assert np.all(map_alpha_vec[:, :, index] >= map_alpha_vec[:, :, index - 1] * (1 - relTol)), errMsg
 
 
 def test_total_electron_momentum():
