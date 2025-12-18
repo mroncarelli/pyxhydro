@@ -9,7 +9,7 @@ from astropy.io import fits
 
 from xraysim.gadgetutils import phys_const
 from xraysim.specutils import absorption
-from .__shared import instrumentsConfigFile, instrumentsDir, keywordList
+from .__shared import instrumentsConfigFile, keywordList
 from .__classes import SixteInstruments
 
 # Instruments object
@@ -272,11 +272,11 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
                          "instruments configuration file: " + instrumentsConfigFile)
 
     else:
-        path = instrumentsDir + '/' + instrument_.subdir + '/'
+        path = instrument_.path + '/'
         sixte_command = instrument_.command
         special = instrument_.special
 
-        xmlfile_ = xmlfile if xmlfile else path + (',' + path).join(instrument_.xml.replace(' ', '').split(','))
+        xmlfile_ = xmlfile if xmlfile else path + (',' + path).join(instrument_.xml)
 
         if attitude:
             attitude_ = attitude
