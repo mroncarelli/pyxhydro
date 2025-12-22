@@ -38,7 +38,7 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
 
         energy = spcube["energy"]  # [keV]
         data = spcube["data"]
-        d_ene = spcube["energy_interval"] # (energy[-1] - energy[0]) / (len(energy) - 1)  # [keV]
+        d_ene = spcube["energy_interval"]  # [keV]
 
         if xrange is not None or yrange is not None:
             npix = data.shape[0]
@@ -168,3 +168,59 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
     effarea = np.interp(energy, energy_arf, effarea_arf, left=0, right=0, period=None)  # [cm^2]
 
     return np.sum(spectrum * effarea)  # [counts s^-1]
+
+
+def mosaic(n, center=(0, 0), fov=1) -> list:
+    """
+    Creates a square mosaic of pointings.
+    :param n: (int) Number of sides of the square mosaic.
+    :param center: (float x 2) Coordinate of the center of the mosaic [arbitrary units], default (0, 0).
+    :param fov: (float) Field of view, default 1 [arbitrary units]
+    :return: (list of dict) List of pointings containing the following keys:
+            - x: (float) x-coordinate of the pointing center
+            - y: (float) y-coordinate of the pointing center
+            - ring: (int) ring index with the respect to the '00' pointing located in the center of the mosaic
+            - tag: (str) a tag that identifies the pointing, being '00' the central pointing (rounded low/left when
+                n is even) and with numbers 1, 2, 3, ... toward the up/right, and 9, 8, 7, ... towards the low/left.
+                The uniqueness of the tag will fail for n > 10.
+    """
+    coord = np.linspace(-0.5 * (n - 1), 0.5 * (n - 1), n, endpoint = True, dtype=SP)
+    zero_pixel = int(np.floor((n - 1) / 2))
+    result = []
+    for i in range(n):
+        for j in range(n):
+            result.append({'x': coord[i] * fov + center[0],
+                           'y': coord[j] * fov + center[1],
+                           'ring': max(abs(i - zero_pixel), abs(j - zero_pixel)),
+                           'tag': str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)})
+
+    return result
+
+
+def ra_corr(ra, units=None, zero=False):
+    """
+    Converts right ascension coordinates in the interval [0, 2pi[
+    :param ra: (float) Right ascension [rad] or [deg]
+    :param units: (str) Units of the ra array, can be radians ('rad'), degrees ('deg') or acrmin ('arcmin'), default
+        'rad'
+    :param zero: (bool) If True coordinates are converted in zero-centered interval, i.e. [-pi, pi[, default False
+    :return: (float) Corrected value of right ascension
+    """
+    units_ = units.lower() if units else 'rad'
+    if units_ in ['rad', 'radians']:
+        full = 2 * np.pi  # [rad]
+    elif units_ in ['deg', 'degree']:
+        full = 360  # [deg]
+    elif units_ == 'arcmin':
+        full = 21600  # [arcmim]
+    else:
+        raise ValueError("ERROR IN ra_corr. Invalid unit: ", units, "Must be one of 'rad', 'radians', 'deg', 'degree' "
+                                                                    "'arcmin' or None")
+
+    result = ra % full  # in range [0, 2pi[ or [0, 360[
+
+    if zero:
+        corr = result >= 0.5 * full
+        result[corr] = result[corr] - full  # in range [-pi, pi[ or [-180, 180[
+
+    return result

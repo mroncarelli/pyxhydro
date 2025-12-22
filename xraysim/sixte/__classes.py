@@ -19,13 +19,14 @@ class BColors:
     UNDERLINE = '\033[4m'
 
 
-def new_sw(message, category, filename, lineno, line=None):
+def new_sw(message, category, filename, lineno, file=None, line=None):
     """
     Monkeypatch of warnings.showwarning
     :param message:
     :param category:
     :param filename:
     :param lineno:
+    :param file:
     :param line:
     :return: None
     """

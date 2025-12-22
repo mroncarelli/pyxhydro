@@ -3,9 +3,8 @@ import numpy as np
 import os
 import pytest
 
-from xraysim.observ import countrate
+from xraysim.observ import countrate, ra_corr
 from xraysim.sphprojection.mapping import read_speccube
-from xraysim.gadgetutils.convert import ra_corr
 from xraysim import sixte
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 

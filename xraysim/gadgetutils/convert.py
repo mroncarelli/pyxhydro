@@ -86,29 +86,3 @@ def zobs2vpec(z_obs, z_h, units=None) -> float:
 
     z_ratio = (1. + z_obs) ** 2 / (1. + z_h) ** 2
     return (z_ratio - 1.) / (z_ratio + 1.) * conv
-
-
-def ra_corr(ra, units=None, zero=False):
-    """
-    Converts right ascension coordinates in the interval [0, 2pi[
-    :param ra: (float) Right ascension [rad] or [deg]
-    :param units: (str) Units of the ra array, can be radians ('rad') or degrees ('deg'), default [rad]
-    :param zero: (bool) If True coordinates are converted in zero-centered interval, i.e. [-pi, pi[, default False
-    :return: (float) Corrected value of right ascension
-    """
-    units_ = units.lower() if units else 'rad'
-    if units_ in ['rad', 'radians']:
-        full = 2. * pi  # [rad]
-    elif units_ in ['deg', 'degree']:
-        full = 360.  # [deg]
-    else:
-        raise ValueError("ERROR IN ra_corr. Invalid unit: ", units, "Must be one of 'rad', 'radians', 'deg', 'degree' "
-                                                                    "or None")
-
-    result = ra % full  # in range [0, 2pi[ or [0, 360[
-
-    if zero:
-        corr = result >= 0.5 * full
-        result[corr] = result[corr] - full  # in range [-pi, pi[ or [-180, 180[
-
-    return result
