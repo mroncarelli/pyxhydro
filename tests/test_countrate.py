@@ -32,23 +32,23 @@ arfFile = instrument.path + "/" + instrument.arf[0]
 spCube = read_speccube(referenceSpcubeFile)
 emin = spCube["energy"][0] - 0.5 * spCube["energy_interval"][0]
 emax = spCube["energy"][-1] + 0.5 * spCube["energy_interval"][-1]
-size = spCube["size"] * 60  # [arcmin]
-pixelSize = spCube["pixel_size"]  # [arcmin]
-xmin, xmax = -0.5 * size, 0.5 * size  # [arcmin]
-ymin, ymax = -0.5 * size, 0.5 * size  # [arcmin]
+size = spCube["size"]  # [deg]
+pixelSize = spCube["pixel_size"] / 60 # [deg]
+xmin, xmax = -0.5 * size, 0.5 * size  # [deg]
+ymin, ymax = -0.5 * size, 0.5 * size  # [deg]
 
 # Extracting random ranges
-xrange = TRG.uniform(xmin, xmax, size=2)  # [arcmin]
-xrange.sort()  # [arcmin]
-yrange = TRG.uniform(ymin, ymax, size=2)  # [arcmin]
-yrange.sort()  # [arcmin]
-erange = TRG.uniform(emin, emax, size=2)  # [arcmin]
-erange.sort()  # [arcmin]
+xrange = TRG.uniform(xmin, xmax, size=2)  # [deg]
+xrange.sort()  # [deg]
+yrange = TRG.uniform(ymin, ymax, size=2)  # [deg]
+yrange.sort()  # [deg]
+erange = TRG.uniform(emin, emax, size=2)  # [deg]
+erange.sort()  # [deg]
 
 # For photon counts derived from the eventlist the range is reduced to avoid border effect. I also include a
 # minimum range to avoid very small areas
-xmin2, xmax2 = -0.5 * instrumentFOV + pixelSize, 0.5 * instrumentFOV - pixelSize # [arcmin]
-ymin2, ymax2 = -0.5 * instrumentFOV + pixelSize, 0.5 * instrumentFOV - pixelSize  # [arcmin]
+xmin2, xmax2 = -0.5 * instrumentFOV + pixelSize, 0.5 * instrumentFOV - pixelSize # [deg]
+ymin2, ymax2 = -0.5 * instrumentFOV + pixelSize, 0.5 * instrumentFOV - pixelSize  # [deg]
 xrange2 = (0, 0)
 while xrange2[1] - xrange2[0] < pixelSize:
     xrange2 = TRG.uniform(xmin2, xmax2, size=2)
@@ -155,8 +155,8 @@ def nevt_filter(table: fits.fitsrec.FITS_rec, simput_file=None, xrange=None, yra
     Counts the number of events given a filter. For the position in the sky it is based on the coordinate of the source.
     :param table: (fits.fitsrec.FITS_rec) Event-list table.
     :param simput_file: (str) Simput file name, necessary only if xrange or yrange are present. Default None
-    :param xrange: (2 x float) Range in the x-axis, i.e. RA [arcmin]. Default None.
-    :param yrange: (2 x float) Range in the y-axis, i.e. DEC [arcmin]. Default None.
+    :param xrange: (2 x float) Range in the x-axis, i.e. RA [deg]. Default None.
+    :param yrange: (2 x float) Range in the y-axis, i.e. DEC [deg]. Default None.
     :param erange: (2 x float) Energy range [keV]. Default None.
     :return: (int) Number of events that match the filter.
     """
@@ -164,19 +164,18 @@ def nevt_filter(table: fits.fitsrec.FITS_rec, simput_file=None, xrange=None, yra
     if xrange is not None or yrange is not None:
         src = fits.open(simput_file)[1].data
         if xrange is not None and yrange is None:
-            ra_arcmin = src['RA'] * 60.  # [arcmin]
-            src = src[np.where((ra_arcmin >= xrange[0]) & (ra_arcmin < xrange[1]))[0]]
-            del ra_arcmin
+            ra = src['RA']  # [deg]
+            src = src[np.where((ra >= xrange[0]) & (ra < xrange[1]))[0]]
+            del ra
         elif xrange is None and yrange is not None:
-            dec_arcmin = src['DEC'] * 60.  # [arcmin]
-            src = src[np.where((dec_arcmin >= yrange[0]) & (dec_arcmin < yrange[1]))[0]]
-            del dec_arcmin
+            dec = src['DEC']  # [deg]
+            src = src[np.where((dec >= yrange[0]) & (dec < yrange[1]))[0]]
+            del dec
         elif xrange is not None and yrange is not None:
-            ra_arcmin = src['RA'] * 60.
-            dec_arcmin = src['DEC'] * 60.
-            src = src[np.where((ra_arcmin >= xrange[0]) & (ra_arcmin < xrange[1]) &
-                                 (dec_arcmin >= yrange[0]) & (dec_arcmin < yrange[1]))[0]]
-            del ra_arcmin, dec_arcmin
+            ra = src['RA']  # [deg]
+            dec = src['DEC']  # [deg]
+            src = src[np.where((ra >= xrange[0]) & (ra < xrange[1]) & (dec >= yrange[0]) & (dec < yrange[1]))[0]]
+            del ra, dec
 
         index_list = []
         for index in range(len(table)):

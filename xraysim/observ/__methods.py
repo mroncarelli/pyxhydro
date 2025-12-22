@@ -30,8 +30,8 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         """
         Extracts the energy bins spectra from a spectral cube.
         :param spcube: (dict) Spectral cube.
-        :param xrange: (2 x float) Range in the x-axis [arcmin]. Assumes 0 in the center. Default None.
-        :param yrange: (2 x float) Range in the y-axis [arcmin]. Assumes 0 in the center. Default None.
+        :param xrange: (2 x float) Range in the x-axis [deg]. Assumes 0 in the center. Default None.
+        :param yrange: (2 x float) Range in the y-axis [deg]. Assumes 0 in the center. Default None.
         :param erange: (2 x float) Energy range [keV]. Default None.
         :return: (2 x float array) Central energy of the bins [keV] and total spectrum [photons s^-1 cm^-2].
         """
@@ -42,9 +42,9 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
 
         if xrange is not None or yrange is not None:
             npix = data.shape[0]
-            size = spcube["size"] * 60  # [arcmin]
+            size = spcube["size"]  # [deg]
             step = size / npix  # [arcmin]
-            pvec = np.linspace(0.5 * (-size + step), 0.5 * (size - step), num=npix, endpoint=True)  # [arcmin]
+            pvec = np.linspace(0.5 * (-size + step), 0.5 * (size - step), num=npix, endpoint=True)  # [deg]
 
             if xrange is not None:
                 data = data[np.where((pvec >= xrange[0]) & (pvec < xrange[1]))[0], :, :]
@@ -68,7 +68,7 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         if spcube["flag_ene"]:
             spectrum /= energy  # [photons keV^-1 s^-1 cm^-2 arcmin^-2]
 
-        spectrum *= d_ene * spcube["pixel_size"] ** 2 # [photons s^-1 cm^-2]
+        spectrum *= d_ene * spcube["pixel_size"] ** 2  # [photons s^-1 cm^-2]
 
         return energy, spectrum  # [keV], [photons s^-1 cm^-2]
 
@@ -78,8 +78,8 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         Extracts the energy bins spectra from a imput file HDUList. Assumes that the energy coordinate is the same for
         all spectra and that it is uniform.
         :param simput: (HDUList) Simput file HDUList.
-        :param xrange: (2 x float) Range in the x-axis (RA) [arcmin].
-        :param yrange: (2 x float) Range in the y-axis (DEC) [arcmin].
+        :param xrange: (2 x float) Range in the x-axis (RA) [deg].
+        :param yrange: (2 x float) Range in the y-axis (DEC) [deg].
         :param erange: (2 x float) Energy range [keV].
         :return: (2 x float array) Central energy of the bins [keV] and total spectrum [photons s^-1 cm^-2]
         """
@@ -98,19 +98,19 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         del flux
 
         if xrange is not None and yrange is None:
-            ra_arcmin = simput[1].data['RA'] * 60.  # [arcmin]
-            data = data[np.where((ra_arcmin >= xrange[0]) & (ra_arcmin < xrange[1]))[0], :]
-            del ra_arcmin
+            ra = simput[1].data['RA']  # [deg]
+            data = data[np.where((ra >= xrange[0]) & (ra < xrange[1]))[0], :]
+            del ra
         elif xrange is None and yrange is not None:
-            dec_arcmin = simput[1].data['DEC'] * 60.  # [arcmin]
-            data = data[np.where((dec_arcmin >= yrange[0]) & (dec_arcmin < yrange[1]))[0], :]
-            del dec_arcmin
+            dec = simput[1].data['DEC']  # [deg]
+            data = data[np.where((dec >= yrange[0]) & (dec < yrange[1]))[0], :]
+            del dec
         elif xrange is not None and yrange is not None:
-            ra_arcmin = simput[1].data['RA'] * 60.
-            dec_arcmin = simput[1].data['DEC'] * 60.
-            data = data[np.where((ra_arcmin >= xrange[0]) & (ra_arcmin < xrange[1]) &
-                                 (dec_arcmin >= yrange[0]) & (dec_arcmin < yrange[1]))[0], :]
-            del ra_arcmin, dec_arcmin
+            ra = simput[1].data['RA']  # [deg]
+            dec = simput[1].data['DEC']  # [deg]
+            data = data[np.where((ra >= xrange[0]) & (ra < xrange[1]) &
+                                 (dec >= yrange[0]) & (dec < yrange[1]))[0], :]
+            del ra, dec
 
         if erange is not None:
             index_ecut =  np.where((energy >= erange[0]) & (energy < erange[1]))[0]
