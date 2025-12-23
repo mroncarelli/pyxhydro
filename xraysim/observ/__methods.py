@@ -217,10 +217,22 @@ def ra_corr(ra, units=None, zero=False):
         raise ValueError("ERROR IN ra_corr. Invalid unit: ", units, "Must be one of 'rad', 'radians', 'deg', 'degree' "
                                                                     "'arcmin' or None")
 
-    result = ra % full  # in range [0, 2pi[ or [0, 360[
+    inp_type = type(ra)
+    if inp_type in [tuple, list]:
+        ra_ = np.asarray(ra)
+    else:
+        ra_ = ra
+    result = ra_ % full  # in range [0, 2pi[ or [0, 360[
 
     if zero:
         corr = result >= 0.5 * full
-        result[corr] = result[corr] - full  # in range [-pi, pi[ or [-180, 180[
+        if type(corr) in [bool, np.bool_]:
+            if corr:
+                result -= full
+        else:
+            result[corr] -= full  # in range [-pi, pi[ (for rad)
+
+    if inp_type in [tuple, list]:
+        result = inp_type(result)
 
     return result
