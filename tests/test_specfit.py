@@ -9,16 +9,12 @@ import pytest
 from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import (assert_specfit_has_no_error_flags, assert_fit_results_within_error,
                                assert_specfit_has_coherent_properties)
+from .__shared import (inputDir, spectrumApec, spectrumBapec, spectrumApecNoStat, spectrumBapecNoStat,
+                       specFitReferenceFile, clear_file)
+
 from xraysim.specutils.specfit import *
 
-input_dir = os.environ.get('XRAYSIM') + '/tests/inp/'
-reference_dir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
-spectrumApec = input_dir + 'apec_fakeit_for_test.pha'
-spectrumBapec = input_dir + 'bapec_fakeit_for_test.pha'
-spectrumApecNoStat = input_dir + 'apec_fakeit_nostat_for_test.pha'
-spectrumBapecNoStat = input_dir + 'bapec_fakeit_nostat_for_test.pha'
-bapecSpecFitFile = input_dir +"bapec_specfit_created_for_test.spf"
-specFitReferenceFile = reference_dir + "reference_bapec_wrong_pars.spf"
+bapecSpecFitFile = inputDir + "bapec_specfit_created_for_test.spf"
 
 instrumentDir = os.environ.get("SIXTE") + "/share/sixte/instruments/xrism-resolve-test/"
 rmf = instrumentDir + "rsl_Hp_5eV.rmf"
@@ -193,3 +189,10 @@ def test_specfit_file_has_been_created_and_matches_reference():
     assert os.path.isfile(bapecSpecFitFile)
     assert_hdu_list_matches_reference(fits.open(bapecSpecFitFile), fits.open(specFitReferenceFile), tol=1e-4)
     os.remove(bapecSpecFitFile)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def on_end_module():
+    yield
+    clear_file(bapecSpecFitFile)
+    pyxspec_reset()

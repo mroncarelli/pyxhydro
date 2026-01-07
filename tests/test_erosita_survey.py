@@ -6,16 +6,10 @@ from astropy.io import fits
 
 from xraysim.sixte import create_eventlist, make_pha, erosita_ccd_eventfile, instruments
 from .fitstestutils import assert_hdu_list_matches_reference
+from .__shared import (referenceDir, referenceErositaSimputFile, referenceErositaGTIFile, referenceErositaSurveyEvtFile,
+                       referenceErositaSurveyPhaFile, clear_file)
 
-inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
-referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
-referenceDirSixteV2 = os.environ.get('XRAYSIM') + '/tests/reference_files/sixte_v2/'
-referenceSimputFile = referenceDir + 'reference_erosita.simput'
-referenceGTIFile = referenceDir + 'reference_erosita_survey.gti'
-referenceEvtFile = referenceDir + 'reference_erosita_survey.evt'
-referencePhaFile = referenceDir + 'reference_erosita_survey.pha'
 
-simputFile = referenceDir + "reference_erosita.simput"
 GTIFile = referenceDir + "evt_file_erosita_survey_created_for_test.gti"
 evtFile = referenceDir + "evt_file_erosita_survey_created_for_test.evt"
 evtFile_ccdList = []
@@ -49,12 +43,12 @@ def test_erosita_survey(run_type):
         os.remove(GTIFile)
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(referenceSimputFile, testInstrumentName, None, evtFile, background=False, seed=42,
-                               verbose=0)
+    sys_out = create_eventlist(referenceErositaSimputFile, testInstrumentName, None, evtFile,
+                               background=False, seed=42, verbose=0)
     assert sys_out == [0, 0, 0]
 
     # Checking GTI file
-    assert_hdu_list_matches_reference(fits.open(GTIFile), fits.open(referenceGTIFile),
+    assert_hdu_list_matches_reference(fits.open(GTIFile), fits.open(referenceErositaGTIFile),
                                       key_skip=('DATE', 'COMMENT'))
     os.remove(GTIFile)
 
@@ -68,7 +62,7 @@ def test_erosita_survey(run_type):
         warnings.warn("Eventlist not checked. Run 'pytest --eventlist complete' to check it.")
     elif run_type == 'complete':
         # Checking that file content matches reference
-        assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceEvtFile),
+        assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceErositaSurveyEvtFile),
                                           key_skip=('DATE', 'COMMENT', 'CHECKSUM'),
                                           history_tag_skip=('START PARAMETER ', ' GTIfile = ', ' EvtFile = '))
     else:
@@ -77,7 +71,7 @@ def test_erosita_survey(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(referenceEvtFile, phaFile)
+    make_pha(referenceErositaSurveyEvtFile, phaFile)
     os.remove(evtFile)
 
     if run_type == 'standard':
@@ -86,10 +80,20 @@ def test_erosita_survey(run_type):
         warnings.warn("Pha file not checked. Run 'pytest --eventlist complete' to check it.")
     elif run_type == 'complete':
         # Checking that file content matches reference
-        assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referencePhaFile),
+        assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referenceErositaSurveyPhaFile),
                                           key_skip=('COMMENT'),
                                           history_tag_skip=('START PARAMETER ', ' Spectrum = '))
     else:
         raise ValueError("ERROR in test_erosita_survey.py: unknown option " + run_type)
 
     os.remove(phaFile)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def on_end_module():
+    yield
+    clear_file(GTIFile)
+    clear_file(evtFile)
+    for ccd_ in range(1, 8):
+        clear_file(erosita_ccd_eventfile(evtFile, ccd_))
+    clear_file(phaFile)

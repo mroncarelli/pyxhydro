@@ -8,24 +8,21 @@ from xraysim.sixte import cube2simputfile
 from xraysim.specutils.tables import read_spectable, calc_spec
 from xraysim.sphprojection.mapping import make_speccube
 from .fitstestutils import assert_hdu_list_matches_reference
+from .__shared import inputDir, referenceSpecTableFile, referenceSimputFile, snapshotFile, clear_file
 
 environmentVariablesPathList = [os.environ.get('XRAYSIM'), os.environ.get('SIXTE')]
-inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
-referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
-snapshotFile = inputDir + 'snap_Gadget_sample'
-spFile = referenceDir + 'reference_emission_table.fits'
-referenceSimputFile = referenceDir + 'reference.simput'
-npix, size, redshift, center, proj, flag_ene, tcut, nsample, nh = 25, 0.05, 0.1, [2500., 2500.], 'z', False, 1.e6, 1, 0.01
+npix, size, redshift, proj, flag_ene, tcut, nsample, nh = 25, 0.05, 0.1, 'z', False, 1.e6, 1, 0.01
 t_iso_keV = 6.3  # [keV]
-t_iso = t_iso_keV * keV2K  # 73108018.313372612  # [K] (= 6.3 keV)
-nene = fits.open(spFile)[0].header.get('NENE')
+t_iso = t_iso_keV * keV2K  # [K]
+center = [2500., 2500.]  # comoving [h^-1 kpc]
+nene = fits.open(referenceSpecTableFile)[0].header.get('NENE')
 testSimputFile = inputDir + 'file_created_for_test.simput'
 
 # Isothermal + no velocities
-speccubeIsothermalNovel = make_speccube(snapshotFile, spFile, size=size, npix=npix, redshift=redshift, center=center,
-                                        proj=proj, nsample=nsample, isothermal=t_iso, novel=True)
+speccubeIsothermalNovel = make_speccube(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift,
+                                        center=center, proj=proj, nsample=nsample, isothermal=t_iso, novel=True)
 
-speccube = make_speccube(snapshotFile, spFile, size=size, npix=npix, redshift=redshift, center=center,
+speccube = make_speccube(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift, center=center,
                          proj=proj, tcut=tcut, nh=nh, nsample=nsample)
 
 
@@ -117,3 +114,9 @@ def test_created_file_matches_reference(inp=speccube, out=testSimputFile, refere
     os.remove(out)
     hdulist_reference = fits.open(reference)
     assert_hdu_list_matches_reference(hdulist, hdulist_reference, tol=5e-5)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def on_end_module():
+    yield
+    clear_file(testSimputFile)

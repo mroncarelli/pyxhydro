@@ -48,6 +48,28 @@ def __notice_list_split(notice) -> list:
     return result
 
 
+def pyxspec_reset() -> None:
+    """
+    Restores the initial settings of PyXspec. Caution: deletes all Spectra and Model instances including attributes of
+    SpecFit instances. Deletes also all Chain objects.
+    :return: None
+    """
+    xsp.Xset.chatter = 0
+    xsp.Xset.abund = 'angr'
+    xsp.Xset.cosmo = '70, 0, 0.7'
+    xsp.Xset.closeLog()
+    xsp.Xset.logChatter = 10
+    xsp.Xset.modelStrings = {}
+    xsp.Xset.xsect = 'vern'
+    xsp.AllData.clear()  # Removes all Spectrum objects.
+    xsp.AllModels.clear()  # Removes all Model objects.
+    xsp.AllModels.setEnergies("reset")  # Resets to the PyXspec default
+    xsp.AllChains.clear()  # Removes all Chain objects.
+    xsp.Xset.chatter = 10
+    print("Resetting PyXspec initial settings")
+    return None
+
+
 def __save_xspec_state(self) -> None:
     """
     Saves the state of some global Xspec variables before fitting, ready to be restored after the fit has been

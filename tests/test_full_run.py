@@ -6,16 +6,7 @@ from xraysim.sphprojection.mapping import make_speccube, write_speccube, read_sp
 from xraysim.specutils.specfit import *
 from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import assert_specfit_has_coherent_properties
-
-inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
-referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
-snapshotFile = inputDir + 'snap_Gadget_sample'
-spFile = referenceDir + 'reference_emission_table.fits'
-referenceSpcubeFile = referenceDir + 'reference.speccube'
-referenceSimputFile = referenceDir + 'reference.simput'
-referenceEvtFile = referenceDir + 'reference.evt'
-referencePhaFile = referenceDir + 'reference.pha'
-referenceSpfFile = referenceDir + 'reference.spf'
+from .__shared import *
 
 spcubeFile = referenceDir + "spcube_file_created_for_test.spcube"
 spcubeFile2 = referenceDir + "spcube_file_created_for_test_2.spcube"
@@ -40,8 +31,8 @@ def test_full_run(run_type):
     """
 
     # Creating a speccube file from a calculated speccube
-    speccube_calculated = make_speccube(snapshotFile, spFile, 0.05, 25, redshift=0.1, center=[2500., 2500.],
-                                        proj='z', tcut=1.e6, nh=0.01, nsample=1)
+    speccube_calculated = make_speccube(snapshotFile, referenceSpecTableFile, 0.05, 25, redshift=0.1,
+                                        center=[2500., 2500.], proj='z', tcut=1e6, nh=0.01, nsample=1)
     if os.path.isfile(spcubeFile):
         os.remove(spcubeFile)
     write_speccube(speccube_calculated, spcubeFile)
@@ -123,3 +114,14 @@ def test_full_run(run_type):
     assert os.path.isfile(spfFile)
     assert_hdu_list_matches_reference(fits.open(spfFile), fits.open(referenceSpfFile), tol=1e-4)
     os.remove(spfFile)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def on_end_module():
+    yield
+    clear_file(spcubeFile)
+    clear_file(spcubeFile2)
+    clear_file(simputFile)
+    clear_file(evtFile)
+    clear_file(phaFile)
+    clear_file(spfFile)

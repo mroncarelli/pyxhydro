@@ -19,9 +19,9 @@ sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 
 import xspec as xsp
 from .randomutils import TrueRandomGenerator, globalRandomSeed
+from .__shared import *
 
-spfile_path = os.path.join(os.path.dirname(__file__), "reference_files/reference_emission_table.fits")
-specTable = tables.read_spectable(spfile_path)
+specTable = tables.read_spectable(referenceSpecTableFile)
 
 xsp.Xset.chatter = 0
 xsp.Xset.addModelString("APECTHERMAL", "yes")

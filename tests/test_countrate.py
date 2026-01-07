@@ -1,23 +1,18 @@
 from astropy.io import fits
 import numpy as np
-import os
 import pytest
 
 from xraysim.observ import countrate, ra_corr
 from xraysim.sphprojection.mapping import read_speccube
 from xraysim import sixte
 from .randomutils import TrueRandomGenerator, globalRandomSeed
+from .__shared import referenceSpcubeFile, referenceSimputFile, referenceEvtFile
 
 SP = np.float32
 
 TRG = TrueRandomGenerator(globalRandomSeed)
 errMsg = "Random seed: " + str(TRG.initialSeed)  # Assertion error message if test fails
 
-inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
-referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
-referenceSpcubeFile = referenceDir + 'reference.speccube'
-referenceSimputFile = referenceDir + 'reference.simput'
-referenceEvtFile = referenceDir + 'reference.evt'
 evtTable = fits.open(referenceEvtFile)[1].data
 evtTable['RA'] = ra_corr(evtTable['RA'], units='deg', zero=True)  # Correcting RA in the table events to zero-centered
 instrumentFOV = 3  # [arcmin]
@@ -26,7 +21,6 @@ sigmaTol = 3
 instrumentName = 'xrism-resolve-test'
 instrument = sixte.instruments.get(instrumentName)
 arfFile = instrument.path + "/" + instrument.arf[0]
-#    "/Users/mauro/Sixte/share/sixte/instruments/xrism-resolve-test/rsl_sixte_standard_GVclosed.arf"
 
 # Getting minima and maxima of coordinates
 spCube = read_speccube(referenceSpcubeFile)

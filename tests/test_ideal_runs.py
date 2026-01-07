@@ -29,9 +29,8 @@ from xraysim.specutils.tables import apec_table
 
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .specfittestutils import assert_fit_results_within_error
+from .__shared import referenceDir, snapshotFile, clear_file
 
-inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
-snapshotFile = inputDir + 'snap_Gadget_sample'
 
 # Emission table parameters
 abund = "aspl"  # Xspec abundance table
@@ -93,7 +92,6 @@ startPV0 = (nH, TRG.uniform(low=tMin, high=tMax), TRG.uniform(low=metalMin, high
 startP = (startPV0[0], startPV0[1], startPV0[2], startPV0[3], TRG.uniform(low=sigmaVMin, high=sigmaVMax), startPV0[5])
 
 # Test files
-referenceDir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
 spFile = referenceDir + "sp_file_created_for_ideal_test.simput"
 simputFile = referenceDir + "simput_file_created_for_ideal_test.simput"
 evtFile = referenceDir + "evt_file_created_for_ideal_test.evt"
@@ -271,3 +269,12 @@ def test_isothermal_gaussian_velocities():
     spfit_wrong_start.run(start=startP, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
     assert_fit_results_within_error(spfit_wrong_start, fitPars, sigma_tol=3, rel=5e-3, msg=errMsg)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def on_end_module():
+    yield
+    clear_file(spFile)
+    clear_file(simputFile)
+    clear_file(evtFile)
+    clear_file(phaFile)

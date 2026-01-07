@@ -13,6 +13,7 @@ def pytest_addoption(parser):
                      default=None,
                      help="Seed for random number generator")
 
+
 # The initial random seed is stored as a global variable in the tests.randomutils module
 def pytest_configure(config):
     seed_ = config.getoption("seed")

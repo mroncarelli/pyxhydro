@@ -6,14 +6,13 @@ message in case of test failure: in order to reproduce the error one must take n
 pytest --seed 12345678
 """
 
-import os
 import pytest
 
 from xraysim.specutils.tables import read_spectable, calc_spec
 from .randomutils import TrueRandomGenerator, globalRandomSeed
+from .__shared import referenceSpecTableFile
 
-specTableFile = os.environ.get('XRAYSIM') + '/tests/reference_files/reference_emission_table.fits'
-specTable = read_spectable(specTableFile)
+specTable = read_spectable(referenceSpecTableFile)
 nz = len(specTable['z'])
 nt = len(specTable['temperature'])
 zMin, zMax = specTable.get('z').min(), specTable.get('z').max()

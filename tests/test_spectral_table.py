@@ -1,11 +1,11 @@
-import os
+import pytest
 from astropy.io import fits
 from xraysim.specutils.tables import apec_table, write_spectable
 
 from .fitstestutils import assert_hdu_list_matches_reference
+from .__shared import referenceSpecTableFile, inputDir, clear_file
 
-referenceSpecTableFile = os.environ.get('XRAYSIM') + '/tests/reference_files/reference_emission_table.fits'
-specTableFile = os.environ.get('XRAYSIM') + '/tests/reference_files/emission_table_created_for_test.fits'
+specTableFile = inputDir + '/emission_table_created_for_test.fits'
 
 
 def test_create_apec_table_matches_reference():
@@ -18,9 +18,13 @@ def test_create_apec_table_matches_reference():
     metal = 0.3
     spTable = apec_table(nz, zmin, zmax, ntemp, tmin, tmax, nene, emin, emax, metal=metal, tbroad=True, abund='aspl',
                          flag_ene=False)
-    if os.path.isfile(specTableFile):
-        os.remove(specTableFile)
+    clear_file(specTableFile)
     write_spectable(spTable, specTableFile, overwrite=True)
 
     assert_hdu_list_matches_reference(fits.open(specTableFile), fits.open(referenceSpecTableFile), tol=1e-6)
-    os.remove(specTableFile)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def on_end_module():
+    yield
+    clear_file(specTableFile)
