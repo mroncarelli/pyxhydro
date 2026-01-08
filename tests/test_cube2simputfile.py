@@ -6,7 +6,7 @@ from astropy.io import fits
 from xraysim.gadgetutils.phys_const import keV2K
 from xraysim.sixte import cube2simputfile
 from xraysim.specutils.tables import read_spectable, calc_spec
-from xraysim.sphprojection.mapping import make_speccube
+from xraysim.sphprojection.mapping import specmap
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import inputDir, referenceSpecTableFile, referenceSimputFile, snapshotFile, clear_file
 
@@ -19,10 +19,10 @@ nene = fits.open(referenceSpecTableFile)[0].header.get('NENE')
 testSimputFile = inputDir + 'file_created_for_test.simput'
 
 # Isothermal + no velocities
-speccubeIsothermalNovel = make_speccube(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift,
+speccubeIsothermalNovel = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift,
                                         center=center, proj=proj, nsample=nsample, isothermal=t_iso, novel=True)
 
-speccube = make_speccube(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift, center=center,
+speccube = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift, center=center,
                          proj=proj, tcut=tcut, nh=nh, nsample=nsample)
 
 

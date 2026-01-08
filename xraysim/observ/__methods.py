@@ -6,7 +6,7 @@ import numpy as np
 from astropy.io import fits
 from gadgetutils.phys_const import keV2erg
 from xraysim import sixte
-from xraysim.sphprojection.mapping import read_speccube
+from xraysim.sphprojection.mapping import read_specmap
 
 SP = np.float32
 
@@ -136,7 +136,7 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
     elif input_type == str:
         try:
             # Trying with a file containing a speccube ([keV], [photons s^-1 cm^-2])
-            energy, spectrum = e_sp_from_spcube(read_speccube(inp), xrange=xrange, yrange=yrange, erange=erange)
+            energy, spectrum = e_sp_from_spcube(read_specmap(inp), xrange=xrange, yrange=yrange, erange=erange)
         except:
             # Trying with a Simput file ([keV], [photons s^-1 cm^-2])
             energy, spectrum = e_sp_from_simput(fits.open(inp), xrange=xrange, yrange=yrange, erange=erange)

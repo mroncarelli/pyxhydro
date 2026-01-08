@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from astropy.io import fits
 
-from xraysim.sphprojection.mapping import make_speccube, write_speccube
+from xraysim.sphprojection.mapping import specmap, write_specmap
 from xraysim.gadgetutils.phys_const import keV2K
 from xraysim.specutils.tables import read_spectable, calc_spec
 
@@ -15,7 +15,7 @@ npix, size, redshift, center, proj, flag_ene, nsample, nh = 25, 0.05, 0.1, [2500
 nene = fits.open(referenceSpecTableFile)[0].header.get('NENE')
 testFile = inputDir + 'file_created_for_test.speccube'
 
-spec_cube = make_speccube(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=0.1, nh=nh,
+spec_cube = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=0.1, nh=nh,
                           center=center, proj=proj, tcut=1e6)
 
 
@@ -78,7 +78,7 @@ def test_isothermal_spectrum_with_temperature_from_table():
     z, temp_iso = z_table[iz], temperature_table[it] * keV2K  # [K]
     spec_reference = sptable.get('data')[iz, it, :]
     spec_reference /= spec_reference.mean()  # normalize to mean = 1
-    spec_cube_iso = make_speccube(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=center, proj=proj,
+    spec_cube_iso = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=center, proj=proj,
                                   isothermal=temp_iso, novel=True, nsample=nsample).get('data')
 
     nene_speccube = spec_cube_iso.shape[2]
@@ -105,7 +105,7 @@ def test_isothermal_spectrum():
     spec_reference = calc_spec(sptable, z, temp_iso_kev, no_z_interp=True)
     spec_reference /= spec_reference.mean()  # normalize to mean = 1
     temp_iso = temp_iso_kev * keV2K  # [K]
-    spec_cube_iso = make_speccube(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=center, proj=proj,
+    spec_cube_iso = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=center, proj=proj,
                                   isothermal=temp_iso, novel=True, nsample=nsample).get('data')
 
     spec_iso = np.ndarray(nene, dtype=SP)
@@ -122,7 +122,7 @@ def test_created_file_matches_reference(speccube_inp=spec_cube, reference=refere
     """
     if os.path.isfile(testFile):
         os.remove(testFile)
-    write_speccube(speccube_inp, testFile)
+    write_specmap(speccube_inp, testFile)
     hdulist = fits.open(testFile)
     os.remove(testFile)
     hdulist_reference = fits.open(reference)

@@ -2,7 +2,7 @@ import warnings
 import pytest
 
 from xraysim.sixte import cube2simputfile, create_eventlist, make_pha
-from xraysim.sphprojection.mapping import make_speccube, write_speccube, read_speccube
+from xraysim.sphprojection.mapping import specmap, write_specmap, read_specmap
 from xraysim.specutils.specfit import *
 from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import assert_specfit_has_coherent_properties
@@ -31,11 +31,11 @@ def test_full_run(run_type):
     """
 
     # Creating a speccube file from a calculated speccube
-    speccube_calculated = make_speccube(snapshotFile, referenceSpecTableFile, 0.05, 25, redshift=0.1,
+    speccube_calculated = specmap(snapshotFile, referenceSpecTableFile, 0.05, 25, redshift=0.1,
                                         center=[2500., 2500.], proj='z', tcut=1e6, nh=0.01, nsample=1)
     if os.path.isfile(spcubeFile):
         os.remove(spcubeFile)
-    write_speccube(speccube_calculated, spcubeFile)
+    write_specmap(speccube_calculated, spcubeFile)
     assert os.path.isfile(spcubeFile)
     del speccube_calculated
 
@@ -45,11 +45,11 @@ def test_full_run(run_type):
     assert_hdu_list_matches_reference(fits.open(spcubeFile), reference_speccube, tol=5e-5)
 
     # Creating a speccube file from the speccube read from the file
-    speccube_read = read_speccube(spcubeFile)
+    speccube_read = read_specmap(spcubeFile)
     os.remove(spcubeFile)
     if os.path.isfile(spcubeFile2):
         os.remove(spcubeFile2)
-    write_speccube(speccube_read, spcubeFile2)
+    write_specmap(speccube_read, spcubeFile2)
     assert os.path.isfile(spcubeFile2)
 
     # Checking that file content matches reference

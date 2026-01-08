@@ -7,8 +7,8 @@ from tqdm import tqdm
 from xraysim.gadgetutils.phys_const import Xp, m_p, Msun2g, kpc2cm
 from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
 from xraysim.gadgetutils import convert, phys_const
-from xraysim.sphprojection.kernel import intkernel, make_map_loop, make_map_loop2, make_speccube_loop, \
-    make_alpha_weight_loop, make_alpha_weight_loop2
+from xraysim.sphprojection.kernel import intkernel, map2d_loop, map2d_loop2, speccube_loop, \
+    map2d_alpha_weight_loop, map2d_alpha_weight_loop2
 from xraysim.sphprojection.linkedlist import linkedlist2d
 from xraysim.specutils import tables, absorption
 
@@ -64,9 +64,10 @@ def get_map_coord(simfile: str, proj_index: int, z=False):
         return x, y
 
 
-def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None, proj='z', zrange=None, tcut=0,
-             nsample=None, struct=False, nosmooth=False, progress=False):
+def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None, proj='z', zrange=None, tcut=0,
+          nsample=None, struct=False, nosmooth=False, progress=False):
     """
+    Creates a projected 2D map of a physical quantitiy from a Gadget snapshot.
     :param simfile: (str) simulation file (Gadget)
     :param quantity: (str) physical quantity to map (one of rho, rho2, Tmw, Tew, Tsl, Taw, vmw, vew, vaw, wmw, wew, waw)
     :param npix: (int) number of map pixels per side
@@ -294,15 +295,15 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
     if quantity_ in ['wmw', 'wew', 'waw']:
         if multi_alpha:
             qty2_map = np.full((npix, npix, nalpha), 0., dtype=DP)
-            make_alpha_weight_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm, temp, alpha_arr)
+            map2d_alpha_weight_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm, temp, alpha_arr)
         else:
             qty2_map = np.full((npix, npix), 0., dtype=DP)
-            make_map_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm)
+            map2d_loop2(qty_map, qty2_map, nrm_map, iter_, x, y, hsml, qty, qty2, nrm)
     else:
         if multi_alpha:
-            make_alpha_weight_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm, temp, alpha_arr)
+            map2d_alpha_weight_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm, temp, alpha_arr)
         else:
-            make_map_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm)
+            map2d_loop(qty_map, nrm_map, iter_, x, y, hsml, qty, nrm)
     if quantity_ in ['ne', 'nh', 'nenh', 'ne2']:
         qty_map *= conv_factor
 
@@ -377,10 +378,11 @@ def make_map(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=N
         return qty_map
 
 
-def make_speccube(snapfile: str, sptable, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
-                  energy_cut=None, tcut=0., flag_ene=False, nsample=None, isothermal=None, novel=None, gaussvel=None,
-                  seed=0, nosmooth=False, nh=None, simulation_type=None, progress=False):
+def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
+            energy_cut=None, tcut=0., flag_ene=False, nsample=None, isothermal=None, novel=None, gaussvel=None,
+            seed=0, nosmooth=False, nh=None, simulation_type=None, progress=False):
     """
+    Creates a spectral map (spectral-cube) from a Gadget snapshot.
     :param snapfile: (str) Simulation snapshot file (Gadget)
     :param sptable: (dict or str) Spectrum table or spectrum table file (FITS)
     :param size: (float) Angular size of the map [deg]
@@ -573,7 +575,7 @@ def make_speccube(snapfile: str, sptable, size: float, npix=256, redshift=None, 
     spcube = np.full((npix, npix, nene), 0., dtype=DP)
 
     # Cython loop for mapping
-    make_speccube_loop(spcube, iter_, x, y, hsml, spectable, norm, z_eff, temp_kev)
+    speccube_loop(spcube, iter_, x, y, hsml, spectable, norm, z_eff, temp_kev)
 
     spcube /= d_ene * pixsize ** 2  # [photons s^-1 cm^-2 arcmin^-2 keV^-1]
 
@@ -621,10 +623,10 @@ def make_speccube(snapfile: str, sptable, size: float, npix=256, redshift=None, 
     return result
 
 
-def write_speccube(spec_cube: dict, outfile: str, overwrite=True):
+def write_specmap(spec_cube: dict, outfile: str, overwrite=True):
     """
-    Writes a spectral-cube into a FITS file.
-    :param spec_cube: (dict) Spectral-cube, i.e. output of make_speccube.
+    Writes a spectral map (spectral-cube) into a FITS file.
+    :param spec_cube: (dict) Spectral-cube, i.e. output of specmap.
     :param outfile: (str) FITS file.
     :param overwrite: (bool) If set to True the file is overwritten. Default: True.
     :return: System output of the writing operation (usually None)
@@ -688,7 +690,7 @@ def write_speccube(spec_cube: dict, outfile: str, overwrite=True):
     return hdulist.writeto(outfile, overwrite=overwrite)
 
 
-def read_speccube(infile: str):
+def read_specmap(infile: str):
     hdulist = fits.open(infile)
     header0 = hdulist[0].header
     header1 = hdulist[1].header

@@ -15,7 +15,7 @@ import pygadgetreader as pygr
 import os
 
 from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
-from xraysim.sphprojection.mapping import make_map
+from xraysim.sphprojection.mapping import map2d
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 
 DP = np.float64
@@ -48,7 +48,7 @@ def test_total_mass():
     The total mass in the projected map must be the same as the snapshot one
     """
     val_snap = np.sum(mass, dtype=DP)  # [10^10 h^-1 M_Sun]
-    map_str = make_map(snapshotFile, 'rho', npix=npix, struct=True)
+    map_str = map2d(snapshotFile, 'rho', npix=npix, struct=True)
     val_map = np.sum(map_str['map'], dtype=DP) * map_str['pixel_size'] ** 2
     assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -59,7 +59,7 @@ def test_int_rho2_over_volume():
     """
     rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
     val_snap = np.sum(mass * rho, dtype=DP)  # [10^20 h M_Sun^2 kpc^-3]
-    map_str = make_map(snapshotFile, 'rho2', npix=npix, struct=True)
+    map_str = map2d(snapshotFile, 'rho2', npix=npix, struct=True)
     val_map = np.sum(map_str['map'], dtype=DP) * map_str['pixel_size'] ** 2
     assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -70,7 +70,7 @@ def test_total_electron_mass():
     """
     x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     val_snap = np.sum(mass * x_e, dtype=DP) * Xp * m_e / m_p  # Electron mass [10^10 h^-1 M_Sun]
-    map_str = make_map(snapshotFile, 'ne', npix=npix, struct=True)
+    map_str = map2d(snapshotFile, 'ne', npix=npix, struct=True)
     val_map = np.sum(map_str['map'], dtype=DP) * m_e * 1e-10 / Msun2g * (map_str['pixel_size'] * kpc2cm) ** 2
     assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -80,7 +80,7 @@ def test_total_hydrogen_mass():
     The total Hydrogen mass in the projected map must be the same as the snapshot one
     """
     val_snap = np.sum(mass, dtype=DP) * Xp  # Hydrogen mass [10^10 h^-1 M_Sun]
-    map_str = make_map(snapshotFile, 'nH', npix=npix, struct=True)  # [h cm^-2]
+    map_str = map2d(snapshotFile, 'nH', npix=npix, struct=True)  # [h cm^-2]
     val_map = np.sum(map_str['map'], dtype=DP) * m_p * 1e-10 / Msun2g * (
             map_str['pixel_size'] * kpc2cm) ** 2  # [10^10 h^-1 M_Sun]
     assert val_map == pytest.approx(val_snap, rel=relTol)
@@ -93,7 +93,7 @@ def test_total_emission_measure():
     rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
     x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     val_snap = np.sum(mass * rho * x_e, dtype=DP) * Xp ** 2 * m_e / m_p  # [10^20 h M_Sun^2 kpc^-3]
-    map_str = make_map(snapshotFile, 'nenH', npix=npix, struct=True)  # [h^3 cm^-5]
+    map_str = map2d(snapshotFile, 'nenH', npix=npix, struct=True)  # [h^3 cm^-5]
     val_map = np.sum(map_str['map'], dtype=DP) * m_e * m_p * 1e-20 / Msun2g ** 2 * (
             map_str['pixel_size'] * kpc2cm) ** 2 * kpc2cm ** 3  # [10^20 h M_Sun^2 kpc^-3]
     assert val_map == pytest.approx(val_snap, rel=relTol)
@@ -106,7 +106,7 @@ def test_average_tmw():
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     val_snap = np.sum(mass * x_e * temp, dtype=DP) / np.sum(mass * x_e, dtype=DP)
-    map_str = make_map(snapshotFile, 'Tmw', npix=npix, struct=True)
+    map_str = map2d(snapshotFile, 'Tmw', npix=npix, struct=True)
     val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)
     assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -119,7 +119,7 @@ def test_average_tew():
     x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     val_snap = np.sum(mass * rho * x_e ** 2 * temp, dtype=DP) / np.sum(mass * rho * x_e ** 2, dtype=DP)
-    map_str = make_map(snapshotFile, 'Tew', npix=npix, struct=True)
+    map_str = map2d(snapshotFile, 'Tew', npix=npix, struct=True)
     val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)
     assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -134,7 +134,7 @@ def test_average_tsl():
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     val_snap = (np.sum(mass * rho * x_e ** 2 * temp ** 0.25, dtype=DP) /
                 np.sum(mass * rho * x_e ** 2 * temp ** -0.75, dtype=DP))
-    map_str = make_map(snapshotFile, 'Tsl', npix=npix, struct=True)
+    map_str = map2d(snapshotFile, 'Tsl', npix=npix, struct=True)
     val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)
     assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -144,8 +144,8 @@ def test_tew_must_be_greater_or_equal_to_tsl():
     A map of the projected emission-weighted (W = n_e^2) temperature must be greater or equal to the corresponding
     spectroscopic-like (W = n_e^2*T^-0.75) temperature in every pixel.
     """
-    map_tew = make_map(snapshotFile, 'Tew', npix=npix, struct=False)
-    map_tsl = make_map(snapshotFile, 'Tsl', npix=npix, struct=False)
+    map_tew = map2d(snapshotFile, 'Tew', npix=npix, struct=False)
+    map_tsl = map2d(snapshotFile, 'Tsl', npix=npix, struct=False)
     assert np.all(map_tew >= map_tsl * (1 - relTol))
 
 
@@ -158,7 +158,7 @@ def test_average_taw():
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     val_snap = (np.sum(mass * rho * x_e ** 2 * temp ** (alpha + 1), dtype=DP) /
                 np.sum(mass * rho * x_e ** 2 * temp ** alpha, dtype=DP))
-    map_str = make_map(snapshotFile, 'Taw', npix=npix, alpha=alpha, struct=True)
+    map_str = map2d(snapshotFile, 'Taw', npix=npix, alpha=alpha, struct=True)
     val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)
     assert val_map == pytest.approx(val_snap, rel=relTol), errMsg
 
@@ -168,9 +168,9 @@ def test_taw_with_alpha_vector_matches_scalar():
     Computing alpha-weighted temperature with alpha vector must match the corresponding ones computed in scalar mode.
     """
     for iproj in range(3):
-        map_alpha_vec = make_map(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_vec, struct=True)
+        map_alpha_vec = map2d(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_vec, struct=True)
         for index, alpha_scalar in enumerate(alpha_vec):
-            map_alpha = make_map(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_scalar, struct=True)
+            map_alpha = map2d(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_scalar, struct=True)
             for key in map_alpha_vec:
                 if key not in ["map", "norm", "alpha"]:
                     assert map_alpha_vec[key] == pytest.approx(map_alpha[key], rel=relTol), errMsg
@@ -185,7 +185,7 @@ def test_taw_with_larger_alpha_greater_or_equal_to_smaller_alpha():
     smaller values of alpha. The values in alpha_vec must be sorted in ascending order.
     """
     for iproj in range(3):
-        map_alpha_vec = make_map(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_vec, struct=False)
+        map_alpha_vec = map2d(snapshotFile, 'taw', proj=iproj, npix=npix, alpha=alpha_vec, struct=False)
         for index in range(1, len(alpha_vec)):
             assert np.all(map_alpha_vec[:, :, index] >= map_alpha_vec[:, :, index - 1] * (1 - relTol)), errMsg
 
@@ -198,7 +198,7 @@ def test_total_electron_momentum():
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
         val_snap = np.sum(mass * x_e * vel, dtype=DP)
-        map_str = make_map(snapshotFile, 'vmw', proj=iproj, npix=npix, struct=True)
+        map_str = map2d(snapshotFile, 'vmw', proj=iproj, npix=npix, struct=True)
         val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) * map_str['pixel_size'] ** 2
         assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -212,7 +212,7 @@ def test_total_ew_momentum():
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
         val_snap = np.sum(mass * rho * x_e ** 2 * vel, dtype=DP)
-        map_str = make_map(snapshotFile, 'vew', proj=iproj, npix=npix, struct=True)
+        map_str = map2d(snapshotFile, 'vew', proj=iproj, npix=npix, struct=True)
         val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) * map_str['pixel_size'] ** 2
         assert val_map == pytest.approx(val_snap, rel=relTol)
 
@@ -227,7 +227,7 @@ def test_total_aw_momentum():
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
         val_snap = np.sum(mass * rho * x_e ** 2 * temp ** alpha * vel, dtype=DP)
-        map_str = make_map(snapshotFile, 'vaw', proj=iproj, npix=npix, alpha=alpha, struct=True)
+        map_str = map2d(snapshotFile, 'vaw', proj=iproj, npix=npix, alpha=alpha, struct=True)
         val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) * map_str['pixel_size'] ** 2
         assert val_map == pytest.approx(val_snap, rel=relTol), errMsg
 
@@ -237,9 +237,9 @@ def test_vaw_with_alpha_vector_matches_scalar():
     Computing alpha-weighted velocity with alpha vector must match the corresponding ones computed in scalar mode.
     """
     for iproj in range(3):
-        map_alpha_vec = make_map(snapshotFile, 'vaw', proj=iproj, npix=npix, alpha=alpha_vec, struct=True)
+        map_alpha_vec = map2d(snapshotFile, 'vaw', proj=iproj, npix=npix, alpha=alpha_vec, struct=True)
         for index, alpha_scalar in enumerate(alpha_vec):
-            map_alpha = make_map(snapshotFile, 'vaw', proj=iproj, npix=npix, alpha=alpha_scalar, struct=True)
+            map_alpha = map2d(snapshotFile, 'vaw', proj=iproj, npix=npix, alpha=alpha_scalar, struct=True)
             for key in map_alpha_vec:
                 if key not in ["map", "norm", "alpha"]:
                     assert map_alpha_vec[key] == pytest.approx(map_alpha[key], rel=relTol), errMsg
@@ -259,7 +259,7 @@ def test_average_electron_velocity_dispersion():
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
         val_snap = np.sqrt(
             np.sum(mass * x_e * vel ** 2) / nsum - (np.sum(mass * x_e * vel) / nsum) ** 2)
-        map_str = make_map(snapshotFile, 'wmw', proj=iproj, npix=npix, struct=True)
+        map_str = map2d(snapshotFile, 'wmw', proj=iproj, npix=npix, struct=True)
         val1_map = (np.sum((map_str['map'] ** 2 + map_str['map2'] ** 2) * map_str['norm'], dtype=DP) /
                     np.sum(map_str['norm'], dtype=DP))
         val2_map = (np.sum(map_str['map2'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)) ** 2
@@ -279,7 +279,7 @@ def test_average_ew_velocity_dispersion():
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
         val_snap = np.sqrt(np.sum(mass * rho * x_e ** 2 * vel ** 2, dtype=DP) / nsum - (
                 np.sum(mass * rho * x_e ** 2 * vel, dtype=DP) / nsum) ** 2)
-        map_str = make_map(snapshotFile, 'wew', proj=iproj, npix=npix, struct=True)
+        map_str = map2d(snapshotFile, 'wew', proj=iproj, npix=npix, struct=True)
         val1_map = (np.sum((map_str['map'] ** 2 + map_str['map2'] ** 2) * map_str['norm'], dtype=DP) /
                     np.sum(map_str['norm'], dtype=DP))
         val2_map = (np.sum(map_str['map2'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)) ** 2
@@ -300,7 +300,7 @@ def test_average_aw_velocity_dispersion():
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1
         val_snap = np.sqrt(np.sum(mass * rho * x_e ** 2 * temp ** alpha * vel ** 2, dtype=DP) / nsum -
                            (np.sum(mass * rho * x_e ** 2 * temp ** alpha * vel, dtype=DP) / nsum) ** 2)
-        map_str = make_map(snapshotFile, 'waw', proj=iproj, npix=npix, alpha=alpha, struct=True)
+        map_str = map2d(snapshotFile, 'waw', proj=iproj, npix=npix, alpha=alpha, struct=True)
         val1_map = (np.sum((map_str['map'] ** 2 + map_str['map2'] ** 2) * map_str['norm'], dtype=DP) /
                     np.sum(map_str['norm'], dtype=DP))
         val2_map = (np.sum(map_str['map2'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)) ** 2
@@ -314,9 +314,9 @@ def test_waw_with_alpha_vector_matches_scalar():
     mode.
     """
     for iproj in range(3):
-        map_alpha_vec = make_map(snapshotFile, 'waw', proj=iproj, npix=npix, alpha=alpha_vec, struct=True)
+        map_alpha_vec = map2d(snapshotFile, 'waw', proj=iproj, npix=npix, alpha=alpha_vec, struct=True)
         for index, alpha_scalar in enumerate(alpha_vec):
-            map_alpha = make_map(snapshotFile, 'waw', proj=iproj, npix=npix, alpha=alpha_scalar, struct=True)
+            map_alpha = map2d(snapshotFile, 'waw', proj=iproj, npix=npix, alpha=alpha_scalar, struct=True)
             for key in map_alpha_vec:
                 if key not in ["map", "map2", "norm", "alpha"]:
                     assert map_alpha_vec[key] == pytest.approx(map_alpha[key], rel=relTol), errMsg

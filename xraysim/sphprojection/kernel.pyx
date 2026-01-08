@@ -304,8 +304,8 @@ cdef add_to_spcube(double[:, :, ::1] spcube, float[:] spectrum, float[:] wx, flo
     return None
 
 
-def make_map_loop(double[:, ::1] qty_map, double[:, ::1] nrm_map, iter_, float[:] x, float[:] y, float[:] hsml,
-                  float[:] qty, float[:] nrm):
+def map2d_loop(double[:, ::1] qty_map, double[:, ::1] nrm_map, iter_, float[:] x, float[:] y, float[:] hsml,
+               float[:] qty, float[:] nrm):
     """
     Cython version of make_map loop in mapping.py.
     """
@@ -330,8 +330,8 @@ def make_map_loop(double[:, ::1] qty_map, double[:, ::1] nrm_map, iter_, float[:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
-def make_alpha_weight_loop(double[:, :, ::1] qty_map, double[:, :, ::1] nrm_map, iter_, float[:] x, float[:] y,
-                           float[:] hsml, float[:] qty, float[:] nrm, float[:] temp, float[:] alpha):
+def map2d_alpha_weight_loop(double[:, :, ::1] qty_map, double[:, :, ::1] nrm_map, iter_, float[:] x, float[:] y,
+                            float[:] hsml, float[:] qty, float[:] nrm, float[:] temp, float[:] alpha):
     """
     Cython version of make_alpha_weight_loop in mapping.py.
     """
@@ -355,8 +355,8 @@ def make_alpha_weight_loop(double[:, :, ::1] qty_map, double[:, :, ::1] nrm_map,
     return None
 
 
-def make_map_loop2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::1] nrm_map, iter_, float[:] x,
-                   float[:] y, float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm):
+def map2d_loop2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::1] nrm_map, iter_, float[:] x, float[:] y,
+                float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm):
     """
     Cython version of second make_map loop in mapping.py.
     """
@@ -381,9 +381,9 @@ def make_map_loop2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
-def make_alpha_weight_loop2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_map, double[:, :, ::1] nrm_map, iter_,
-                            float[:] x, float[:] y, float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm,
-                            float[:] temp, float[:] alpha):
+def map2d_alpha_weight_loop2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_map, double[:, :, ::1] nrm_map, iter_,
+                             float[:] x, float[:] y, float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm,
+                             float[:] temp, float[:] alpha):
     """
     Cython version of second make_alpha_weight_loop in mapping.py.
     """
@@ -412,8 +412,8 @@ def make_alpha_weight_loop2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_ma
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
-def make_speccube_loop(double[:, :, ::1] spcube, iter_, float[:] x, float[:] y, float[:] hsml, spectable, norm, z_eff,
-                       temp_kev):
+def speccube_loop(double[:, :, ::1] spcube, iter_, float[:] x, float[:] y, float[:] hsml, spectable, norm, z_eff,
+                  temp_kev):
     """
     Cython version of make_speccube loop in mapping.py.
     """

@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from xraysim.observ import countrate, ra_corr
-from xraysim.sphprojection.mapping import read_speccube
+from xraysim.sphprojection.mapping import read_specmap
 from xraysim import sixte
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .__shared import referenceSpcubeFile, referenceSimputFile, referenceEvtFile
@@ -23,7 +23,7 @@ instrument = sixte.instruments.get(instrumentName)
 arfFile = instrument.path + "/" + instrument.arf[0]
 
 # Getting minima and maxima of coordinates
-spCube = read_speccube(referenceSpcubeFile)
+spCube = read_specmap(referenceSpcubeFile)
 emin = spCube["energy"][0] - 0.5 * spCube["energy_interval"][0]
 emax = spCube["energy"][-1] + 0.5 * spCube["energy_interval"][-1]
 size = spCube["size"]  # [deg]
@@ -55,7 +55,7 @@ def test_countrate_of_speccube_must_be_the_same_with_different_input_type():
     """
     The countrate of a speccube calculated from the file or from the speccube dictionary must be identical.
     """
-    assert (countrate(referenceSpcubeFile, arfFile) == countrate(read_speccube(referenceSpcubeFile), arfFile))
+    assert (countrate(referenceSpcubeFile, arfFile) == countrate(read_specmap(referenceSpcubeFile), arfFile))
 
 
 def test_countrate_must_be_the_same_with_different_arf_input_type():

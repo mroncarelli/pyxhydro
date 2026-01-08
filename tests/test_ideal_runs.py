@@ -23,7 +23,7 @@ import xspec as xsp
 from xraysim.gadgetutils.convert import vpec2zobs
 from xraysim.gadgetutils.phys_const import keV2K, keV2erg, pi
 from xraysim.sixte import cube2simputfile, create_eventlist, make_pha
-from xraysim.sphprojection.mapping import make_map, make_speccube
+from xraysim.sphprojection.mapping import map2d, specmap
 from xraysim.specutils.specfit import SpecFit
 from xraysim.specutils.tables import apec_table
 
@@ -81,7 +81,7 @@ d_C = 1e3 * cosmo.comoving_distance(z).to_value()  # [h^-1 kpc] comoving
 XRISM_FOV = 3.  # [arcmin]
 mapSize = XRISM_FOV / gadget2arcmin # [h^-1 kpc] (comoving)
 h_Hubble = pygr.readhead(snapshotFile, 'hubble')
-map_str = make_map(snapshotFile, 'nenH', 1, center=[2500., 2500.], size=mapSize, struct=True, tcut=1e6)
+map_str = map2d(snapshotFile, 'nenH', 1, center=[2500., 2500.], size=mapSize, struct=True, tcut=1e6)
 InenHdl = map_str['map'][0, 0]  # [h^3 cn^-5] (comoving)
 norm = InenHdl * 1e-14 * h_Hubble ** 3 * (1 + z) ** 3 * mapSize ** 2 / (4 * pi * d_C ** 2) # [10^14 cm^-5] (physical)
 
@@ -131,7 +131,7 @@ def test_isothermal_no_velocities():
 
 
     # Creating the spectral cube from the snapshot assuming isothermal gas with Gaussian velocity distribution
-    sp_cube = make_speccube(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+    sp_cube = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
                              tcut=1e6, isothermal=temp * keV2K, nh=nH, novel=True)
 
     # Checking that the integrated spectrum matches with the reference one
@@ -205,7 +205,7 @@ def test_isothermal_gaussian_velocities():
 
 
     # Creating the spectral cube from the snapshot assuming isothermal gas with Gaussian velocity distribution
-    sp_cube = make_speccube(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+    sp_cube = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
                              tcut=1e6, isothermal=temp * keV2K, nh=nH, gaussvel=(0, sigma_v))
 
     # Checking that the integrated spectrum matches with the reference one
