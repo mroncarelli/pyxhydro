@@ -1,7 +1,7 @@
 import warnings
 import pytest
 
-from xraysim.sixte import cube2simputfile, create_eventlist, make_pha
+from xraysim.sixte import simput, sixtesim, makespec
 from xraysim.sphprojection.mapping import specmap, write_specmap, read_specmap
 from xraysim.specutils.specfit import *
 from .fitstestutils import assert_hdu_list_matches_reference
@@ -59,7 +59,7 @@ def test_full_run(run_type):
     # Creating a SIMPUT file from a speccube
     if os.path.isfile(simputFile):
         os.remove(simputFile)
-    cube2simputfile(speccube_read, simputFile)
+    simput(speccube_read, simputFile)
     del speccube_read
 
     # Checking that file content matches reference
@@ -68,8 +68,8 @@ def test_full_run(run_type):
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile,
-                               background=False, seed=42, verbose=0)
+    sys_out = sixtesim(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile,
+                       background=False, seed=42, verbose=0)
     assert sys_out == [0]
     os.remove(simputFile)
 
@@ -88,7 +88,7 @@ def test_full_run(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(referenceEvtFile, phaFile)
+    makespec(referenceEvtFile, phaFile)
     os.remove(evtFile)
     assert os.path.isfile(phaFile)
 

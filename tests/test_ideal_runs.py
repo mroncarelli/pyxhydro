@@ -22,7 +22,7 @@ import xspec as xsp
 
 from xraysim.gadgetutils.convert import vpec2zobs
 from xraysim.gadgetutils.phys_const import keV2K, keV2erg, pi
-from xraysim.sixte import cube2simputfile, create_eventlist, make_pha
+from xraysim.sixte import simput, sixtesim, makespec
 from xraysim.sphprojection.mapping import map2d, specmap
 from xraysim.specutils.specfit import SpecFit
 from xraysim.specutils.tables import apec_table
@@ -144,7 +144,7 @@ def test_isothermal_no_velocities():
     # Creating the SIMPUT file
     if os.path.isfile(simputFile):
         os.remove(simputFile)
-    cube2simputfile(sp_cube, simputFile)
+    simput(sp_cube, simputFile)
     del sp_cube
 
     # Extracting data from Simput file
@@ -165,15 +165,15 @@ def test_isothermal_no_velocities():
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
-                               seed=42, verbose=0)
+    sys_out = sixtesim(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
+                       seed=42, verbose=0)
     assert sys_out == [0], errMsg
     os.remove(simputFile)
 
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(evtFile, phaFile)
+    makespec(evtFile, phaFile)
     os.remove(evtFile)
     assert os.path.isfile(phaFile), errMsg
 
@@ -219,7 +219,7 @@ def test_isothermal_gaussian_velocities():
     # Creating the SIMPUT file
     if os.path.isfile(simputFile):
         os.remove(simputFile)
-    cube2simputfile(sp_cube, simputFile)
+    simput(sp_cube, simputFile)
     del sp_cube
 
     # Extracting data from Simput file
@@ -240,15 +240,15 @@ def test_isothermal_gaussian_velocities():
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
-                               seed=42, verbose=0)
+    sys_out = sixtesim(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
+                       seed=42, verbose=0)
     assert sys_out == [0], errMsg
     os.remove(simputFile)
 
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(evtFile, phaFile)
+    makespec(evtFile, phaFile)
     os.remove(evtFile)
     assert os.path.isfile(phaFile), errMsg
 

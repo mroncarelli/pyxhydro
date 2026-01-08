@@ -4,7 +4,7 @@ import pytest
 from astropy.io import fits
 
 from xraysim.gadgetutils.phys_const import keV2K
-from xraysim.sixte import cube2simputfile
+from xraysim.sixte import simput
 from xraysim.specutils.tables import read_spectable, calc_spec
 from xraysim.sphprojection.mapping import specmap
 from .fitstestutils import assert_hdu_list_matches_reference
@@ -34,7 +34,7 @@ def test_file_created(inp=speccubeIsothermalNovel, out=testSimputFile):
     """
     if os.path.isfile(out):
         os.remove(out)
-    cube2simputfile(inp, out)
+    simput(inp, out)
     assert os.path.isfile(out)
     os.remove(out)
 
@@ -49,7 +49,7 @@ def test_primary_header_keywords(inp=speccubeIsothermalNovel, out=testSimputFile
     if os.path.isfile(out):
         os.remove(out)
     center_map = (12., 34.)
-    cube2simputfile(inp, out, pos=center_map)
+    simput(inp, out, pos=center_map)
     header = fits.open(out)[0].header
     os.remove(out)
     assert header.get('SIM_FILE') == inp.get('simulation_file')
@@ -78,7 +78,7 @@ def test_isothermal_spectrum(inp=speccubeIsothermalNovel, out=testSimputFile):
     # Creating SIMPUT file
     if os.path.isfile(out):
         os.remove(out)
-    cube2simputfile(inp, out)
+    simput(inp, out)
     hdulist = fits.open(testSimputFile)
     os.remove(out)
     header0 = hdulist[0].header
@@ -109,7 +109,7 @@ def test_created_file_matches_reference(inp=speccube, out=testSimputFile, refere
     """
     if os.path.isfile(testSimputFile):
         os.remove(testSimputFile)
-    cube2simputfile(inp, out)
+    simput(inp, out)
     hdulist = fits.open(testSimputFile)
     os.remove(out)
     hdulist_reference = fits.open(reference)

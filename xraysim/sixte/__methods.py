@@ -57,10 +57,10 @@ def set_simput_headers(hdulist: fits.HDUList):
     return hdulist
 
 
-def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, fluxsc=1., nh=None,
-                    preserve_input=True, overwrite=True):
+def simput(specmap: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, fluxsc=1., nh=None, preserve_input=True,
+           overwrite=True):
     """
-    :param spcube: (dict) spectral cube structure, i.e. output of make_speccube
+    :param specmap: (dict) spectral map structure, i.e. output of mapping.specmap
     :param simput_file: (str) SIMPUT output file
     :param tag: (str) prefix of the source name, default None
     :param pos: (float 2) sky position in RA, DEC [deg]
@@ -68,25 +68,25 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
     :param fluxsc: (float) flux scaling to be applied to the cube
     :param nh: (float) hydrogen column density [10^22 cm^-2], if included it changes the value of the input object
         converting it to the desired one, default: None (i.e. maintains the original value of nh)
-    :param preserve_input: (bool) If set to true the 'data' key in spcube_struct is left untouched and duplicated in
+    :param preserve_input: (bool) If set to true the 'data' key in spmap_ is left untouched and duplicated in
         memory. If there is no need to preserve it, setting to False will save memory. Default: True.
     :param overwrite: (bool) If set to true the file is overwritten. Default: True.
     :return: System output of the writing operation (usually None)
     """
 
-    spcube_struct = cp.deepcopy(spcube) if preserve_input else spcube
+    spmap_ = cp.deepcopy(specmap) if preserve_input else specmap
 
     if nh is not None:
-        spcube_struct = absorption.convert_nh(spcube_struct, nh, preserve_input=False)
+        spmap_ = absorption.convert_nh(spmap_, nh, preserve_input=False)
 
-    spcube = spcube_struct.get('data')  # [photons s^-1 cm^-2 arcmin^-2 keV^-1] or [keV s^-1 cm^-2 arcmin^-2 keV^-1]
-    npix0 = spcube.shape[0]
-    nene = spcube.shape[2]
-    energy = spcube_struct.get('energy')  # [keV]
-    d_ene = spcube_struct.get('energy_interval')  # [keV]
-    size = spcube_struct.get('size')  # [deg]
-    d_area = spcube_struct.get('pixel_size') ** 2  # [arcmin^2]
-    spcube *= d_area  # [photons s^-1 cm^-2 keV^-1] or [keV s^-1 cm^-2 keV^-1]
+    spmap = spmap_.get('data')  # [photons s^-1 cm^-2 arcmin^-2 keV^-1] or [keV s^-1 cm^-2 arcmin^-2 keV^-1]
+    npix0 = spmap.shape[0]
+    nene = spmap.shape[2]
+    energy = spmap_.get('energy')  # [keV]
+    d_ene = spmap_.get('energy_interval')  # [keV]
+    size = spmap_.get('size')  # [deg]
+    d_area = spmap_.get('pixel_size') ** 2  # [arcmin^2]
+    spmap *= d_area  # [photons s^-1 cm^-2 keV^-1] or [keV s^-1 cm^-2 keV^-1]
 
     # Defining RA-DEC position
     try:
@@ -95,9 +95,9 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
         raise ValueError("Invalid center: ", pos, "Must be a 2d number vector")
 
     # Correcting energy to photons, if necessary
-    if spcube_struct.get('flag_ene'):
+    if spmap_.get('flag_ene'):
         for iene in range(0, nene):
-            spcube[:, :, iene] /= energy[iene]  # [photons keV^-1 s^-1 cm^-2]
+            spmap[:, :, iene] /= energy[iene]  # [photons keV^-1 s^-1 cm^-2]
 
     if npix is None:
         npix = npix0
@@ -127,7 +127,7 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
     name_prefix = tag + '-' if tag else ''
     for ipix in range(0, npix):
         for jpix in range(0, npix):
-            source_flux = np.sum(spcube[ipix, jpix, :] * energy * d_ene) * phys_const.keV2erg  # [erg s^-1 cm^-2]
+            source_flux = np.sum(spmap[ipix, jpix, :] * energy * d_ene) * phys_const.keV2erg  # [erg s^-1 cm^-2]
             if source_flux > 0.:  # cleaning pixels that have zero flux
                 row_name = name_prefix + '(' + str(ipix) + ',' + str(jpix) + ')'
                 name.append(row_name)
@@ -136,13 +136,13 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
                 flux.append(source_flux)  # [erg s^-1 cm^-2]
                 spectrum.append("[SPECTRUM,1][NAME=='" + row_name + "']")
                 energy_out.append(energy)  # [keV]
-                fluxdensity.append(spcube[ipix, jpix, :])  # [photons keV^-1 s^-1 cm^-2]
+                fluxdensity.append(spmap[ipix, jpix, :])  # [photons keV^-1 s^-1 cm^-2]
 
     nsource = len(name)
     src_id = np.arange(1, nsource + 1)
     imgrota = imgscal = np.full(nsource, 0.)
-    e_min = np.full(nsource, energy[0] - 0.5 * spcube_struct.get('energy_interval')[0])  # [keV]
-    e_max = np.full(nsource, energy[-1] + 0.5 * spcube_struct.get('energy_interval')[-1])  # [keV]
+    e_min = np.full(nsource, energy[0] - 0.5 * spmap_.get('energy_interval')[0])  # [keV]
+    e_max = np.full(nsource, energy[-1] + 0.5 * spmap_.get('energy_interval')[-1])  # [keV]
     image = timing = np.full(nsource, 'NULL                            ')
 
     # Extension 1 (sources)
@@ -172,42 +172,42 @@ def cube2simputfile(spcube: dict, simput_file: str, tag='', pos=(0., 0.), npix=N
     # Setting headers
     set_simput_headers(hdulist)
     hdulist[0].header.set('INFO', 'Created with Python xraysim and astropy')
-    coord_units = '[' + spcube_struct.get('coord_units') + ']'
-    if 'simulation_type' in spcube_struct:
-        hdulist[0].header.set('SIM_TYPE', spcube_struct.get('simulation_type'))
-    hdulist[0].header.set('SIM_FILE', spcube_struct.get('simulation_file'))
-    hdulist[0].header.set('SP_FILE', spcube_struct.get('spectral_table'))
-    hdulist[0].header.set('PROJ', spcube_struct.get('proj'))
-    hdulist[0].header.set('X_MIN', spcube_struct.get('xrange')[0], coord_units)
-    hdulist[0].header.set('X_MAX', spcube_struct.get('xrange')[1], coord_units)
-    hdulist[0].header.set('Y_MIN', spcube_struct.get('yrange')[0], coord_units)
-    hdulist[0].header.set('Y_MAX', spcube_struct.get('yrange')[1], coord_units)
-    if spcube_struct.get('zrange'):
-        hdulist[0].header.set('Z_MIN', spcube_struct.get('zrange')[0], coord_units)
-        hdulist[0].header.set('Z_MAX', spcube_struct.get('zrange')[1], coord_units)
-    hdulist[0].header.set('Z_COS', spcube_struct.get('z_cos'))
-    hdulist[0].header.set('D_C', spcube_struct.get('d_c'), coord_units)
+    coord_units = '[' + spmap_.get('coord_units') + ']'
+    if 'simulation_type' in spmap_:
+        hdulist[0].header.set('SIM_TYPE', spmap_.get('simulation_type'))
+    hdulist[0].header.set('SIM_FILE', spmap_.get('simulation_file'))
+    hdulist[0].header.set('SP_FILE', spmap_.get('spectral_table'))
+    hdulist[0].header.set('PROJ', spmap_.get('proj'))
+    hdulist[0].header.set('X_MIN', spmap_.get('xrange')[0], coord_units)
+    hdulist[0].header.set('X_MAX', spmap_.get('xrange')[1], coord_units)
+    hdulist[0].header.set('Y_MIN', spmap_.get('yrange')[0], coord_units)
+    hdulist[0].header.set('Y_MAX', spmap_.get('yrange')[1], coord_units)
+    if spmap_.get('zrange'):
+        hdulist[0].header.set('Z_MIN', spmap_.get('zrange')[0], coord_units)
+        hdulist[0].header.set('Z_MAX', spmap_.get('zrange')[1], coord_units)
+    hdulist[0].header.set('Z_COS', spmap_.get('z_cos'))
+    hdulist[0].header.set('D_C', spmap_.get('d_c'), coord_units)
     hdulist[0].header.set('NPIX', npix)
     hdulist[0].header.set('NENE', nene)
-    hdulist[0].header.set('ANG_PIX', spcube_struct.get('pixel_size'), '[arcmin]')
-    hdulist[0].header.set('ANG_MAP', spcube_struct.get('size'), '[deg]')
+    hdulist[0].header.set('ANG_PIX', spmap_.get('pixel_size'), '[arcmin]')
+    hdulist[0].header.set('ANG_MAP', spmap_.get('size'), '[deg]')
     hdulist[0].header.set('RA_C', ra0, '[deg]')
     hdulist[0].header.set('DEC_C', dec0, '[deg]')
     if fluxsc != 1.:
         hdulist[0].header.set('FLUXSC', fluxsc)
-    if spcube_struct.get('tcut'):
-        hdulist[0].header.set('T_CUT', spcube_struct.get('tcut'))
-    if spcube_struct.get('isothermal'):
-        hdulist[0].header.set('ISO_T', spcube_struct.get('isothermal'))
-    hdulist[0].header.set('SMOOTH', spcube_struct.get('smoothing'))
-    hdulist[0].header.set('VPEC', spcube_struct.get('velocities'))
-    if spcube_struct.get('nsample'):
-        hdulist[0].header.set('NSAMPLE', spcube_struct.get('nsample'))
+    if spmap_.get('tcut'):
+        hdulist[0].header.set('T_CUT', spmap_.get('tcut'))
+    if spmap_.get('isothermal'):
+        hdulist[0].header.set('ISO_T', spmap_.get('isothermal'))
+    hdulist[0].header.set('SMOOTH', spmap_.get('smoothing'))
+    hdulist[0].header.set('VPEC', spmap_.get('velocities'))
+    if spmap_.get('nsample'):
+        hdulist[0].header.set('NSAMPLE', spmap_.get('nsample'))
     if nh is not None:
         hdulist[0].header.set('NH', nh, '[10^22 cm^-2]')
     else:
-        if 'nh' in spcube_struct:
-            hdulist[0].header.set('NH', spcube_struct.get('nh'), '[10^22 cm^-2]')
+        if 'nh' in spmap_:
+            hdulist[0].header.set('NH', spmap_.get('nh'), '[10^22 cm^-2]')
 
     # Writing FITS file (returns None)
     return hdulist.writeto(simput_file, overwrite=overwrite)
@@ -237,9 +237,8 @@ def __inherit_keywords(input_file: str, output_file: str, add_keys=None) -> int:
     return hdulist.writeto(output_file, overwrite=True)
 
 
-def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, pointing=None, xmlfile=None,
-                     photonlist=None, attitude=None, background=True, seed=None, overwrite=True, verbose=None,
-                     logfile=None, no_exec=False):
+def sixtesim(simputfile: str, instrument: str, exposure, evtfile: str, pointing=None, xmlfile=None, photonlist=None,
+             attitude=None, background=True, seed=None, overwrite=True, verbose=None, logfile=None, no_exec=False):
     """
     Creates a simulated X-ray event-list by running the SIXTE simulator (see the manuale from the SIXTE webpage
     http://www.sternwarte.uni-erlangen.de/~sixte/data/simulator_manual.pdf).
@@ -266,8 +265,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
 
     instrument_ = instruments.get(instrument)
     if instrument_ is None:
-        raise ValueError("ERROR in create_eventlist. Invalid instrument", instrument,
-                         ": must be one of " + str(
+        raise ValueError("Invalid instrument", instrument, ": must be one of " + str(
                              list(instruments.keys())) + ". To configure other instruments modify the " +
                          "instruments configuration file: " + instrumentsConfigFile)
 
@@ -290,7 +288,7 @@ def create_eventlist(simputfile: str, instrument: str, exposure, evtfile: str, p
         try:
             ra, dec = float(pointing[0]), float(pointing[1])
         except BaseException:
-            raise ValueError("ERROR in create_eventlist. Invalid pointing: ", pointing, "Must be a 2d number vector")
+            raise ValueError("Invalid pointing: ", pointing, "Must be a 2d number vector")
 
     background_ = 'yes' if background else 'no'
     clobber_ = 'yes' if overwrite else 'no'
@@ -625,14 +623,15 @@ def get_xmlpath(evtfile: str):
     return xmlpath
 
 
-def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None, logfile=None, overwrite=True,
+def makespec(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None, logfile=None, overwrite=True,
              verbose=None, no_exec=False):
     """ Creates a .pha file containing the spectrum extracted from an event file using the SIXTE makespec command
     :param evtfile: (str) Event file
     :param phafile: (str) Output file
     :param rsppath: (str) Path to the .rmf and .arf files
     :param pixid: (int or int list) Pixel id of photons to be included in the spectrum (default, None, i.e. all pixels)
-    :param grading: (int or int list) Grading of photons to be included in the spectrum (default, None, i.e. all photons)
+    :param grading: (int or int list) Grading of photons to be included in the spectrum (default, None, i.e. all
+        photons)
     :param logfile: (str) If set the output is not written on screen but saved in the file
     :param overwrite: (bool) If set overwrites previous output file (phafile) if exists, default True
     :param verbose: (int) Verbosity level, with 0 being the lowest (see SIXTE manual 'chatter') and 7 highest.
@@ -645,7 +644,7 @@ def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     filter_list = []
 
     # Grading
-    error_msg_grading = "ERROR in make_pha. Grading values must be integer, iterable of integers or None."
+    error_msg_grading = "Grading values must be integer, iterable of integers or None."
     warning_msg_grading = "WARNING: " + evtfile + " does not contain the GRADING column. Ignoring grading option."
     if isinstance(grading, type(None)):
         pass
@@ -670,7 +669,7 @@ def make_pha(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
                 print(warning_msg_grading)
 
     # Pixel Id
-    error_msg_pixid = "ERROR in make_pha. Pixid values must be integer, iterable of integers or None."
+    error_msg_pixid = "Pixid values must be integer, iterable of integers or None."
     if isinstance(pixid, type(None)):
         pass
     elif isinstance(pixid, int):

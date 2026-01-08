@@ -12,37 +12,37 @@ SP = np.float32
 
 def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> float:
     """
-    Calculates the expected countrate of a spectral cube for a given response.
-    :param inp: (fits.HDUList or str) Spectral cube. The input can be either a speccube (mapping module), or a Simput
+    Calculates the expected countrate of a spectral map for a given response.
+    :param inp: (fits.HDUList or str) Spectral map. The input can be either a specmap (mapping module), or a Simput
         file or a string with the name of the file that contains them.
     :param arf: (fits.HDUList or sixte.Instrument or str) The response containing the effective area as a function of
         energy. The input can be either a response HDUList (or string with the file) or and Instrument of the sixte
         module (or a string with the instrument name).
     :param telescope: (int) The telescope number to use, considered only it the arf is provided via a sixte.Instrument.
         Default 1.
-    :param xrange: (2 x float) Range in the x-axis [arcmin]. For spectral cube assumes 0 in the center. Default None.
-    :param yrange: (2 x float) Range in the y-axis [arcmin]. For spectral cube assumes 0 in the center. Default None.
+    :param xrange: (2 x float) Range in the x-axis [arcmin]. For spectral map assumes 0 in the center. Default None.
+    :param yrange: (2 x float) Range in the y-axis [arcmin]. For spectral map assumes 0 in the center. Default None.
     :param erange: (2 x float) Energy range [keV]. Default None.
     :return: (float) The expected countrate [cts s^-1].
     """
 
-    def e_sp_from_spcube(spcube: dict, xrange=None, yrange=None, erange=None) -> tuple:
+    def e_sp_from_spmap(spmap: dict, xrange=None, yrange=None, erange=None) -> tuple:
         """
-        Extracts the energy bins spectra from a spectral cube.
-        :param spcube: (dict) Spectral cube.
+        Extracts the energy bins spectra from a spectral map.
+        :param spmap: (dict) Spectral map.
         :param xrange: (2 x float) Range in the x-axis [deg]. Assumes 0 in the center. Default None.
         :param yrange: (2 x float) Range in the y-axis [deg]. Assumes 0 in the center. Default None.
         :param erange: (2 x float) Energy range [keV]. Default None.
         :return: (2 x float array) Central energy of the bins [keV] and total spectrum [photons s^-1 cm^-2].
         """
 
-        energy = spcube["energy"]  # [keV]
-        data = spcube["data"]
-        d_ene = spcube["energy_interval"]  # [keV]
+        energy = spmap["energy"]  # [keV]
+        data = spmap["data"]
+        d_ene = spmap["energy_interval"]  # [keV]
 
         if xrange is not None or yrange is not None:
             npix = data.shape[0]
-            size = spcube["size"]  # [deg]
+            size = spmap["size"]  # [deg]
             step = size / npix  # [arcmin]
             pvec = np.linspace(0.5 * (-size + step), 0.5 * (size - step), num=npix, endpoint=True)  # [deg]
 
@@ -65,10 +65,10 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
             for jpix in range(ny):
                 spectrum += data[ipix, jpix, :]  # [photons (or keV) keV^-1 s^-1 cm^-2 arcmin^-2]
 
-        if spcube["flag_ene"]:
+        if spmap["flag_ene"]:
             spectrum /= energy  # [photons keV^-1 s^-1 cm^-2 arcmin^-2]
 
-        spectrum *= d_ene * spcube["pixel_size"] ** 2  # [photons s^-1 cm^-2]
+        spectrum *= d_ene * spmap["pixel_size"] ** 2  # [photons s^-1 cm^-2]
 
         return energy, spectrum  # [keV], [photons s^-1 cm^-2]
 
@@ -128,20 +128,20 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
     # Checking input type and determining energy and spectrum based on it
     input_type = type(inp)
     if input_type == dict:
-        # Assuming it's a speccube ([keV], [photons s^-1 cm^-2])
-        energy, spectrum = e_sp_from_spcube(inp, xrange=xrange, yrange=yrange, erange=erange)
+        # Assuming it's a specmap ([keV], [photons s^-1 cm^-2])
+        energy, spectrum = e_sp_from_spmap(inp, xrange=xrange, yrange=yrange, erange=erange)
     elif input_type == fits.hdu.hdulist.HDUList:
         # Assuming it's a Simput HUDList ([keV], [photons s^-1 cm^-2])
         energy, spectrum = e_sp_from_simput(inp, xrange=xrange, yrange=yrange, erange=erange)
     elif input_type == str:
         try:
-            # Trying with a file containing a speccube ([keV], [photons s^-1 cm^-2])
-            energy, spectrum = e_sp_from_spcube(read_specmap(inp), xrange=xrange, yrange=yrange, erange=erange)
+            # Trying with a file containing a specmap ([keV], [photons s^-1 cm^-2])
+            energy, spectrum = e_sp_from_spmap(read_specmap(inp), xrange=xrange, yrange=yrange, erange=erange)
         except:
             # Trying with a Simput file ([keV], [photons s^-1 cm^-2])
             energy, spectrum = e_sp_from_simput(fits.open(inp), xrange=xrange, yrange=yrange, erange=erange)
     else:
-        raise ValueError("Invalid input type. Must be a speccube dictionary, a Simput HUDList or a string with a file "
+        raise ValueError("Invalid input type. Must be a specmap dictionary, a Simput HUDList or a string with a file "
                          "name containing one of them.")
 
     # Checking arf input type and extracting data based on it

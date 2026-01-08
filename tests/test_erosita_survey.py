@@ -4,7 +4,7 @@ import warnings
 import pytest
 from astropy.io import fits
 
-from xraysim.sixte import create_eventlist, make_pha, erosita_ccd_eventfile, instruments
+from xraysim.sixte import sixtesim, makespec, erosita_ccd_eventfile, instruments
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import (referenceDir, referenceErositaSimputFile, referenceErositaGTIFile, referenceErositaSurveyEvtFile,
                        referenceErositaSurveyPhaFile, clear_file)
@@ -43,8 +43,8 @@ def test_erosita_survey(run_type):
         os.remove(GTIFile)
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(referenceErositaSimputFile, testInstrumentName, None, evtFile,
-                               background=False, seed=42, verbose=0)
+    sys_out = sixtesim(referenceErositaSimputFile, testInstrumentName, None, evtFile,
+                       background=False, seed=42, verbose=0)
     assert sys_out == [0, 0, 0]
 
     # Checking GTI file
@@ -71,7 +71,7 @@ def test_erosita_survey(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(referenceErositaSurveyEvtFile, phaFile)
+    makespec(referenceErositaSurveyEvtFile, phaFile)
     os.remove(evtFile)
 
     if run_type == 'standard':

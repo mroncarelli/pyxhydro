@@ -4,7 +4,7 @@ import warnings
 import pytest
 from astropy.io import fits
 
-from xraysim.sixte import create_eventlist, make_pha, erosita_ccd_eventfile, instruments
+from xraysim.sixte import sixtesim, makespec, erosita_ccd_eventfile, instruments
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import (referenceDir, referenceErositaSimputFile, referenceErositaPointedEvtFile,
                        referenceErositaPointedPhaFile, clear_file)
@@ -39,8 +39,8 @@ def test_erosita_pointed(run_type):
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = create_eventlist(referenceErositaSimputFile, testInstrumentName, 1.e4, evtFile,
-                               background=False, seed=42, verbose=0)
+    sys_out = sixtesim(referenceErositaSimputFile, testInstrumentName, 1.e4, evtFile,
+                       background=False, seed=42, verbose=0)
     assert sys_out == [0, 0]
 
     # Removing CCD files
@@ -62,7 +62,7 @@ def test_erosita_pointed(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    make_pha(referenceErositaPointedEvtFile, phaFile)
+    makespec(referenceErositaPointedEvtFile, phaFile)
     os.remove(evtFile)
 
     if run_type == 'standard':
