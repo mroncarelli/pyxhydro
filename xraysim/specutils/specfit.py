@@ -170,7 +170,6 @@ class SpecFit:
                     # The header of the spectrum file prevails in case of duplicates
                     if key not in self.keywords:
                         self.keywords.append(key, header.get(key), header.comments[key])
-            self.model = xsp.Model(model, modName='SpecFit' + str(xsp.AllModels.nSpecFit + 1), setPars=setPars)
         else:
             if specFile is None:
                 print('Spectrum not loaded (specFile is None)')
@@ -178,8 +177,8 @@ class SpecFit:
                 print('Spectrum not loaded: file ' + str(specFile) + ' not found, spectrum not loaded')
             self.spectrum = None
             self.keywords = cp.deepcopy(header)
-            self.model = xsp.Model(model, modName='SpecFit' + str(xsp.AllModels.nSpecFit + 1), setPars=setPars)
 
+        self.model = xsp.Model(model, modName='SpecFit' + str(xsp.AllModels.nSpecFit + 1), setPars=setPars)
         xsp.AllModels.nSpecFit += 1
 
         # Removing keywords not relevant to the simulation

@@ -378,6 +378,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
     xsp.Xset.modelStrings = model_strings_
     xsp.Xset.abund = abund_
     xsp.AllModels.setEnergies("reset")  # Resets to the PyXspec default, not to the original
+    xsp.AllModels -= model.name  # Removing model object
 
     result = {
         'data': table,
