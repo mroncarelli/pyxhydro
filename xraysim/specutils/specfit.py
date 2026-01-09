@@ -502,11 +502,13 @@ class SpecFit:
 
     def clear(self) -> None:
         """
-        Deletes the spectrum attributes and its object from the xspec global variables.
+        Deletes the spectrum and model attributes and the corresponding objects from the xspec global variables.
         :return: None
         """
         xsp.AllData -= self.spectrum.index
         self.spectrum = None
+        xsp.AllModels -= self.model.name
+        self.model = None
 
     def covariance_matrix(self):
         """
