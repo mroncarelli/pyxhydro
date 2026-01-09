@@ -4,7 +4,10 @@ import sys
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
+from astropy.io import fits
+import numpy as np
 import pytest
+import xspec as xsp
 
 from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import (assert_specfit_has_no_error_flags, assert_fit_results_within_error,
@@ -12,10 +15,9 @@ from .specfittestutils import (assert_specfit_has_no_error_flags, assert_fit_res
 from .__shared import (inputDir, spectrumApec, spectrumBapec, spectrumApecNoStat, spectrumBapecNoStat,
                        specFitReferenceFile, clear_file)
 
-from xraysim.specutils.specfit import *
+from xraysim.specutils.specfit import SpecFit
 
 bapecSpecFitFile = inputDir + "bapec_specfit_created_for_test.spf"
-
 instrumentDir = os.environ.get("SIXTE") + "/share/sixte/instruments/xrism-resolve-test/"
 rmf = instrumentDir + "rsl_Hp_5eV.rmf"
 arf = instrumentDir + "rsl_sixte_standard_GVclosed.arf"
@@ -25,6 +27,13 @@ wrongParsApec = (3., 0.4, 0.15, 2.)  # redshift is correct
 wrongParsBapec = (1., 0.1, 0.2, 100., 4.)  # redshift is correct
 toleranceNoStat = 0.1  # tolerance when starting with correct redshift and no statistical fluctuations
 toleranceWithStat = 1.4  # tolerance when starting with correct redshift
+
+specFitBapec = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
+specFitBapec.run(start=wrongParsBapec, method="cstat")
+correlationMatrix = specFitBapec.correlation_matrix()
+if os.path.isfile(bapecSpecFitFile):
+    os.remove(bapecSpecFitFile)
+specFitBapec.save(bapecSpecFitFile, overwrite=True)
 
 
 def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tuple, tolerance: float):
@@ -42,6 +51,7 @@ def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tu
     specfit.run(start=start, method=method)
     assert_specfit_has_no_error_flags(specfit)
     assert_fit_results_within_error(specfit, reference, sigma_tol=tolerance)
+    specfit.clear()
 
 
 def test_apec_no_stat_fit_start_with_right_parameters():
@@ -104,6 +114,8 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
     assert_fit_results_within_error(specfit_apec, rightParsApec, sigma_tol=toleranceWithStat)
+    specfit_apec.clear()
+    specfit_bapec.clear()
 
 
 def test_apec_no_stat_fit_start_with_only_redshift_right():
@@ -131,10 +143,7 @@ def test_covariance_and_correlation_matrices_are_none_at_initialization():
     specfit = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
     assert specfit.covariance_matrix() is None
     assert specfit.correlation_matrix() is None
-
-
-specFitBapec = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
-specFitBapec.run(start=wrongParsBapec, method="cstat")
+    specfit.clear()
 
 
 def test_bapec_fit_start_with_only_redshift_right():
@@ -152,9 +161,6 @@ def test_covariance_matrix_has_correct_shape_and_diagonal_elements():
     assert covariance_matrix.shape == (specFitBapec.nFree, specFitBapec.nFree)
     for i in range(specFitBapec.nFree):
         assert covariance_matrix[i, i] == pytest.approx(specFitBapec.fitResult["sigma"][i] ** 2)
-
-# Calculating correlation matrix
-correlationMatrix = specFitBapec.correlation_matrix()
 
 
 def test_correlation_matrix_has_correct_shape_and_diagonal_elements():
@@ -180,10 +186,6 @@ def test_correlation_matrix_has_all_values_between_minus_one_and_one():
         check[i, j] = correlationMatrix[i, j] == pytest.approx(1) or correlationMatrix[i, j] < 1
     assert check.all()
 
-if os.path.isfile(bapecSpecFitFile):
-    os.remove(bapecSpecFitFile)
-specFitBapec.save(bapecSpecFitFile, overwrite=True)
-
 
 def test_specfit_file_has_been_created_and_matches_reference():
     assert os.path.isfile(bapecSpecFitFile)
@@ -194,5 +196,5 @@ def test_specfit_file_has_been_created_and_matches_reference():
 @pytest.fixture(scope="module", autouse=True)
 def on_end_module():
     yield
+    specFitBapec.clear()
     clear_file(bapecSpecFitFile)
-    pyxspec_reset()

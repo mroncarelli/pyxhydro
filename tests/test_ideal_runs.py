@@ -184,6 +184,7 @@ def test_isothermal_no_velocities():
     spfit_right_start.run(start=fitParsV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
     assert_fit_results_within_error(spfit_right_start, fitParsV0, sigma_tol=2, rel=5e-3, msg=errMsg)
+    spfit_right_start.clear()
     del spfit_right_start
 
     # Fitting the spectrum in the pha file starting with wrong parameters
@@ -193,6 +194,7 @@ def test_isothermal_no_velocities():
     spfit_wrong_start.run(start=startPV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
     assert_fit_results_within_error(spfit_wrong_start, fitParsV0, sigma_tol=3, rel=5e-3, msg=errMsg)
+    spfit_wrong_start.clear()
 
 
 def test_isothermal_gaussian_velocities():
@@ -202,7 +204,6 @@ def test_isothermal_gaussian_velocities():
 
     # Computing reference spectrum
     sp_ref = wabs_bapec(nH, temp, metal, z, sigma_v, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
-
 
     # Creating the spectral cube from the snapshot assuming isothermal gas with Gaussian velocity distribution
     sp_cube = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
@@ -259,6 +260,7 @@ def test_isothermal_gaussian_velocities():
     spfit_right_start.run(start=fitPars, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
     assert_fit_results_within_error(spfit_right_start, fitPars, sigma_tol=2, rel=5e-3, msg=errMsg)
+    spfit_right_start.clear()
     del spfit_right_start
 
     # Fitting the spectrum in the pha file starting with wrong parameters
@@ -269,6 +271,7 @@ def test_isothermal_gaussian_velocities():
     spfit_wrong_start.run(start=startP, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
 
     assert_fit_results_within_error(spfit_wrong_start, fitPars, sigma_tol=3, rel=5e-3, msg=errMsg)
+    spfit_wrong_start.clear()
 
 
 @pytest.fixture(scope="module", autouse=True)

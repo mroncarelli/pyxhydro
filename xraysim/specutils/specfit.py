@@ -500,6 +500,14 @@ class SpecFit:
 
         return None
 
+    def clear(self) -> None:
+        """
+        Deletes the spectrum attributes and its object from the xspec global variables.
+        :return: None
+        """
+        xsp.AllData -= self.spectrum.index
+        self.spectrum = None
+
     def covariance_matrix(self):
         """
         Returns the covariance matrix of the fit.
