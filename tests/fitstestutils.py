@@ -9,9 +9,12 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
+from .__shared import packageDir
+
 # List of environment variables that may appear in the path of files written in FITS headers
-environmentVariablesList = ['XRAYSIM', 'SIXTE']
-environmentVariablesPathList = [os.environ.get(envVar) for envVar in environmentVariablesList]
+environmentVariablesList = ['SIXTE']
+environmentVariablesPathList = ([packageDir.rstrip('/')] +
+                                [os.environ.get(envVar) for envVar in environmentVariablesList])
 
 
 def history_unpack(history: list) -> list:

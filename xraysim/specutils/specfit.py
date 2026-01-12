@@ -51,9 +51,10 @@ def __notice_list_split(notice) -> list:
 def pyxspec_reset() -> None:
     """
     Restores the initial settings of PyXspec. Caution: deletes all Spectra and Model instances including attributes of
-    SpecFit instances. Deletes also all Chain objects.
+    SpecFit instances. Deletes also all Chain objects. WARNING: seed is not reinitialized.
     :return: None
     """
+    print("Resetting PyXspec initial settings")
     xsp.Xset.chatter = 0
     xsp.Xset.abund = 'angr'
     xsp.Xset.cosmo = '70, 0, 0.7'
@@ -66,7 +67,6 @@ def pyxspec_reset() -> None:
     xsp.AllModels.setEnergies("reset")  # Resets to the PyXspec default
     xsp.AllChains.clear()  # Removes all Chain objects.
     xsp.Xset.chatter = 10
-    print("Resetting PyXspec initial settings")
     return None
 
 
@@ -514,7 +514,6 @@ class SpecFit:
         Returns the covariance matrix of the fit.
         :return: (2D array) The covariance matrix
         """
-
         if not self.fitDone and not self.restored:
             print("No data available, the fit has not been run yet.")
             return None

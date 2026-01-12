@@ -12,11 +12,11 @@ import numpy as np
 from gadgetutils.phys_const import kpc2cm, m_e, m_p, Xp, Msun2g
 
 import pygadgetreader as pygr
-import os
 
 from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
 from xraysim.sphprojection.mapping import map2d
 from .randomutils import TrueRandomGenerator, globalRandomSeed
+from .__shared import snapshotFile
 
 DP = np.float64
 
@@ -25,9 +25,6 @@ npix = 128
 
 # Relative tolerance (some test with alpha-weight may fail with 1e-6)
 relTol = 1e-5
-
-# Snapshot file on which the tests are performed
-snapshotFile = os.environ.get('XRAYSIM') + '/tests/inp/snap_Gadget_sample'
 
 # Mass must be read by all tests
 mass = pygr.readsnap(snapshotFile, 'mass', 'gas', units=0, suppress=1)  # [10^10 h^-1 M_Sun]

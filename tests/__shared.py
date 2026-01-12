@@ -1,10 +1,11 @@
 import os
 
 # Folders
-path = os.path.dirname(__file__) + '/'
+testDir = os.path.dirname(__file__) + '/'
+packageDir = os.path.dirname(os.path.dirname(__file__)) + '/'
 
 # Input files
-inputDir = path + 'inp/'
+inputDir = testDir + 'inp/'
 snapshotFile = inputDir + 'snap_Gadget_sample'
 spectrumApec = inputDir + 'apec_fakeit_for_test.pha'
 spectrumBapec = inputDir + 'bapec_fakeit_for_test.pha'
@@ -12,7 +13,7 @@ spectrumApecNoStat = inputDir + 'apec_fakeit_nostat_for_test.pha'
 spectrumBapecNoStat = inputDir + 'bapec_fakeit_nostat_for_test.pha'
 
 # Reference files
-referenceDir = path + 'reference_files/'
+referenceDir = testDir + 'reference_files/'
 referenceSpecTableFile = referenceDir + 'reference_emission_table.fits'
 referenceSpcubeFile = referenceDir + 'reference.speccube'
 referenceSimputFile = referenceDir + 'reference.simput'
@@ -26,7 +27,6 @@ referenceErositaGTIFile = referenceDir + 'reference_erosita_survey.gti'
 referenceErositaSurveyEvtFile = referenceDir + 'reference_erosita_survey.evt'
 referenceErositaSurveyPhaFile = referenceDir + 'reference_erosita_survey.pha'
 specFitReferenceFile = referenceDir + 'reference_bapec_wrong_pars.spf'
-
 
 
 def clear_file(file: str) -> None:

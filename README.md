@@ -15,29 +15,26 @@ pacakge(s) relative to the instrument(s) you want to use.
 Before running the installation script, you should set up your environment. The following instructions should be part 
 of your default environment configuration, so you should put them in your ~/.cshrc or ~/.bashrc or ~/.profile setup 
 files.
-1) Setup the `XRAYSIM` environment variable, pointing to this folder (i.e. the folder where this file is located)
-2) Setup the `SIXTE` environment variable, pointing to the folder where Sixte is installed: this should have already 
+1) Setup the `SIXTE` environment variable, pointing to the folder where Sixte is installed: this should have already 
 been done during the installation of Sixte
-3) Include the PyXspec library in your Python path: this should be located in the `lib/python` subfolder of your 
+2) Include the PyXspec library in your Python path: this should be located in the `lib/python` subfolder of your 
 `HEASoft` packages folder (necessary for the installation of Xspec), pointed by the `HEADAS` enviroment variable 
 during the installation of Xspec
-4) For easier use, you can also include this folder in your Python path, to allow `import xraysim` directly from your 
+3) For easier use, you can also include this folder in your Python path, to allow `import xraysim` directly from your 
 Python scripts
 
 If you use Bourne shell variants (bash/sh/zsh) these are the commands:
 ```
-export XRAYSIM=/path/to/this/folder
 export SIXTE=/path/to/Sixte/folder
 export PYTHONPATH=$HEADAS/lib/python:$PYTHONPATH
-export PYTHONPATH=$XRAYSIM:$PYTHONPATH  # (optional)
+export PYTHONPATH=this_folder:$PYTHONPATH  # (optional)
 ```
 
 In C-shell variants (tcsh/csh):
 ```
-setenv XRAYSIM /path/to/this/folder
 setenv SIXTE /path/to/Sixte/folder
 setenv PYTHONPATH $HEADAS/lib/python:$PYTHONPATH
-setenv PYTHONPATH $XRAYSIM:$PYTHONPATH  # (optional)
+setenv PYTHONPATH this_folder:$PYTHONPATH  # (optional)
 ```
 
 ## Installation

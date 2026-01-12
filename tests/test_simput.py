@@ -10,7 +10,6 @@ from xraysim.sphprojection.mapping import specmap
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import inputDir, referenceSpecTableFile, referenceSimputFile, snapshotFile, clear_file
 
-environmentVariablesPathList = [os.environ.get('XRAYSIM'), os.environ.get('SIXTE')]
 npix, size, redshift, proj, flag_ene, tcut, nsample, nh = 25, 0.05, 0.1, 'z', False, 1.e6, 1, 0.01
 t_iso_keV = 6.3  # [keV]
 t_iso = t_iso_keV * keV2K  # [K]

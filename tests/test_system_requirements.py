@@ -4,7 +4,7 @@ from importlib.util import find_spec
 from xraysim import sixte
 
 commandList = ['sixtesim', 'makespec']
-envVariableList = ['XRAYSIM', 'SIXTE']
+envVariableList = ['SIXTE']
 packageList = ['xspec']
 
 
