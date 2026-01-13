@@ -20,12 +20,12 @@ sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 import xspec as xsp
 
-from xraysim.gadgetutils.convert import vpec2zobs
-from xraysim.gadgetutils.phys_const import keV2K, keV2erg, pi
-from xraysim.sixte import simput, sixtesim, makespec
-from xraysim.sphprojection.mapping import map2d, specmap
-from xraysim.specutils.specfit import SpecFit
-from xraysim.specutils.tables import apec_table
+from pyxhydro.gadgetutils.convert import vpec2zobs
+from pyxhydro.gadgetutils.phys_const import keV2K, keV2erg, pi
+from pyxhydro.sixte import simput, sixtesim, makespec
+from pyxhydro.sphprojection.mapping import map2d, specmap
+from pyxhydro.specutils.specfit import SpecFit
+from pyxhydro.specutils.tables import apec_table
 
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .specfittestutils import assert_fit_results_within_error

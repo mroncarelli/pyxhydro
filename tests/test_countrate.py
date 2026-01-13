@@ -2,9 +2,9 @@ from astropy.io import fits
 import numpy as np
 import pytest
 
-from xraysim.observ import countrate, ra_corr
-from xraysim.sphprojection.mapping import read_specmap
-from xraysim import sixte
+from pyxhydro.observ import countrate, ra_corr
+from pyxhydro.sphprojection.mapping import read_specmap
+from pyxhydro import sixte
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .__shared import referenceSpmapFile, referenceSimputFile, referenceEvtFile
 

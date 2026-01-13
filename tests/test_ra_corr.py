@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from xraysim.observ import ra_corr
+from pyxhydro.observ import ra_corr
 
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 

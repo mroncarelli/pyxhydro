@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -rf xraysim.egg-info
+rm -rf pyxhydro.egg-info
 rm -rf build
 rm -rf dist
 

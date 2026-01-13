@@ -1,9 +1,9 @@
 import warnings
 import pytest
 
-from xraysim.sixte import simput, sixtesim, makespec
-from xraysim.sphprojection.mapping import specmap, write_specmap, read_specmap
-from xraysim.specutils.specfit import *
+from pyxhydro.sixte import simput, sixtesim, makespec
+from pyxhydro.sphprojection.mapping import specmap, write_specmap, read_specmap
+from pyxhydro.specutils.specfit import *
 from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import assert_specfit_has_coherent_properties
 from .__shared import *

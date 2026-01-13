@@ -2,9 +2,9 @@ import pytest
 import numpy as np
 from astropy.io import fits
 
-from xraysim.sphprojection.mapping import specmap, write_specmap
-from xraysim.gadgetutils.phys_const import keV2K
-from xraysim.specutils.tables import read_spectable, calc_spec
+from pyxhydro.sphprojection.mapping import specmap, write_specmap
+from pyxhydro.gadgetutils.phys_const import keV2K
+from pyxhydro.specutils.tables import read_spectable, calc_spec
 
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import *

@@ -4,7 +4,7 @@ Set of methods useful to compare SpecFit instances
 import pytest
 import warnings
 
-from xraysim.specutils.specfit import SpecFit
+from pyxhydro.specutils.specfit import SpecFit
 
 
 def assert_specfit_has_coherent_properties(specfit: SpecFit, msg='') -> None:

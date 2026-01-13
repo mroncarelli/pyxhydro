@@ -15,7 +15,7 @@ from .specfittestutils import (assert_specfit_has_no_error_flags, assert_fit_res
 from .__shared import (inputDir, spectrumApec, spectrumBapec, spectrumApecNoStat, spectrumBapecNoStat,
                        specFitReferenceFile, clear_file)
 
-from xraysim.specutils.specfit import SpecFit
+from pyxhydro.specutils.specfit import SpecFit
 
 bapecSpecFitFile = inputDir + "bapec_specfit_created_for_test.spf"
 instrumentDir = os.environ.get("SIXTE") + "/share/sixte/instruments/xrism-resolve-test/"

@@ -4,7 +4,7 @@ import warnings
 import pytest
 from astropy.io import fits
 
-from xraysim.sixte import sixtesim, makespec, erosita_ccd_eventfile, instruments
+from pyxhydro.sixte import sixtesim, makespec, erosita_ccd_eventfile, instruments
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import (referenceDir, referenceErositaSimputFile, referenceErositaPointedEvtFile,
                        referenceErositaPointedPhaFile, clear_file)

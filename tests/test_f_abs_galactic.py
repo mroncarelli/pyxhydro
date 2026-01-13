@@ -1,4 +1,4 @@
-from xraysim.specutils import absorption as spabs
+from pyxhydro.specutils import absorption as spabs
 import numpy as np
 
 

@@ -9,8 +9,8 @@ pytest --seed 12345678
 import os
 import pytest
 
-from xraysim.specutils import absorption as spabs
-from xraysim.specutils import tables
+from pyxhydro.specutils import absorption as spabs
+from pyxhydro.specutils import tables
 import numpy as np
 
 import sys

@@ -3,10 +3,10 @@ import os
 import pytest
 from astropy.io import fits
 
-from xraysim.gadgetutils.phys_const import keV2K
-from xraysim.sixte import simput
-from xraysim.specutils.tables import read_spectable, calc_spec
-from xraysim.sphprojection.mapping import specmap
+from pyxhydro.gadgetutils.phys_const import keV2K
+from pyxhydro.sixte import simput
+from pyxhydro.specutils.tables import read_spectable, calc_spec
+from pyxhydro.sphprojection.mapping import specmap
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import inputDir, referenceSpecTableFile, referenceSimputFile, snapshotFile, clear_file
 

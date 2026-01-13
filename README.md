@@ -1,11 +1,16 @@
-# XRAYSIM
+# PyXHydro
+
+## Description
+PyXHydro is a Python package designed to simulate realistic observations from hydrodynamical simulations. It 
+incorporates PyXspec and Sixte allowing a full end-to-end simulation framework, useful to make comparisons with the 
+physical quantities of the simulation output.
 
 ## Requirements
 
 This Python package requires the installation of Xspec and Sixte to work properly. It also needs some basic 
 configuration steps before being installed and used. Here is the list of things you need to do.
 
-## Before installing Xraysim (if not done already...)
+## Before installing PyXHydro (if not done already...)
 1) Install Xspec, available at [this website](https://heasarc.gsfc.nasa.gov/xanadu/xspec/), including its Python library PyXspec
 2) Install Sixte, an X-ray telescope/instrument simulator available at 
 [this website](https://www.sternwarte.uni-erlangen.de/sixte/) that includes several telescopes. Ensure you download the 
@@ -15,12 +20,12 @@ pacakge(s) relative to the instrument(s) you want to use.
 Before running the installation script, you should set up your environment. The following instructions should be part 
 of your default environment configuration, so you should put them in your ~/.cshrc or ~/.bashrc or ~/.profile setup 
 files.
-1) Setup the `SIXTE` environment variable, pointing to the folder where Sixte is installed: this should have already 
+1) Set up the `SIXTE` environment variable, pointing to the folder where Sixte is installed: this should have already 
 been done during the installation of Sixte
 2) Include the PyXspec library in your Python path: this should be located in the `lib/python` subfolder of your 
-`HEASoft` packages folder (necessary for the installation of Xspec), pointed by the `HEADAS` enviroment variable 
+`HEASoft` packages folder (necessary for the installation of Xspec), pointed by the `HEADAS` environment variable 
 during the installation of Xspec
-3) For easier use, you can also include this folder in your Python path, to allow `import xraysim` directly from your 
+3) For easier use, you can also include this folder in your Python path, to allow `import pyxhydro` directly from your 
 Python scripts
 
 If you use Bourne shell variants (bash/sh/zsh) these are the commands:
@@ -44,10 +49,10 @@ compile the Cython source files. This script will also create a subfolder called
 the code (like XRISM-Resolve but without vignetting and perfect PSF). Then run `pytest` to ensure the package is 
 installed and configured correctly: some warnings may be issued, and some test may be skipped (marked 's') but this is 
 ok. If an error occurs, please, [submit an issue]
-(https://github.com/mroncarelli/xraysim/issues) including the error message and some detail.
+(https://github.com/mroncarelli/pyxhydro/issues) including the error message and some detail.
 
 ## Instruments configuration
-In order to use the Sixte instruments directly with Xraysim you need to set them up in the `sixte_instruments.json` 
+In order to use the Sixte instruments directly with PyXHydro you need to set them up in the `sixte_instruments.json` 
 file. Each instrument should be a JSON object like this one
 ```
   {
@@ -71,14 +76,14 @@ attribute must also be added containing the attitude file (see the instruments `
 
 In order to verify if your instruments are set up correctly, open a Python console and run
 ```
-from xraysim import sixte
+from pyxhydro import sixte
 sixte.instruments.verify()
 ```
 You should get the list of your instruments marked `OK` if configured correctly, or with an error message otherwise.
 
-## Using Xraysim
+## Using PyXhydro
 Open a Python script or console and type:
 ```
-import xraysim
+import pyxhydro
 ```
 and you are ready to go.

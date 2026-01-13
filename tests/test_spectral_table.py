@@ -1,6 +1,6 @@
 import pytest
 from astropy.io import fits
-from xraysim.specutils.tables import apec_table, write_spectable
+from pyxhydro.specutils.tables import apec_table, write_spectable
 
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import referenceSpecTableFile, inputDir, clear_file

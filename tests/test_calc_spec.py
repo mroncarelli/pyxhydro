@@ -8,7 +8,7 @@ pytest --seed 12345678
 
 import pytest
 
-from xraysim.specutils.tables import read_spectable, calc_spec
+from pyxhydro.specutils.tables import read_spectable, calc_spec
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .__shared import referenceSpecTableFile
 

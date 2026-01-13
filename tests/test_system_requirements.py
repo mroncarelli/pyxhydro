@@ -1,7 +1,7 @@
 import os
 from distutils.spawn import find_executable
 from importlib.util import find_spec
-from xraysim import sixte
+from pyxhydro import sixte
 
 commandList = ['sixtesim', 'makespec']
 envVariableList = ['SIXTE']
