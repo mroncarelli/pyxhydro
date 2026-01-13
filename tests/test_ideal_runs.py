@@ -130,22 +130,22 @@ def test_isothermal_no_velocities():
     sp_ref = wabs_bapec(nH, temp, metal, z, 0, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
 
 
-    # Creating the spectral cube from the snapshot assuming isothermal gas with Gaussian velocity distribution
-    sp_cube = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+    # Creating the spectral map from the snapshot assuming isothermal gas with Gaussian velocity distribution
+    sp_map = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
                              tcut=1e6, isothermal=temp * keV2K, nh=nH, novel=True)
 
     # Checking that the integrated spectrum matches with the reference one
-    assert sp_cube['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
+    assert sp_map['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
 
-    sp = sp_cube['data'].sum(axis=(0, 1)) * d_ene * sp_cube['pixel_size'] ** 2  # [photons s^-1 cm^2]
+    sp = sp_map['data'].sum(axis=(0, 1)) * d_ene * sp_map['pixel_size'] ** 2  # [photons s^-1 cm^2]
     assert sp.sum() == pytest.approx(sp_ref.sum(), rel=1e-4), errMsg
     assert sp == pytest.approx(sp_ref, rel=1e-3), errMsg  # [photons s^-1 cm^2]
 
     # Creating the SIMPUT file
     if os.path.isfile(simputFile):
         os.remove(simputFile)
-    simput(sp_cube, simputFile)
-    del sp_cube
+    simput(sp_map, simputFile)
+    del sp_map
 
     # Extracting data from Simput file
     hdu_list = fits.open(simputFile)
@@ -205,14 +205,14 @@ def test_isothermal_gaussian_velocities():
     # Computing reference spectrum
     sp_ref = wabs_bapec(nH, temp, metal, z, sigma_v, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
 
-    # Creating the spectral cube from the snapshot assuming isothermal gas with Gaussian velocity distribution
-    sp_cube = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+    # Creating the spectral map from the snapshot assuming isothermal gas with Gaussian velocity distribution
+    sp_map = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
                              tcut=1e6, isothermal=temp * keV2K, nh=nH, gaussvel=(0, sigma_v))
 
     # Checking that the integrated spectrum matches with the reference one
-    assert sp_cube['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
+    assert sp_map['energy'] == pytest.approx(energy, rel=1e-6), errMsg  # [keV]
 
-    sp = sp_cube['data'].sum(axis=(0, 1)) * d_ene * sp_cube['pixel_size'] ** 2  # [photons s^-1 cm^2]
+    sp = sp_map['data'].sum(axis=(0, 1)) * d_ene * sp_map['pixel_size'] ** 2  # [photons s^-1 cm^2]
 
     # Checking only the sum because with random gaussian velocities bin to bin differences are too high
     assert sp.sum() == pytest.approx(sp_ref.sum(), rel=5e-2), errMsg  # [photons s^-1 cm^2]
@@ -220,8 +220,8 @@ def test_isothermal_gaussian_velocities():
     # Creating the SIMPUT file
     if os.path.isfile(simputFile):
         os.remove(simputFile)
-    simput(sp_cube, simputFile)
-    del sp_cube
+    simput(sp_map, simputFile)
+    del sp_map
 
     # Extracting data from Simput file
     hdu_list = fits.open(simputFile)

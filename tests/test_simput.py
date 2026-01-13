@@ -18,17 +18,17 @@ nene = fits.open(referenceSpecTableFile)[0].header.get('NENE')
 testSimputFile = inputDir + 'file_created_for_test.simput'
 
 # Isothermal + no velocities
-speccubeIsothermalNovel = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift,
-                                        center=center, proj=proj, nsample=nsample, isothermal=t_iso, novel=True)
+specMapIsothermalNovel = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift,
+                                 center=center, proj=proj, nsample=nsample, isothermal=t_iso, novel=True)
 
-speccube = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift, center=center,
-                         proj=proj, tcut=tcut, nh=nh, nsample=nsample)
+specMap = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift, center=center,
+                  proj=proj, tcut=tcut, nh=nh, nsample=nsample)
 
 
-def test_file_created(inp=speccubeIsothermalNovel, out=testSimputFile):
+def test_file_created(inp=specMapIsothermalNovel, out=testSimputFile):
     """
     The output SIMPUT file must be correctly created
-    :param inp: (dict) spectral cube structure
+    :param inp: (dict) spectral map structure
     :param out: (str) output SIMPUT file
     """
     if os.path.isfile(out):
@@ -38,11 +38,11 @@ def test_file_created(inp=speccubeIsothermalNovel, out=testSimputFile):
     os.remove(out)
 
 
-def test_primary_header_keywords(inp=speccubeIsothermalNovel, out=testSimputFile):
+def test_primary_header_keywords(inp=specMapIsothermalNovel, out=testSimputFile):
     """
     The header of the Primary of the output SIMPUT file must contain a series of keywords whose value depend on the
     input data
-    :param inp: (dict) spectral cube structure
+    :param inp: (dict) spectral map structure
     :param out: (str) output SIMPUT file
     """
     if os.path.isfile(out):
@@ -66,11 +66,11 @@ def test_primary_header_keywords(inp=speccubeIsothermalNovel, out=testSimputFile
     assert header.get('VPEC') == inp.get('velocities')
 
 
-def test_isothermal_spectrum(inp=speccubeIsothermalNovel, out=testSimputFile):
+def test_isothermal_spectrum(inp=specMapIsothermalNovel, out=testSimputFile):
     """
     All the spectra contained in the Extension 2 of the SIMPUT file must be isothermal with T equal to the value
-    indicated by the spec_cube, with arbitrary normalization.
-    :param inp: (dict) spectral cube structure
+    indicated by the spectral map, with arbitrary normalization.
+    :param inp: (dict) spectral map structure
     :param out: (str) output SIMPUT file
     """
 
@@ -87,8 +87,8 @@ def test_isothermal_spectrum(inp=speccubeIsothermalNovel, out=testSimputFile):
     temp = header0.get('ISO_T') / keV2K  # [keV]
 
     # Getting energy and (normalized spectrum) from table and from
-    z = speccubeIsothermalNovel.get('z_cos')
-    energy_reference = speccubeIsothermalNovel.get('energy')  # [keV]
+    z = specMapIsothermalNovel.get('z_cos')
+    energy_reference = specMapIsothermalNovel.get('energy')  # [keV]
     spectrum_reference = calc_spec(sptable, z, temp, no_z_interp=True)
     spectrum_reference /= spectrum_reference.mean()  # normalize to mean = 1
 
@@ -102,9 +102,9 @@ def test_isothermal_spectrum(inp=speccubeIsothermalNovel, out=testSimputFile):
         assert spectrum_norm == pytest.approx(spectrum_reference, rel=1e-6)
 
 
-def test_created_file_matches_reference(inp=speccube, out=testSimputFile, reference=referenceSimputFile):
+def test_created_file_matches_reference(inp=specMap, out=testSimputFile, reference=referenceSimputFile):
     """
-    Writing the spec_cube to a SIMPUT file should produce a file with data identical to the reference one.
+    Writing the spectral map to a SIMPUT file should produce a file with data identical to the reference one.
     """
     if os.path.isfile(testSimputFile):
         os.remove(testSimputFile)

@@ -8,8 +8,8 @@ from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import assert_specfit_has_coherent_properties
 from .__shared import *
 
-spcubeFile = referenceDir + "spcube_file_created_for_test.spcube"
-spcubeFile2 = referenceDir + "spcube_file_created_for_test_2.spcube"
+spMapFile = referenceDir + "spmap_file_created_for_test.spmap"
+spMapFile2 = referenceDir + "spmap_file_created_for_test_2.spmap"
 simputFile = referenceDir + "simput_file_created_for_test.simput"
 evtFile = referenceDir + "evt_file_created_for_test.evt"
 phaFile = referenceDir + "pha_file_created_for_test.pha"
@@ -30,37 +30,37 @@ def test_full_run(run_type):
     reference one.
     """
 
-    # Creating a speccube file from a calculated speccube
-    speccube_calculated = specmap(snapshotFile, referenceSpecTableFile, 0.05, 25, redshift=0.1,
+    # Creating a spectral map file from a calculated spectral map
+    spmap_calculated = specmap(snapshotFile, referenceSpecTableFile, 0.05, 25, redshift=0.1,
                                         center=[2500., 2500.], proj='z', tcut=1e6, nh=0.01, nsample=1)
-    if os.path.isfile(spcubeFile):
-        os.remove(spcubeFile)
-    write_specmap(speccube_calculated, spcubeFile)
-    assert os.path.isfile(spcubeFile)
-    del speccube_calculated
+    if os.path.isfile(spMapFile):
+        os.remove(spMapFile)
+    write_specmap(spmap_calculated, spMapFile)
+    assert os.path.isfile(spMapFile)
+    del spmap_calculated
 
-    reference_speccube = fits.open(referenceSpcubeFile)
-
-    # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(spcubeFile), reference_speccube, tol=5e-5)
-
-    # Creating a speccube file from the speccube read from the file
-    speccube_read = read_specmap(spcubeFile)
-    os.remove(spcubeFile)
-    if os.path.isfile(spcubeFile2):
-        os.remove(spcubeFile2)
-    write_specmap(speccube_read, spcubeFile2)
-    assert os.path.isfile(spcubeFile2)
+    reference_spmap = fits.open(referenceSpmapFile)
 
     # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(spcubeFile2), reference_speccube, tol=5e-5)
-    os.remove(spcubeFile2)
+    assert_hdu_list_matches_reference(fits.open(spMapFile), reference_spmap, tol=5e-5)
 
-    # Creating a SIMPUT file from a speccube
+    # Creating a spmap file from the spectral-map read from the file
+    spmap_read = read_specmap(spMapFile)
+    os.remove(spMapFile)
+    if os.path.isfile(spMapFile2):
+        os.remove(spMapFile2)
+    write_specmap(spmap_read, spMapFile2)
+    assert os.path.isfile(spMapFile2)
+
+    # Checking that file content matches reference
+    assert_hdu_list_matches_reference(fits.open(spMapFile2), reference_spmap, tol=5e-5)
+    os.remove(spMapFile2)
+
+    # Creating a SIMPUT file from a spectral map
     if os.path.isfile(simputFile):
         os.remove(simputFile)
-    simput(speccube_read, simputFile)
-    del speccube_read
+    simput(spmap_read, simputFile)
+    del spmap_read
 
     # Checking that file content matches reference
     assert_hdu_list_matches_reference(fits.open(simputFile), fits.open(referenceSimputFile), tol=5e-5)
@@ -120,8 +120,8 @@ def test_full_run(run_type):
 @pytest.fixture(scope="module", autouse=True)
 def on_end_module():
     yield
-    clear_file(spcubeFile)
-    clear_file(spcubeFile2)
+    clear_file(spMapFile)
+    clear_file(spMapFile2)
     clear_file(simputFile)
     clear_file(evtFile)
     clear_file(phaFile)

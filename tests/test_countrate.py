@@ -6,7 +6,7 @@ from xraysim.observ import countrate, ra_corr
 from xraysim.sphprojection.mapping import read_specmap
 from xraysim import sixte
 from .randomutils import TrueRandomGenerator, globalRandomSeed
-from .__shared import referenceSpcubeFile, referenceSimputFile, referenceEvtFile
+from .__shared import referenceSpmapFile, referenceSimputFile, referenceEvtFile
 
 SP = np.float32
 
@@ -23,11 +23,11 @@ instrument = sixte.instruments.get(instrumentName)
 arfFile = instrument.path + "/" + instrument.arf[0]
 
 # Getting minima and maxima of coordinates
-spCube = read_specmap(referenceSpcubeFile)
-emin = spCube["energy"][0] - 0.5 * spCube["energy_interval"][0]
-emax = spCube["energy"][-1] + 0.5 * spCube["energy_interval"][-1]
-size = spCube["size"]  # [deg]
-pixelSize = spCube["pixel_size"] / 60 # [deg]
+spMap = read_specmap(referenceSpmapFile)
+emin = spMap["energy"][0] - 0.5 * spMap["energy_interval"][0]
+emax = spMap["energy"][-1] + 0.5 * spMap["energy_interval"][-1]
+size = spMap["size"]  # [deg]
+pixelSize = spMap["pixel_size"] / 60 # [deg]
 xmin, xmax = -0.5 * size, 0.5 * size  # [deg]
 ymin, ymax = -0.5 * size, 0.5 * size  # [deg]
 
@@ -51,22 +51,22 @@ while yrange2[1] - yrange2[0] < pixelSize:
     yrange2 = TRG.uniform(ymin2, ymax2, size=2)
 
 
-def test_countrate_of_speccube_must_be_the_same_with_different_input_type():
+def test_countrate_of_specmap_must_be_the_same_with_different_input_type():
     """
-    The countrate of a speccube calculated from the file or from the speccube dictionary must be identical.
+    The countrate of a spectral map calculated from the file or from the specmap dictionary must be identical.
     """
-    assert (countrate(referenceSpcubeFile, arfFile) == countrate(read_specmap(referenceSpcubeFile), arfFile))
+    assert (countrate(referenceSpmapFile, arfFile) == countrate(read_specmap(referenceSpmapFile), arfFile))
 
 
 def test_countrate_must_be_the_same_with_different_arf_input_type():
     """
-    The countrate of a speccube when the arf input is a file name, and HDUList, a sixte.Instrument or the instrument
-    name must be identical.
+    The countrate of a spectral map when the arf input is a file name, and HDUList, a sixte.Instrument or the
+    instrument name must be identical.
     """
-    ctrate_ref = countrate(referenceSpcubeFile, arfFile)
-    assert countrate(referenceSpcubeFile, fits.open(arfFile)) == ctrate_ref
-    assert countrate(referenceSpcubeFile, instrument) == ctrate_ref
-    assert countrate(referenceSpcubeFile, instrumentName) == ctrate_ref
+    ctrate_ref = countrate(referenceSpmapFile, arfFile)
+    assert countrate(referenceSpmapFile, fits.open(arfFile)) == ctrate_ref
+    assert countrate(referenceSpmapFile, instrument) == ctrate_ref
+    assert countrate(referenceSpmapFile, instrumentName) == ctrate_ref
 
 
 def test_countrate_of_simput_file_must_be_the_same_with_different_input_type():
@@ -76,47 +76,47 @@ def test_countrate_of_simput_file_must_be_the_same_with_different_input_type():
     assert countrate(referenceSimputFile, arfFile) == countrate(fits.open(referenceSimputFile), arfFile)
 
 
-def test_countrate_of_speccube_and_simput_file_must_be_the_same():
+def test_countrate_of_specmap_and_simput_file_must_be_the_same():
     """
-    The countrates of referenceSpcubeFile and of referenceSimputFile must be the same, as the latter was created
+    The countrates of referenceSpmapFile and of referenceSimputFile must be the same, as the latter was created
     starting from the former.
     """
-    assert countrate(referenceSpcubeFile, arfFile) == pytest.approx(countrate(referenceSimputFile, arfFile))
+    assert countrate(referenceSpmapFile, arfFile) == pytest.approx(countrate(referenceSimputFile, arfFile))
 
 
-def test_countrate_of_speccube_and_simput_file_with_xrange_must_be_the_same():
+def test_countrate_of_specmap_and_simput_file_with_xrange_must_be_the_same():
     """
-    The countrates of referenceSpcubeFile and of referenceSimputFile with the same value of xrange must be the same,
+    The countrates of referenceSpmapFile and of referenceSimputFile with the same value of xrange must be the same,
     as the latter was created starting from the former.
     """
-    assert (countrate(referenceSpcubeFile, arfFile, xrange=xrange) ==
+    assert (countrate(referenceSpmapFile, arfFile, xrange=xrange) ==
             pytest.approx(countrate(referenceSimputFile, arfFile, xrange=xrange))), errMsg
 
 
-def test_countrate_of_speccube_and_simput_file_with_yrange_must_be_the_same():
+def test_countrate_of_specmap_and_simput_file_with_yrange_must_be_the_same():
     """
-    The countrates of referenceSpcubeFile and of referenceSimputFile with the same value of yrange must be the same,
+    The countrates of referenceSpmapFile and of referenceSimputFile with the same value of yrange must be the same,
     as the latter was created starting from the former.
     """
-    assert (countrate(referenceSpcubeFile, arfFile, yrange=yrange) ==
+    assert (countrate(referenceSpmapFile, arfFile, yrange=yrange) ==
             pytest.approx(countrate(referenceSimputFile, arfFile, yrange=yrange))), errMsg
 
 
-def test_countrate_of_speccube_and_simput_file_with_erange_must_be_the_same():
+def test_countrate_of_specmap_and_simput_file_with_erange_must_be_the_same():
     """
-    The countrates of referenceSpcubeFile and of referenceSimputFile with the same value of erange must be the same,
+    The countrates of referenceSpmapFile and of referenceSimputFile with the same value of erange must be the same,
     as the latter was created starting from the former.
     """
-    assert (countrate(referenceSpcubeFile, arfFile, erange=erange) ==
+    assert (countrate(referenceSpmapFile, arfFile, erange=erange) ==
             pytest.approx(countrate(referenceSimputFile, arfFile, erange=erange))), errMsg
 
 
-def test_countrate_of_speccube_and_simput_file_with_xrange_yrange_erange_must_be_the_same():
+def test_countrate_of_specmap_and_simput_file_with_xrange_yrange_erange_must_be_the_same():
     """
-    The countrates of referenceSpcubeFile and of referenceSimputFile with the same value of xrange, yrange and erange
+    The countrates of referenceSpmapFile and of referenceSimputFile with the same value of xrange, yrange and erange
     must be the same, as the latter was created starting from the former.
     """
-    assert (countrate(referenceSpcubeFile, arfFile, xrange=xrange, yrange=yrange, erange=erange) ==
+    assert (countrate(referenceSpmapFile, arfFile, xrange=xrange, yrange=yrange, erange=erange) ==
             pytest.approx(countrate(referenceSimputFile, arfFile, xrange=xrange, yrange=yrange, erange=erange))), errMsg
 
 
@@ -124,7 +124,7 @@ def test_countrate_outside_xrange_must_be_zero():
     """
     The countrate computed outside the field in the x-coordinate must be zero.
     """
-    assert countrate(referenceSpcubeFile, arfFile, xrange=(xmin - 2, xmin -1)) == 0
+    assert countrate(referenceSpmapFile, arfFile, xrange=(xmin - 2, xmin - 1)) == 0
     assert countrate(referenceSimputFile, arfFile, xrange=(xmin - 2, xmin -1)) == 0
 
 
@@ -132,7 +132,7 @@ def test_countrate_outside_yrange_must_be_zero():
     """
     The countrate computed outside the field in the y-coordinate must be zero.
     """
-    assert countrate(referenceSpcubeFile, arfFile, yrange=(ymin - 2, ymin -1)) == 0
+    assert countrate(referenceSpmapFile, arfFile, yrange=(ymin - 2, ymin - 1)) == 0
     assert countrate(referenceSimputFile, arfFile, yrange=(ymin - 2, ymin -1)) == 0
 
 
@@ -140,7 +140,7 @@ def test_countrate_outside_erange_must_be_zero():
     """
     The countrate computed outside energy range must be zero.
     """
-    assert countrate(referenceSpcubeFile, arfFile, erange=(emin - 2, emin -1)) == 0
+    assert countrate(referenceSpmapFile, arfFile, erange=(emin - 2, emin - 1)) == 0
     assert countrate(referenceSimputFile, arfFile, erange=(emin - 2, emin -1)) == 0
 
 
@@ -188,7 +188,7 @@ def test_counts_in_eventlist_must_match_with_countrate():
     """
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile) * tExp
+    ncts_from_ctrate = countrate(referenceSpmapFile, arfFile) * tExp
     ncts_from_eventlist = nevt_filter(evtTable)
 
     assert ncts_from_ctrate == pytest.approx(ncts_from_eventlist, abs=sigmaTol * np.sqrt(ncts_from_eventlist))
@@ -199,7 +199,7 @@ def test_counts_in_eventlist_must_match_with_countrate_with_xrange():
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure with the same
     xrange.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrange2) * tExp
+    ncts_from_ctrate = countrate(referenceSpmapFile, arfFile, xrange=xrange2) * tExp
     ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, xrange=xrange2)
 
     assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg
@@ -210,7 +210,7 @@ def test_counts_in_eventlist_must_match_with_countrate_with_yrange():
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure with the same
     yrange.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, yrange=yrange2) * tExp
+    ncts_from_ctrate = countrate(referenceSpmapFile, arfFile, yrange=yrange2) * tExp
     ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, yrange=yrange2)
 
     assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg
@@ -221,7 +221,7 @@ def test_counts_in_eventlist_must_match_with_countrate_with_erange():
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure with the same
     energy range.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, erange=erange) * tExp
+    ncts_from_ctrate = countrate(referenceSpmapFile, arfFile, erange=erange) * tExp
     ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, erange=erange)
 
     assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg
@@ -232,7 +232,7 @@ def test_counts_in_eventlist_must_match_with_countrate_with_xrange_yrange_erange
     The number of counts in the eventlist must match the ones calculated using the countrate and exposure with the same
     xrange, yrange and energy range.
     """
-    ncts_from_ctrate = countrate(referenceSpcubeFile, arfFile, xrange=xrange2, yrange=yrange2, erange=erange) * tExp
+    ncts_from_ctrate = countrate(referenceSpmapFile, arfFile, xrange=xrange2, yrange=yrange2, erange=erange) * tExp
     ncts_from_eventlist = nevt_filter(evtTable, referenceSimputFile, xrange=xrange2, yrange=yrange2, erange=erange)
 
     assert ncts_from_eventlist == pytest.approx(ncts_from_ctrate, abs=sigmaTol * np.sqrt(ncts_from_ctrate)), errMsg

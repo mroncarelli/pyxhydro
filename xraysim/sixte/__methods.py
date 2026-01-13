@@ -57,7 +57,7 @@ def set_simput_headers(hdulist: fits.HDUList):
     return hdulist
 
 
-def simput(specmap: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, fluxsc=1., nh=None, preserve_input=True,
+def simput(specmap: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, fluxsc=1, nh=None, preserve_input=True,
            overwrite=True):
     """
     :param specmap: (dict) spectral map structure, i.e. output of mapping.specmap
@@ -65,7 +65,7 @@ def simput(specmap: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, flu
     :param tag: (str) prefix of the source name, default None
     :param pos: (float 2) sky position in RA, DEC [deg]
     :param npix: number of pixels per side of the output spectral map
-    :param fluxsc: (float) flux scaling to be applied to the cube
+    :param fluxsc: (float) flux scaling to be applied to the specmap
     :param nh: (float) hydrogen column density [10^22 cm^-2], if included it changes the value of the input object
         converting it to the desired one, default: None (i.e. maintains the original value of nh)
     :param preserve_input: (bool) If set to true the 'data' key in spmap_ is left untouched and duplicated in
@@ -133,7 +133,7 @@ def simput(specmap: dict, simput_file: str, tag='', pos=(0., 0.), npix=None, flu
                 name.append(row_name)
                 ra.append(ra_pix[ipix])  # [deg]
                 dec.append(dec_pix[jpix])  # [deg]
-                flux.append(source_flux)  # [erg s^-1 cm^-2]
+                flux.append(source_flux * fluxsc)  # [erg s^-1 cm^-2]
                 spectrum.append("[SPECTRUM,1][NAME=='" + row_name + "']")
                 energy_out.append(energy)  # [keV]
                 fluxdensity.append(spmap[ipix, jpix, :])  # [photons keV^-1 s^-1 cm^-2]

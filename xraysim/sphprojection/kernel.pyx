@@ -276,10 +276,10 @@ cdef add_to_multi_map2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_map, do
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
-cdef add_to_spcube(double[:, :, ::1] spcube, float[:] spectrum, float[:] wx, float[:] wy,
+cdef add_to_spmap(double[:, :, ::1] spmap, float[:] spectrum, float[:] wx, float[:] wy,
                    Py_ssize_t i0, Py_ssize_t j0, Py_ssize_t nz):
     """
-    Adds spectrum to spcube using kernel weights. Full Cython to maximize speed.
+    Adds spectrum to spmap using kernel weights. Full Cython to maximize speed.
     """
     cdef Py_ssize_t len_wx = wx.shape[0]
     cdef Py_ssize_t len_wy = wy.shape[0]
@@ -287,19 +287,19 @@ cdef add_to_spcube(double[:, :, ::1] spcube, float[:] spectrum, float[:] wx, flo
     cdef float w, ww
 
     # Checks to avoid bound errors
-    if not (i0 >= 0 and i0 + len_wx <= spcube.shape[0]):
-        raise ValueError("ERROR in add_to_spcube. Out of bounds in 1st index.")
-    if not (j0 >= 0 and j0 + len_wy <= spcube.shape[1]):
-        raise ValueError("ERROR in add_to_spcube. Out of bounds in 2nd index.")
-    if nz > spcube.shape[2]:
-        raise ValueError("ERROR in add_to_spcube. Out of bounds in 3rd index.")
+    if not (i0 >= 0 and i0 + len_wx <= spmap.shape[0]):
+        raise ValueError("Out of bounds in 1st index.")
+    if not (j0 >= 0 and j0 + len_wy <= spmap.shape[1]):
+        raise ValueError("Out of bounds in 2nd index.")
+    if nz > spmap.shape[2]:
+        raise ValueError("Out of bounds in 3rd index.")
 
     for i in range(len_wx):
         w = wx[i]
         for j in range(len_wy):
             ww = w * wy[j]
             for k in range(nz):
-                spcube[i0 + i, j0 + j, k] += ww * spectrum[k]
+                spmap[i0 + i, j0 + j, k] += ww * spectrum[k]
 
     return None
 
@@ -307,10 +307,10 @@ cdef add_to_spcube(double[:, :, ::1] spcube, float[:] spectrum, float[:] wx, flo
 def map2d_loop(double[:, ::1] qty_map, double[:, ::1] nrm_map, iter_, float[:] x, float[:] y, float[:] hsml,
                float[:] qty, float[:] nrm):
     """
-    Cython version of make_map loop in mapping.py.
+    Cython version of a loop in mapping module (map2d).
     """
     if not isomorphic(qty_map, nrm_map):
-        raise ValueError("ERROR in make_map_loop. Arguments qty_map and nrm_map must have the same shape")
+        raise ValueError("Arguments qty_map and nrm_map must have the same shape")
 
     cdef float[:] wx, wy
     cdef int nx = qty_map.shape[0]
@@ -321,7 +321,7 @@ def map2d_loop(double[:, ::1] qty_map, double[:, ::1] nrm_map, iter_, float[:] x
         # Getting the kernel weights in the two directions
         wx, i0 = kernel_mapping(x[ipart], hsml[ipart], nx)
         wy, j0 = kernel_mapping(y[ipart], hsml[ipart], ny)
-        # Adding spectrum to the speccube using weights
+        # Adding spectrum to the spectral map using weights
         add_to_map(qty_map, nrm_map, qty[ipart], nrm[ipart], wx, wy, i0, j0)
 
     return None
@@ -333,7 +333,7 @@ def map2d_loop(double[:, ::1] qty_map, double[:, ::1] nrm_map, iter_, float[:] x
 def map2d_alpha_weight_loop(double[:, :, ::1] qty_map, double[:, :, ::1] nrm_map, iter_, float[:] x, float[:] y,
                             float[:] hsml, float[:] qty, float[:] nrm, float[:] temp, float[:] alpha):
     """
-    Cython version of make_alpha_weight_loop in mapping.py.
+    Cython version of a loop in mapping module (map2d).
     """
     cdef float[:] wx, wy
     cdef int nx = qty_map.shape[0]
@@ -358,7 +358,7 @@ def map2d_alpha_weight_loop(double[:, :, ::1] qty_map, double[:, :, ::1] nrm_map
 def map2d_loop2(double[:, ::1] qty_map, double[:, ::1] qty2_map, double[:, ::1] nrm_map, iter_, float[:] x, float[:] y,
                 float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm):
     """
-    Cython version of second make_map loop in mapping.py.
+    Cython version of a loop in mapping module (map2d).
     """
     if not (isomorphic(qty_map, nrm_map) and isomorphic(qty_map, qty2_map)):
         raise ValueError("ERROR in make_map_loop2. Arguments qty_map, nrm_map and qty2_map must have the same shape")
@@ -385,7 +385,7 @@ def map2d_alpha_weight_loop2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_m
                              float[:] x, float[:] y, float[:] hsml, float[:] qty, float[:] qty2, float[:] nrm,
                              float[:] temp, float[:] alpha):
     """
-    Cython version of second make_alpha_weight_loop in mapping.py.
+    Cython version of a loop in mapping module (map2d).
     """
     cdef float[:] wx, wy
     cdef int nx = qty_map.shape[0]
@@ -412,15 +412,15 @@ def map2d_alpha_weight_loop2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_m
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
-def speccube_loop(double[:, :, ::1] spcube, iter_, float[:] x, float[:] y, float[:] hsml, spectable, norm, z_eff,
+def specmap_loop(double[:, :, ::1] spmap, iter_, float[:] x, float[:] y, float[:] hsml, spectable, norm, z_eff,
                   temp_kev):
     """
-    Cython version of make_speccube loop in mapping.py.
+    Cython version of a loop in mapping module (specmap).
     """
     cdef float[:] spectrum, wx, wy
-    cdef int nx = spcube.shape[0]
-    cdef int ny = spcube.shape[1]
-    cdef Py_ssize_t nz = spcube.shape[2]
+    cdef int nx = spmap.shape[0]
+    cdef int ny = spmap.shape[1]
+    cdef Py_ssize_t nz = spmap.shape[2]
     cdef Py_ssize_t i0, j0
 
     for ipart in iter_:
@@ -429,7 +429,7 @@ def speccube_loop(double[:, :, ::1] spcube, iter_, float[:] x, float[:] y, float
         # Getting the kernel weights in the two directions
         wx, i0 = kernel_mapping(x[ipart], hsml[ipart], nx)
         wy, j0 = kernel_mapping(y[ipart], hsml[ipart], ny)
-        # Adding spectrum to the speccube using weights
-        add_to_spcube(spcube, spectrum, wx, wy, i0, j0, nz)
+        # Adding spectrum to the spectral map using weights
+        add_to_spmap(spmap, spectrum, wx, wy, i0, j0, nz)
 
     return None

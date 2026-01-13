@@ -15,7 +15,7 @@ spectrumBapecNoStat = inputDir + 'bapec_fakeit_nostat_for_test.pha'
 # Reference files
 referenceDir = testDir + 'reference_files/'
 referenceSpecTableFile = referenceDir + 'reference_emission_table.fits'
-referenceSpcubeFile = referenceDir + 'reference.speccube'
+referenceSpmapFile = referenceDir + 'reference.spmap'
 referenceSimputFile = referenceDir + 'reference.simput'
 referenceEvtFile = referenceDir + 'reference.evt'
 referencePhaFile = referenceDir + 'reference.pha'

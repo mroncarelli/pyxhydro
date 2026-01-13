@@ -15,9 +15,9 @@ Spectrum file that simulates a *XRISM-Resolve* observation of a Gadget simulated
 
 A SIMPUT file containing the data for the emission of a Gadget simulated cluster.
 
-### - `reference.speccube`
+### - `reference.spmap`
 
-A Spec-cube file containing the data for the emission of a Gadget simulated cluster.
+A spectral-map file containing the data for the emission of a Gadget simulated cluster.
 
 ### - `reference.spf`
 

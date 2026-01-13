@@ -36,21 +36,21 @@ def convert_nh(struct, nh: float, nh_input=None, preserve_input=True):
     value is considered with this priority: 1) the input structure value stored in the 'nh' key (if present), 2) the
     nh_input argument (if provided), 3) nh=0 (no absorption).
     :param struct: structure containing the spectral data in the 'data' key, and energy values in the 'energy' key
-    (i.e. a spectral table from the 'tables' module or a spectral cube from sphprojection.mapping.make_cube). The
+    (i.e. a spectral table from the 'tables' module or a spectral-map from sphprojection.mapping.specmap). The
     spectra are assumed to be in the last/rightmost dimension of the 'data' array
     :param nh: hydrogen column density [10^22 cm^-2]
     :param nh_input: hydrogen column density in the input data [10^22 cm^-2] (not considered if the input structure
-    contains the 'nh' key
+    contains the 'nh' key)
     :param preserve_input: (bool) if set to True the input struct is preserved from modification, default True
     :return: a structure with the absorbed spectrum in the 'data' key. The 'nh' key is updated/added, all other fields
     are left untouched.
     """
     if ('data' not in struct) or ('energy' not in struct):
-        raise ValueError("Invalid argument in convert_nh: it must contain the 'data' and 'energy' keys.")
+        raise ValueError("Invalid argument: it must contain the 'data' and 'energy' keys.")
 
     energy = struct.get('energy')
     if len(energy) != struct['data'].shape[-1]:
-        raise ValueError("Invalid argument in convert_nh: incoherent shape between 'data' and 'energy' keys.")
+        raise ValueError("Invalid argument: incoherent shape between 'data' and 'energy' keys.")
 
     if 'nh' in struct:
         fabs0 = f_abs_galactic(energy, struct.get('nh'))
