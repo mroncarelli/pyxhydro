@@ -22,7 +22,7 @@ def __notice_list_split(notice) -> list:
     """
     Splits a list with notice channels into intervals to be used with the notice command.
     :param notice: (list of int) Notice channels, in increasing order
-    :return: (list of tuples) List containg tuples with the starting and endpoint of the intervals
+    :return: (list of tuples) List containing tuples with the starting and endpoint of the intervals
     """
     result = []
     if notice is not None:
@@ -220,11 +220,14 @@ class SpecFit:
         Determines if the fit of the model with the spectrum has been run.
         :return: (bool) True if it has been run, False if not
         """
-        ind = np.where(self.__get_parfree())[0]
-        if len(ind) == 0:
-            return False
+        if self.model is None:
+            return hasattr(self, 'fitResult')
         else:
-            return self.model(self.model.startParIndex + int(ind[0])).sigma > 0
+            ind = np.where(self.__get_parfree())[0]
+            if len(ind) == 0:
+                return False
+            else:
+                return self.model(self.model.startParIndex + int(ind[0])).sigma > 0
 
     def __get_parfixed(self) -> tuple:
         """
@@ -304,8 +307,8 @@ class SpecFit:
         """
         if self.fitDone or self.restored:
             result = 0
-            for index in range(self.nParameters):
-                if not self.model(self.model.startParIndex + index).frozen and self.fitResult["error_flags"][index][0] == 'F':
+            for index in range(len(self.fitResult.get("parnames"))):
+                if self.fitResult["free"][index] and self.fitResult["error_flags"][index][0] == 'F':
                     result += 1
             return result
         else:
@@ -337,8 +340,8 @@ class SpecFit:
                  fit has not been run, returns None.
         """
         if self.fitDone or self.restored:
-            return tuple([self.__get_parfree()[index] and self.fitResult["error_flags"][index][0] == 'F'
-                          for index in range(self.model.nParameters)])
+            return tuple([self.fitResult["free"][index] and self.fitResult["error_flags"][index][0] == 'F'
+                          for index in range(len(self.fitResult.get("parnames")))])
         else:
             return None
 
@@ -374,7 +377,7 @@ class SpecFit:
         been run.
         """
         if self.fitDone or self.restored:
-            return tuple([name for i, name in enumerate(self.parNames) if self.parValid[i]])
+            return tuple([name for i, name in enumerate(self.fitResult["parnames"]) if self.parValid[i]])
         else:
             return None
 
@@ -416,8 +419,8 @@ class SpecFit:
         if len(erange) >= 2:
             if erange[0] is not None and erange[1] is not None:
                 if erange[1] <= erange[0]:
-                    print("ERROR in ignore: invalid input:", erange, "Second argument must be larger than the first")
-                    raise ValueError
+                    raise ValueError("Invalid input:", erange, "Second argument must be larger than the first")
+
 
         self.spectrum.notice("**")
 
@@ -499,15 +502,29 @@ class SpecFit:
 
         return None
 
-    def clear(self) -> None:
+    def clear(self, attr=None) -> None:
         """
         Deletes the spectrum and model attributes and the corresponding objects from the xspec global variables.
+        :param attr: (str) The name of the attribute to delete, can be either 'spectrum' or 'model'. Default None, i.e.
+            deletes both.
         :return: None
         """
-        xsp.AllData -= self.spectrum.index
-        self.spectrum = None
-        xsp.AllModels -= self.model.name
-        self.model = None
+        del_spectrum, del_model = True, True
+        if type(attr) is str:
+            attr_ = attr.lower().strip()
+            if 'spectrum'.startswith(attr_):
+                del_spectrum, del_model = True, False
+            elif 'model'.startswith(attr_):
+                del_spectrum, del_model = False, True
+            else:
+                raise ValueError("Invalid attribute name " + attr + ". Must be either 'spectrum' or 'model'.")
+
+        if del_spectrum and self.spectrum is not None:
+            xsp.AllData -= self.spectrum.index
+            self.spectrum = None
+        if del_model and self.model is not None:
+            xsp.AllModels -= self.model.name
+            self.model = None
 
     def covariance_matrix(self):
         """
@@ -773,10 +790,10 @@ class SpecFit:
                     return "{:6.3F}".format(val).rjust(9)
 
         def __par_string(ipar: int) -> str:
-            par_string = self.parNames[ipar].rjust(8) + "  "
+            par_string = self.fitResult["parnames"][ipar].rjust(8) + "  "
             par_string += str(self.fitResult["units"][ipar]).ljust(6) + " "
             par_string += __val2str(self.fitResult["values"][ipar], 'r') + " "
-            if self.parFree[ipar]:
+            if self.fitResult["free"][ipar]:
                 par_string += "± " + __val2str(self.fitResult["sigma"][ipar])
             else:
                 par_string += "(fixed)    "
@@ -798,7 +815,7 @@ class SpecFit:
             print("Nothing to show, the fit has not been run yet.")
             return None
         else:
-            for ipar in range(self.nParameters):
+            for ipar in range(len(self.fitResult.get("parnames"))):
                 print(__par_string(ipar))
         print("")
         print(str(self.fitResult["method"]) + " = " + __val2str(self.fitResult["statistic"]))
