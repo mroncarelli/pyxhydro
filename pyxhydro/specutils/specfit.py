@@ -826,6 +826,12 @@ class SpecFit:
         if not self.fitDone and not self.restored:
             print("Cannot save, the fit has not been run yet.")
             return None
+        elif self.spectrum is None:
+            print("Cannot save, the spectrum attribute has been cleared.")
+            return None
+        elif self.model is None:
+            print("Cannot save, the model attribute has been cleared.")
+            return None
         else:
             # Creating the FITS file
             hdulist = fits.HDUList()
