@@ -19,7 +19,8 @@ class BColors:
     UNDERLINE = '\033[4m'
 
 
-def new_sw(message, category, filename, lineno, file=None, line=None):
+# CAUTION. This method is a monkeypatch: do not modify the arguments, otherwise it might stop working
+def showwarning_new(message, category, filename, lineno, file=None, line=None):
     """
     Monkeypatch of warnings.showwarning
     :param message:
@@ -34,7 +35,7 @@ def new_sw(message, category, filename, lineno, file=None, line=None):
     print("WARNING:" + ':'.join(msg_list[3:]))
 
 
-warnings.showwarning = new_sw
+warnings.showwarning = showwarning_new
 
 
 class Instrument:
@@ -58,13 +59,17 @@ class Instrument:
         # Getting data from XML file
         focal_length, fov, arf, psf, vignetting = [], [], [], [], []
         for xml in self.xml:
-            root = ElementTree.parse(self.path + '/' + xml).getroot()
+            input_file = self.path + '/' + xml
+            if os.path.isfile(input_file):
+                root = ElementTree.parse(input_file).getroot()
 
-            focal_length.append(float(root.find('telescope').find('focallength').attrib['value']))
-            fov.append(float(root.find('telescope').find('fov').attrib['diameter']))
-            arf.append(root.find('telescope').find('arf').attrib['filename'])
-            psf.append(root.find('telescope').find('psf').attrib['filename'])
-            vignetting.append(root.find('telescope').find('vignetting').attrib['filename'])
+                focal_length.append(float(root.find('telescope').find('focallength').attrib['value']))
+                fov.append(float(root.find('telescope').find('fov').attrib['diameter']))
+                arf.append(root.find('telescope').find('arf').attrib['filename'])
+                psf.append(root.find('telescope').find('psf').attrib['filename'])
+                vignetting.append(root.find('telescope').find('vignetting').attrib['filename'])
+            else:
+                warnings.warn("File '" + input_file + "' not found.")
 
         self.focal_length = tuple(focal_length)
         self.fov = tuple(fov)
