@@ -1,8 +1,8 @@
-import pygadgetreader as pygr
 import warnings
 import numpy as np
 from .phys_const import mu0, m_p, k_B, Xp, Yp, keV2K, c_light
 
+from pygadgetreader import readhead, readsnap
 
 def readtemperature(filename: str, units='K', f_cooling=None, suppress=None):
     """
@@ -14,13 +14,13 @@ def readtemperature(filename: str, units='K', f_cooling=None, suppress=None):
     :param suppress: (int) Verbosity.
     :return: The vector of temperatures.
     """
-    u = pygr.readsnap(filename, 'u', 'gas', units=0, suppress=suppress)  # Internal energy per unit mass [km^2 s^-2]
+    u = readsnap(filename, 'u', 'gas', units=0, suppress=suppress)  # Internal energy per unit mass [km^2 s^-2]
     if f_cooling is None:
-        f_cooling = pygr.readhead(filename, 'f_cooling')
+        f_cooling = readhead(filename, 'f_cooling')
     if f_cooling == 0:
         temp = 2. / 3. * u * (1.e5 ** 2) * mu0 * m_p / k_B  # [K] (full ionization)
     else:
-        ne = pygr.readsnap(filename, 'ne', 'gas', units=0, suppress=suppress)
+        ne = readsnap(filename, 'ne', 'gas', units=0, suppress=suppress)
         temp = 2. / 3. * u * (1.e5 ** 2) / ((1. + ne) * Xp + 0.25 * Yp) * m_p / k_B  # [K]
 
     if units.lower() == 'k':
@@ -44,9 +44,9 @@ def readvelocity(filename: str, units='km/s', redshift=None, suppress=None):
     :return: The (ngas, 3) vector of velocities.
     """
     if redshift is None:
-        redshift = pygr.readhead(filename, 'redshift')
+        redshift = readhead(filename, 'redshift')
 
-    vel = pygr.readsnap(filename, 'vel', 'gas', units=0, suppress=suppress) / np.sqrt(1 + redshift)
+    vel = readsnap(filename, 'vel', 'gas', units=0, suppress=suppress) / np.sqrt(1 + redshift)
     if units.lower() is None or units == 'km/s':
         pass
     elif units.lower() in ['cm/s', 'cgs']:

@@ -9,11 +9,10 @@ pytest --seed 12345678
 
 import pytest
 import numpy as np
-from gadgetutils.phys_const import kpc2cm, m_e, m_p, Xp, Msun2g
 
-import pygadgetreader as pygr
-
+from pyxhydro.gadgetutils.phys_const import kpc2cm, m_e, m_p, Xp, Msun2g
 from pyxhydro.gadgetutils.readspecial import readtemperature, readvelocity
+from pyxhydro.pygadgetreader import readsnap
 from pyxhydro.sphprojection.mapping import map2d
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .__shared import snapshotFile
@@ -27,7 +26,7 @@ npix = 128
 relTol = 1e-5
 
 # Mass must be read by all tests
-mass = pygr.readsnap(snapshotFile, 'mass', 'gas', units=0, suppress=1)  # [10^10 h^-1 M_Sun]
+mass = readsnap(snapshotFile, 'mass', 'gas', units=0, suppress=1)  # [10^10 h^-1 M_Sun]
 
 # Here I use this method to generate some true random numbers to differentiate the tests.
 alphaMin = -2
@@ -54,7 +53,7 @@ def test_int_rho2_over_volume():
     """
     The integral Int(rho^2*dV) in the projected map must be the same as the snapshot one
     """
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
     val_snap = np.sum(mass * rho, dtype=DP)  # [10^20 h M_Sun^2 kpc^-3]
     map_str = map2d(snapshotFile, 'rho2', npix=npix, struct=True)
     val_map = np.sum(map_str['map'], dtype=DP) * map_str['pixel_size'] ** 2
@@ -65,7 +64,7 @@ def test_total_electron_mass():
     """
     The total electron mass in the projected map must be the same as the snapshot one
     """
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     val_snap = np.sum(mass * x_e, dtype=DP) * Xp * m_e / m_p  # Electron mass [10^10 h^-1 M_Sun]
     map_str = map2d(snapshotFile, 'ne', npix=npix, struct=True)
     val_map = np.sum(map_str['map'], dtype=DP) * m_e * 1e-10 / Msun2g * (map_str['pixel_size'] * kpc2cm) ** 2
@@ -87,8 +86,8 @@ def test_total_emission_measure():
     """
     The total emission measure Int(rho_e*rho_H*dV) in the projected map must be the same as the snapshot one
     """
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     val_snap = np.sum(mass * rho * x_e, dtype=DP) * Xp ** 2 * m_e / m_p  # [10^20 h M_Sun^2 kpc^-3]
     map_str = map2d(snapshotFile, 'nenH', npix=npix, struct=True)  # [h^3 cm^-5]
     val_map = np.sum(map_str['map'], dtype=DP) * m_e * m_p * 1e-20 / Msun2g ** 2 * (
@@ -101,7 +100,7 @@ def test_average_tmw():
     The average n_e-weighted temperature in the projected map must be the same as the snapshot one
     """
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     val_snap = np.sum(mass * x_e * temp, dtype=DP) / np.sum(mass * x_e, dtype=DP)
     map_str = map2d(snapshotFile, 'Tmw', npix=npix, struct=True)
     val_map = np.sum(map_str['map'] * map_str['norm'], dtype=DP) / np.sum(map_str['norm'], dtype=DP)
@@ -112,8 +111,8 @@ def test_average_tew():
     """
     The average emission-weighted (W = n_e^2) temperature in the projected map must be the same as the snapshot one
     """
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     val_snap = np.sum(mass * rho * x_e ** 2 * temp, dtype=DP) / np.sum(mass * rho * x_e ** 2, dtype=DP)
     map_str = map2d(snapshotFile, 'Tew', npix=npix, struct=True)
@@ -126,8 +125,8 @@ def test_average_tsl():
     The average spectroscopic-like (W = n_e^2*T^-0.75) temperature in the projected map must be the same as the snapshot
     one
     """
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     val_snap = (np.sum(mass * rho * x_e ** 2 * temp ** 0.25, dtype=DP) /
                 np.sum(mass * rho * x_e ** 2 * temp ** -0.75, dtype=DP))
@@ -150,8 +149,8 @@ def test_average_taw():
     """
     The average alpha-weighted (n_e^2*T^alpha) temperature in the projected map must be the same as the snapshot one
     """
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     val_snap = (np.sum(mass * rho * x_e ** 2 * temp ** (alpha + 1), dtype=DP) /
                 np.sum(mass * rho * x_e ** 2 * temp ** alpha, dtype=DP))
@@ -191,7 +190,7 @@ def test_total_electron_momentum():
     """
     The total momentum of free electrons in the projected map must be the same as the snapshot one
     """
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
         val_snap = np.sum(mass * x_e * vel, dtype=DP)
@@ -204,8 +203,8 @@ def test_total_ew_momentum():
     """
     The total n_e^2-weighted momentum in the projected map must be the same as the snapshot one
     """
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
         val_snap = np.sum(mass * rho * x_e ** 2 * vel, dtype=DP)
@@ -218,8 +217,8 @@ def test_total_aw_momentum():
     """
     The total alpha-weighted (n_e^2*T^alpha) momentum in the projected map must be the same as the snapshot one
     """
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
@@ -250,7 +249,7 @@ def test_average_electron_velocity_dispersion():
     """
     The average velocity dispersion of free-electrons in the projected map must be the same as the snapshot one
     """
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
     nsum = np.sum(mass * x_e, dtype=DP)  # [10^10 h^-1 M_Sun]
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
@@ -269,8 +268,8 @@ def test_average_ew_velocity_dispersion():
     The average n_e^2-weighted velocity dispersion of free electrons in the projected map must be the same as the
     snapshot one
     """
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
     nsum = np.sum(mass * rho * x_e ** 2, dtype=DP)  # [10^20 h M_Sun^2 kpc^-3]
     for iproj in range(3):
         vel = readvelocity(snapshotFile, units='km/s', suppress=1)[:, iproj]  # [km s^-1]
@@ -289,8 +288,8 @@ def test_average_aw_velocity_dispersion():
     The average alpha-weighted (n_e^2*T^alpha) velocity dispersion of free electrons in the projected map must be the
     same as the snapshot one
     """
-    x_e = pygr.readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
-    rho = pygr.readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
+    x_e = readsnap(snapshotFile, 'ne', 'gas', units=0, suppress=1)  # n_e / n_H [---]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)  # [10^10 h^2 M_Sun kpc^-3]
     temp = readtemperature(snapshotFile, suppress=1)  # [K]
     nsum = np.sum(mass * rho * x_e ** 2 * temp ** alpha, dtype=DP)  # [10^20 h M_Sun^2 kpc^-3 K^alpha]
     for iproj in range(3):

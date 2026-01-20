@@ -1,12 +1,12 @@
 import numpy as np
 from astropy.io import fits
 from astropy import cosmology
-import pygadgetreader as pygr
 from tqdm import tqdm
 
 from pyxhydro.gadgetutils.phys_const import Xp, m_p, Msun2g, kpc2cm
 from pyxhydro.gadgetutils.readspecial import readtemperature, readvelocity
 from pyxhydro.gadgetutils import convert, phys_const
+from pyxhydro.pygadgetreader import readhead, readsnap
 from pyxhydro.sphprojection.kernel import intkernel, map2d_loop, map2d_loop2, specmap_loop, \
     map2d_alpha_weight_loop, map2d_alpha_weight_loop2
 from pyxhydro.sphprojection.linkedlist import linkedlist2d
@@ -54,7 +54,7 @@ def get_map_coord(simfile: str, proj_index: int, z=False):
     else:
         index_list = [0, 1, 2]
 
-    pos = pygr.readsnap(simfile, 'pos', 'gas', **pygro)  # [h^-1 kpc] comoving
+    pos = readsnap(simfile, 'pos', 'gas', **pygro)  # [h^-1 kpc] comoving
     x = pos[:, index_list[0]]
     y = pos[:, index_list[1]]
 
@@ -98,8 +98,8 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
     quantity_ = quantity.lower()
 
     # Reading header variables
-    ngas = pygr.readhead(simfile, 'gascount')
-    f_cooling = pygr.readhead(simfile, 'f_cooling')
+    ngas = readhead(simfile, 'gascount')
+    f_cooling = readhead(simfile, 'f_cooling')
 
     # Reading positions of particles
     proj_index = get_proj_index(proj)
@@ -110,7 +110,7 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
         z = None
 
     # Reading smoothing length or assigning it to zero if smoothing is turned off
-    hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else pygr.readsnap(simfile, 'hsml', 'gas',
+    hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else readsnap(simfile, 'hsml', 'gas',
                                                                           **pygro)  # [h^-1 kpc] comoving
 
     # Defining center and map size
@@ -174,7 +174,7 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
     del valid
 
     # Calculating quantity (q) to integrate and weight (w)
-    mass = pygr.readsnap(simfile, 'mass', 'gas', **pygro)  # [10^10 h^-1 M_Sun]
+    mass = readsnap(simfile, 'mass', 'gas', **pygro)  # [10^10 h^-1 M_Sun]
     if zrange:
         # If a l.o.s. range is defined I modify the particle mass according to the smoothing kernel
         for ipart in particle_list[::nsample]:
@@ -196,42 +196,42 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
         conv_factor = 1e10 * Msun2g * Xp / m_p / kpc2cm ** 2
     elif quantity_ == 'rho2':  # Int(rho2*dl)
         nrm = np.full(ngas, 0., dtype=SP)  # [---]
-        qty = mass * pygr.readsnap(simfile, 'rho', 'gas',
+        qty = mass * readsnap(simfile, 'rho', 'gas',
                                    **pygro) / pixsize ** 2  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
     elif quantity_ in ['ne', 'nenh', 'ne2', 'tmw', 'tew', 'tsl', 'taw', 'vmw', 'vew', 'vaw', 'wmw', 'wew', 'waw']:
-        x_e = pygr.readsnap(simfile, 'ne', 'gas', **pygro)  # n_e / n_H [---]
+        x_e = readsnap(simfile, 'ne', 'gas', **pygro)  # n_e / n_H [---]
         if quantity_ == 'ne':  # Int(ne*dl) after conversion factor is applied
             nrm = np.full(ngas, 0., dtype=SP)  # [---]
             qty = mass * x_e / pixsize ** 2  # comoving [10^10 h M_Sun kpc^-2]
             conv_factor = 1e10 * Msun2g * Xp / m_p / kpc2cm ** 2
         elif quantity_ == 'nenh':  # Int(ne*nH*dl) after conversion factor is applied
             nrm = np.full(ngas, 0., dtype=SP)
-            qty = (mass * pygr.readsnap(simfile, 'rho', 'gas', **pygro) *
+            qty = (mass * readsnap(simfile, 'rho', 'gas', **pygro) *
                    x_e / pixsize ** 2)  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
             conv_factor = 1e20 * (Msun2g * Xp / m_p) ** 2 / kpc2cm ** 5
         elif quantity_ == 'ne2':  # Int(ne2*dl) after conversion factor is applied
             nrm = np.full(ngas, 0., dtype=SP)  # [---]
-            qty = (mass * pygr.readsnap(simfile, 'rho', 'gas', **pygro) ** 2 *
+            qty = (mass * readsnap(simfile, 'rho', 'gas', **pygro) ** 2 *
                    x_e / pixsize ** 2)  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
             conv_factor = 1e20 * (Msun2g * Xp / m_p) ** 2 / kpc2cm ** 5
         elif quantity_ in ['tmw', 'tew', 'tsl', 'taw']:
             if multi_alpha:
-                nrm = mass * pygr.readsnap(simfile, 'rho', 'gas',
-                                           **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                nrm = mass * readsnap(simfile, 'rho', 'gas',
+                                      **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
                 qty = temp  # [K]
             else:
                 if quantity_ == 'tmw':  # Weighted by electron density: Int(n_e*T*dl) / Int(ne*dl)
                     nrm = mass * x_e / pixsize ** 2  # comoving [10^10 h M_Sun kpc^-2]
                 elif quantity_ == 'tew':  # Weighted by electron density squared: Int(n_e^2*T*dl) / Int(ne^2*dl)
-                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    rho = readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                     nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
                     del rho
                 elif quantity_ == 'tsl':  # Spectroscopic-like: Int(n_e^2*T^0.25*dl) / Int(ne^2*T^-0.75*dl)
-                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    rho = readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                     nrm = mass * rho * x_e ** 2 * temp ** (-0.75) / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^-0.75]
                     del rho
                 elif quantity_ == 'taw':  # Alpha-weighted: Int(n_e^2*T^(alpha+1)*dl) / Int(ne^2*T^alpha*dl)
-                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    rho = readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                     nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
                     del rho
                 qty = nrm * temp  # [nrm units] * [K]
@@ -239,18 +239,18 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
         elif quantity_ in ['vmw', 'vew', 'vaw']:
             vel = readvelocity(simfile, units='km/s', suppress=1)[:, proj_index]  # [km s^-1]
             if multi_alpha:
-                nrm = mass * pygr.readsnap(simfile, 'rho', 'gas',
-                                           **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                nrm = mass * readsnap(simfile, 'rho', 'gas',
+                                      **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
                 qty = vel  # [km s^-1]
             else:
                 if quantity_ == 'vmw':  # Weighted by electron density: Int(n_e*v*dl) / Int(n_e*dl)
                     nrm = mass * x_e / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
                 elif quantity_ == 'vew':  # Weighted by electron density squared: Int(n_e^2*v*dl) / Int(n_e^2*dl)
-                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    rho = readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                     nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
                     del rho
                 elif quantity_ == 'vaw':  # Alpha-weighted: Int(n_e^2*T^alpha*v*dl) / Int(n_e^2*T^alpha*dl)
-                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    rho = readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                     nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
                     del rho, temp
                 qty = nrm * vel  # [nrm units] * [km s^-1]
@@ -258,19 +258,19 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
         elif quantity_ in ['wmw', 'wew', 'waw']:
             vel = readvelocity(simfile, units='km/s', suppress=1)[:, proj_index]  # [km s^-1]
             if multi_alpha:
-                nrm = mass * pygr.readsnap(simfile, 'rho', 'gas',
-                                           **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
+                nrm = mass * readsnap(simfile, 'rho', 'gas',
+                                      **pygro) * x_e ** 2 / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5]
                 qty = vel ** 2  # [km^2 s^-2]
                 qty2 = vel  # [km s^-1]
             else:
                 if quantity_ == 'wmw':  # Weighted by electron density: Int(n_e*v^2*dl) / Int(n_e*dl) - v_mw^2
                     nrm = mass * x_e / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
                 elif quantity_ == 'wew':  # Weighted by electron density squared: Int(n_e^2*v^2*dl) / Int(n_e^2*dl) - v_ew^2
-                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    rho = readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                     nrm = mass * rho * x_e ** 2 / pixsize ** 2  # [10^10 h M_Sun kpc^-2]
                     del rho
                 elif quantity_ == 'waw':  # Alpha-weighted: Int(n_e^2*T^alpha*v^2*dl) / Int(n_e^2*T^alpha*dl) - v_aw^2
-                    rho = pygr.readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
+                    rho = readsnap(simfile, 'rho', 'gas', **pygro)  # [10^10 h^2 M_Sun kpc^-3]
                     nrm = mass * rho * x_e ** 2 * temp ** alpha / pixsize ** 2  # [10^20 h^3 M_Sun^2 kpc^-5 K^alpha]
                     del rho
                 qty = nrm * vel ** 2  # [nrm units] * [km^2 s^-2]
@@ -430,10 +430,10 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
 
     # Reading header variables
     if redshift is None:
-        redshift = pygr.readhead(snapfile, 'redshift')
-    h_hubble = pygr.readhead(snapfile, 'hubble')
-    ngas = pygr.readhead(snapfile, 'gascount')
-    f_cooling = pygr.readhead(snapfile, 'f_cooling')
+        redshift = readhead(snapfile, 'redshift')
+    h_hubble = readhead(snapfile, 'hubble')
+    ngas = readhead(snapfile, 'gascount')
+    f_cooling = readhead(snapfile, 'f_cooling')
 
     # Reading positions of particles
     proj_index = get_proj_index(proj)
@@ -444,7 +444,7 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
         z = None
 
     # Reading smoothing length or assigning it to zero if smoothing is turned off
-    hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else pygr.readsnap(snapfile, 'hsml', 'gas',
+    hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else readsnap(snapfile, 'hsml', 'gas',
                                                                           **pygro)  # [h^-1 kpc] comoving
 
     # Geometry conversion
@@ -499,7 +499,7 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
     del valid
 
     # Calculating quantity (q) to integrate and weight (w)
-    mass = pygr.readsnap(snapfile, 'mass', 'gas', **pygro)  # [10^10 h^-1 M_Sun]
+    mass = readsnap(snapfile, 'mass', 'gas', **pygro)  # [10^10 h^-1 M_Sun]
     if zrange:
         # If a l.o.s. range is defined I modify the particle mass according to the smoothing kernel
         for ipart in particle_list[::nsample]:
@@ -530,10 +530,10 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
                                   units='km/s')
 
     # Reading comoving density and converting to physical [10^10 h^2 M_Sun kpc^-3]
-    rho = pygr.readsnap(snapfile, 'rho', 'gas', **pygro) * (1 + redshift) ** 3
+    rho = readsnap(snapfile, 'rho', 'gas', **pygro) * (1 + redshift) ** 3
 
     # Reading ionization fraction if f_cooling is on
-    ne = pygr.readsnap(snapfile, 'ne', 'gas', **pygro) if f_cooling else None
+    ne = readsnap(snapfile, 'ne', 'gas', **pygro) if f_cooling else None
 
     # Calculating Xspec normalization [10^14 cm^-5]
     norm = convert.gadget2xspecnorm(mass, rho, 1.e3 * cosmo.comoving_distance(z_eff).to_value(), h_hubble, ne)

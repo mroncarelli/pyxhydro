@@ -4,9 +4,9 @@ Set of methods connected to observational quantities.
 
 import numpy as np
 from astropy.io import fits
-from gadgetutils.phys_const import keV2erg
-from pyxhydro import sixte
-from pyxhydro.sphprojection.mapping import read_specmap
+from ..gadgetutils.phys_const import keV2erg
+from .. import sixte
+from ..sphprojection.mapping import read_specmap
 
 SP = np.float32
 
@@ -75,7 +75,7 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
 
     def e_sp_from_simput(simput: fits.hdu.hdulist.HDUList, xrange=None, yrange=None, erange=None) -> tuple:
         """
-        Extracts the energy bins spectra from a imput file HDUList. Assumes that the energy coordinate is the same for
+        Extracts the energy bins spectra from an input file HDUList. Assumes that the energy coordinate is the same for
         all spectra and that it is uniform.
         :param simput: (HDUList) Simput file HDUList.
         :param xrange: (2 x float) Range in the x-axis (RA) [deg].

@@ -13,10 +13,10 @@ from astropy import cosmology
 from astropy.io import fits
 import os
 import numpy as np
-import pygadgetreader as pygr
 import pytest
 import xspec as xsp
 
+from pyxhydro.pygadgetreader import readhead
 from pyxhydro.gadgetutils.convert import vpec2zobs
 from pyxhydro.gadgetutils.phys_const import keV2K, keV2erg, pi
 from pyxhydro.sixte import simput, sixtesim, makespec
@@ -77,7 +77,7 @@ gadget2arcmin = cosmo.arcsec_per_kpc_comoving(z).to_value() / 60.  # 1 arcmin / 
 d_C = 1e3 * cosmo.comoving_distance(z).to_value()  # [h^-1 kpc] comoving
 XRISM_FOV = 3.  # [arcmin]
 mapSize = XRISM_FOV / gadget2arcmin # [h^-1 kpc] (comoving)
-h_Hubble = pygr.readhead(snapshotFile, 'hubble')
+h_Hubble = readhead(snapshotFile, 'hubble')
 map_str = map2d(snapshotFile, 'nenH', 1, center=[2500., 2500.], size=mapSize, struct=True, tcut=1e6)
 InenHdl = map_str['map'][0, 0]  # [h^3 cn^-5] (comoving)
 norm = InenHdl * 1e-14 * h_Hubble ** 3 * (1 + z) ** 3 * mapSize ** 2 / (4 * pi * d_C ** 2) # [10^14 cm^-5] (physical)

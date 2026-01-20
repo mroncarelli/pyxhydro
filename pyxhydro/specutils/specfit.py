@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
 import numpy as np
 
-sp = np.float32
+SP = np.float32
 
 import xspec as xsp
 from ..sixte import keywordList
@@ -382,18 +382,18 @@ class SpecFit:
             return None
 
     def __get_counts(self):
-        return np.asarray(self.spectrum.values, dtype=sp) * self.spectrum.exposure  # [---]
+        return np.asarray(self.spectrum.values, dtype=SP) * self.spectrum.exposure  # [---]
 
     def __get_energy(self):
-        return 0.5 * (np.asarray(self.spectrum.energies, dtype=sp)[:, 0] +
-                      np.asarray(self.spectrum.energies, dtype=sp)[:, 1])  # [keV]
+        return 0.5 * (np.asarray(self.spectrum.energies, dtype=SP)[:, 0] +
+                      np.asarray(self.spectrum.energies, dtype=SP)[:, 1])  # [keV]
 
     def __get_denergy(self):
-        return (np.asarray(self.spectrum.energies, dtype=sp)[:, 1] -
-                np.asarray(self.spectrum.energies, dtype=sp)[:, 0])  # [keV]
+        return (np.asarray(self.spectrum.energies, dtype=SP)[:, 1] -
+                np.asarray(self.spectrum.energies, dtype=SP)[:, 0])  # [keV]
 
     def __get_spectrum(self):
-        return np.asarray(self.spectrum.values, dtype=sp) / self.__get_denergy()  # cts/s/keV [keV]
+        return np.asarray(self.spectrum.values, dtype=SP) / self.__get_denergy()  # cts/s/keV [keV]
 
     def __set_energy_range(self, erange=(None, None)) -> None:
         """
@@ -493,8 +493,8 @@ class SpecFit:
             "energy": self.__get_energy(),  # [keV]
             "spectrum": self.__get_spectrum(),  # cts/s/keV [keV]
             "sigma": np.divide(self.__get_spectrum(), np.sqrt(self.__get_counts()),
-                               out=np.zeros_like(self.__get_spectrum(), dtype=sp), where=self.__get_counts() > 0),
-            "model": (np.asarray(self.model.folded(self.spectrum.index), dtype=sp) / self.__get_denergy()),
+                               out=np.zeros_like(self.__get_spectrum(), dtype=SP), where=self.__get_counts() > 0),
+            "model": (np.asarray(self.model.folded(self.spectrum.index), dtype=SP) / self.__get_denergy()),
             "counts": self.__get_counts(),  # [---]
             "dEne": self.__get_denergy(),  # [keV]
             "noticed": np.asarray(self.spectrum.noticed, dtype=np.int32)
