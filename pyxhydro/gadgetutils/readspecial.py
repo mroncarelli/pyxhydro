@@ -2,7 +2,8 @@ import warnings
 import numpy as np
 from .phys_const import mu0, m_p, k_B, Xp, Yp, keV2K, c_light
 
-from pygadgetreader import readhead, readsnap
+from pyxhydro.pygadgetreader import readhead, readsnap
+
 
 def readtemperature(filename: str, units='K', f_cooling=None, suppress=None):
     """
