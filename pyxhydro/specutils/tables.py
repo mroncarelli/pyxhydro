@@ -360,7 +360,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
             pars[4 + ind] = metal[ind] if ind < len(metal) else 0
     pars[33] = 1.
 
-    model = xsp.Model('vvapec', 'pyxhydro.specutils.apec_table', 0)
+    model = xsp.Model('vvapec', 'pyxhydro.specutils.apec_table', 1)
 
     table = np.ndarray([nz, ntemp, nene], dtype=SP)
     for index_z in range(nz):
