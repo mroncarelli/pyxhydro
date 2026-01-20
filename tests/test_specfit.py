@@ -1,8 +1,4 @@
 import os
-import sys
-
-sys.path.append(os.environ.get("HEADAS") + "/lib/python")
-# TODO: the lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
 from astropy.io import fits
 import numpy as np

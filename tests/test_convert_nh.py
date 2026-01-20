@@ -6,16 +6,11 @@ message in case of test failure: in order to reproduce the error one must take n
 pytest --seed 12345678
 """
 
-import os
 import pytest
 
 from pyxhydro.specutils import absorption as spabs
 from pyxhydro.specutils import tables
 import numpy as np
-
-import sys
-sys.path.append(os.environ.get("HEADAS") + "/lib/python")
-# TODO: the lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 
 import xspec as xsp
 from .randomutils import TrueRandomGenerator, globalRandomSeed

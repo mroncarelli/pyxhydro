@@ -15,9 +15,6 @@ import os
 import numpy as np
 import pygadgetreader as pygr
 import pytest
-import sys
-sys.path.append(os.environ.get("HEADAS") + "/lib/python")
-# TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging)
 import xspec as xsp
 
 from pyxhydro.gadgetutils.convert import vpec2zobs
