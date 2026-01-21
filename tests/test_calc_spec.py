@@ -102,6 +102,7 @@ def test_spectra_with_temperature_smaller_than_table_min_must_be_all_zeros():
 #     xsp.Xset.modelStrings = model_strings_
 #     xsp.Xset.abund = abund_
 #     xsp.AllModels.setEnergies("reset")  # Resets to the PyXspec default, not to the original
+#     xsp.AllModels -= model.name
 #
 #     # Calculating spectrum from table
 #     spec = calc_spec(specTable, z, temp, no_z_interp=True)
