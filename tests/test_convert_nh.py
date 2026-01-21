@@ -60,7 +60,7 @@ def wabs_apec_spectrum(nh, kt, z, metal, norm):
         pars[5 + ind] = float(metal)
     pars[33] = float(z)
     pars[34] = float(norm)
-    model = xsp.Model('wabs(vvapec)', 'test_convert_nh', 0)
+    model = xsp.Model('wabs(vvapec)', 'test_convert_nh', sourceNum=0)
     model.setPars(pars)
     result = np.array(model.values(0), dtype=np.float32)  # [photons s^-1 cm^-2]
     xsp.AllModels.setEnergies("reset")

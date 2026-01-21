@@ -93,7 +93,7 @@ def test_spectra_with_temperature_smaller_than_table_min_must_be_all_zeros():
 #         pars[4 + ind] = metal
 #     pars[32] = z
 #     pars[33] = 1.
-#     model = xsp.Model('vvapec', 'test_calc_spec', 0)
+#     model = xsp.Model('vvapec', 'test_calc_spec', sourceNum=0)
 #     model.setPars(pars)
 #     reference = np.array(model.values(0))
 #

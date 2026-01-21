@@ -110,7 +110,7 @@ def wabs_bapec(nh: float, t: float, met: float, redshift: float, broad: float, n
     pars[33] = redshift
     pars[34] = broad
     pars[35] = nrm
-    model = xsp.Model('wabs(bvvapec)', 'test_ideal_run', 0)
+    model = xsp.Model('wabs(bvvapec)', 'test_ideal_run', sourceNum=0)
     model.setPars(pars)
     result = np.array(model.values(0))  # [photons s^-1 cm^-2] (already multiplied by norm)
     xsp.AllModels.setEnergies("reset")
