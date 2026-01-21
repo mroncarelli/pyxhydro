@@ -6,7 +6,7 @@ from pyxhydro.observ import countrate, ra_corr
 from pyxhydro.sphprojection.mapping import read_specmap
 from pyxhydro import sixte
 from .randomutils import TrueRandomGenerator, globalRandomSeed
-from .__shared import referenceSpmapFile, referenceSimputFile, referenceEvtFile
+from .__shared import testInstrumentName, referenceSpmapFile, referenceSimputFile, referenceEvtFile
 
 SP = np.float32
 
@@ -18,8 +18,7 @@ evtTable['RA'] = ra_corr(evtTable['RA'], units='deg', zero=True)  # Correcting R
 instrumentFOV = 3  # [arcmin]
 tExp = fits.open(referenceEvtFile)[1].header['EXPOSURE']  # [s]
 sigmaTol = 3
-instrumentName = 'xrism-resolve-test'
-instrument = sixte.instruments.get(instrumentName)
+instrument = sixte.instruments.get(testInstrumentName)
 arfFile = instrument.path + "/" + instrument.arf[0]
 
 # Getting minima and maxima of coordinates
@@ -66,7 +65,7 @@ def test_countrate_must_be_the_same_with_different_arf_input_type():
     ctrate_ref = countrate(referenceSpmapFile, arfFile)
     assert countrate(referenceSpmapFile, fits.open(arfFile)) == ctrate_ref
     assert countrate(referenceSpmapFile, instrument) == ctrate_ref
-    assert countrate(referenceSpmapFile, instrumentName) == ctrate_ref
+    assert countrate(referenceSpmapFile, testInstrumentName) == ctrate_ref
 
 
 def test_countrate_of_simput_file_must_be_the_same_with_different_input_type():

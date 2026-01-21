@@ -106,7 +106,7 @@ def test_spectra_with_temperature_smaller_than_table_min_must_be_all_zeros():
 #     # Calculating spectrum from table
 #     spec = calc_spec(specTable, z, temp, no_z_interp=True)
 #
-#     # Smoothing the arrays before checking the values as the lines may be smeared by the interpolation over temperaure
+#     # Smoothing the arrays before checking the values as the lines may be smeared by the interpolation over temperature
 #     # def gaussian(x, mu, sig):
 #     #    return 1./(np.sqrt(2.*np.pi)*sig)*np.exp(-np.square((x - mu)/sig)/2)
 #     nsmooth = 50

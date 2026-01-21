@@ -26,7 +26,7 @@ from pyxhydro.specutils.tables import apec_table
 
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .specfittestutils import assert_fit_results_within_error
-from .__shared import referenceDir, snapshotFile, clear_file
+from .__shared import referenceDir, snapshotFile, clear_file, testInstrumentName
 
 
 # Emission table parameters
@@ -162,7 +162,7 @@ def test_isothermal_no_velocities():
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = sixtesim(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
+    sys_out = sixtesim(simputFile, testInstrumentName, 1e5, evtFile, background=False,
                        seed=42, verbose=0)
     assert sys_out == [0], errMsg
     os.remove(simputFile)
@@ -238,7 +238,7 @@ def test_isothermal_gaussian_velocities():
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = sixtesim(simputFile, 'xrism-resolve-test', 1.e5, evtFile, background=False,
+    sys_out = sixtesim(simputFile, testInstrumentName, 1e5, evtFile, background=False,
                        seed=42, verbose=0)
     assert sys_out == [0], errMsg
     os.remove(simputFile)

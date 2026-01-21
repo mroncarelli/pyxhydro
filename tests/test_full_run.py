@@ -1,12 +1,14 @@
 import warnings
 import pytest
 
-from pyxhydro.sixte import simput, sixtesim, makespec
+from pyxhydro.sixte import instruments, simput, sixtesim, makespec
 from pyxhydro.sphprojection.mapping import specmap, write_specmap, read_specmap
 from pyxhydro.specutils.specfit import *
 from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import assert_specfit_has_coherent_properties
 from .__shared import *
+
+testInstrument = instruments.get(testInstrumentName)
 
 spMapFile = referenceDir + "spmap_file_created_for_test.spmap"
 spMapFile2 = referenceDir + "spmap_file_created_for_test_2.spmap"
@@ -68,7 +70,7 @@ def test_full_run(run_type):
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = sixtesim(referenceSimputFile, 'xrism-resolve-test', 1.e5, evtFile,
+    sys_out = sixtesim(referenceSimputFile, testInstrumentName, 1.e5, evtFile,
                        background=False, seed=42, verbose=0)
     assert sys_out == [0]
     os.remove(simputFile)
@@ -88,7 +90,7 @@ def test_full_run(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    makespec(referenceEvtFile, phaFile)
+    makespec(referenceEvtFile, phaFile, rsppath=testInstrument.path)
     os.remove(evtFile)
     assert os.path.isfile(phaFile)
 

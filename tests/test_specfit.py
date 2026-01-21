@@ -8,15 +8,16 @@ import xspec as xsp
 from .fitstestutils import assert_hdu_list_matches_reference
 from .specfittestutils import (assert_specfit_has_no_error_flags, assert_fit_results_within_error,
                                assert_specfit_has_coherent_properties)
-from .__shared import (inputDir, spectrumApec, spectrumBapec, spectrumApecNoStat, spectrumBapecNoStat,
-                       specFitReferenceFile, clear_file)
+from .__shared import (inputDir, testInstrumentName, spectrumApec, spectrumBapec, spectrumApecNoStat,
+                       spectrumBapecNoStat, specFitReferenceFile, clear_file)
 
 from pyxhydro.specutils.specfit import SpecFit
+from pyxhydro import sixte
 
 bapecSpecFitFile = inputDir + "bapec_specfit_created_for_test.spf"
-instrumentDir = os.environ.get("SIXTE") + "/share/sixte/instruments/xrism-resolve-test/"
-rmf = instrumentDir + "rsl_Hp_5eV.rmf"
-arf = instrumentDir + "rsl_sixte_standard_GVclosed.arf"
+instrument = sixte.instruments.get(testInstrumentName)
+rmf = instrument.path + "/rsl_Hp_5eV.rmf"
+arf = instrument.path + "/" + instrument.arf[0]
 rightParsApec = (7., 0.2, 0.15, 0.1)
 rightParsBapec = (5., 0.3, 0.2, 300., 0.1)
 wrongParsApec = (3., 0.4, 0.15, 2.)  # redshift is correct

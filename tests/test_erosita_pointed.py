@@ -7,7 +7,7 @@ from astropy.io import fits
 from pyxhydro.sixte import sixtesim, makespec, erosita_ccd_eventfile, instruments
 from .fitstestutils import assert_hdu_list_matches_reference
 from .__shared import (referenceDir, referenceErositaSimputFile, referenceErositaPointedEvtFile,
-                       referenceErositaPointedPhaFile, clear_file)
+                       referenceErositaPointedPhaFile, clear_file, testErositaPointedName)
 
 evtFile = referenceDir + "evt_file_erosita_pointed_created_for_test.evt"
 evtFile_ccdList = []
@@ -16,10 +16,9 @@ for ccd in range(1, 8):
 phaFile = referenceDir + "pha_file_erosita_pointed_created_for_test.pha"
 
 # Configuring skipping and warning
-testInstrumentName = 'erosita-test'
-testInstrument = instruments.get(testInstrumentName)
+testInstrument = instruments.get(testErositaPointedName)
 skipTest = testInstrument is None or not testInstrument.verify(verbose=0)
-skipReason = "The '" + testInstrumentName + "' instrument is not present or not set up correctly."
+skipReason = "The '" + testErositaPointedName + "' instrument is not present or not set up correctly."
 
 # Introduced this option to address Issue #12. With the `standard` option the code does not test that the content of
 # evtFile and phaFile match the reference as it may fail in some operative systems. With the `complete` option (pytest
@@ -39,7 +38,7 @@ def test_erosita_pointed(run_type):
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
         os.remove(evtFile)
-    sys_out = sixtesim(referenceErositaSimputFile, testInstrumentName, 1.e4, evtFile,
+    sys_out = sixtesim(referenceErositaSimputFile, testErositaPointedName, 1.e4, evtFile,
                        background=False, seed=42, verbose=0)
     assert sys_out == [0, 0]
 
@@ -62,7 +61,7 @@ def test_erosita_pointed(run_type):
     # Creating a pha from the event-list file
     if os.path.isfile(phaFile):
         os.remove(phaFile)
-    makespec(referenceErositaPointedEvtFile, phaFile)
+    makespec(referenceErositaPointedEvtFile, phaFile, rsppath=testInstrument.path)
     os.remove(evtFile)
 
     if run_type == 'standard':

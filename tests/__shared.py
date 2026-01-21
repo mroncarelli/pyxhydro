@@ -28,6 +28,10 @@ referenceErositaSurveyEvtFile = referenceDir + 'reference_erosita_survey.evt'
 referenceErositaSurveyPhaFile = referenceDir + 'reference_erosita_survey.pha'
 specFitReferenceFile = referenceDir + 'reference_bapec_wrong_pars.spf'
 
+# Test instruments
+testInstrumentName = 'xrism-resolve-test'
+testErositaPointedName = 'erosita-test'
+testErositaSurveyName = 'erass1-test'
 
 def clear_file(file: str) -> None:
     if os.path.exists(file):
