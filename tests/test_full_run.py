@@ -103,10 +103,14 @@ def test_full_run(run_type):
                                           history_tag_skip=('START PARAMETER ', ' Spectrum = '))
     else:
         raise ValueError("ERROR in test_full_run.py: unknown option " + run_type)
+
+    # Getting rmf and arf from test file before removing it as its path may change with respect to the reference file
+    rmf_file = fits.open(phaFile)[1].header.get('RESPFILE')
+    arf_file = fits.open(phaFile)[1].header.get('ANCRFILE')
     os.remove(phaFile)
 
     # Fitting the spectrum in the pha file
-    specfit = SpecFit(referencePhaFile, "wabs(bapec)")
+    specfit = SpecFit(referencePhaFile, "wabs(bapec)", respFile=rmf_file, arfFile=arf_file)
     assert_specfit_has_coherent_properties(specfit)
     startPars = (0.01, 6., 0.3, 0.1, 1000., 1e-3)
     fixedPars = (True, False, True, False, False, False)
