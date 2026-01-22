@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging), os is used
 
+import tempfile
 from astropy.io import fits
 import copy as cp
 import matplotlib.pyplot as plt
@@ -97,6 +98,7 @@ def __save_xspec_state(self) -> None:
     self.savedChatter = self.chatter
     self.savedModelStrings = self.modelStrings
 
+
 xsp.XspecSettings.saveXspecState = __save_xspec_state
 
 
@@ -138,6 +140,7 @@ def __restore_xspec_state(self) -> None:
     self.chatter = self.savedChatter
     del self.savedChatter
 
+
 xsp.XspecSettings.restoreXspecState = __restore_xspec_state
 
 
@@ -152,6 +155,7 @@ def __highlight_spectrum(self, index=1) -> None:
         if i != index and self(i).noticed != []:
             self(i).ignore("**")
 
+
 xsp.DataManager.highlightSpectrum = __highlight_spectrum
 
 xsp.ModelManager.nSpecFit = 0
@@ -163,7 +167,28 @@ class SpecFit:
         __savedChatter = xsp.Xset.chatter
         xsp.Xset.chatter = verbose
         if specFile is not None and os.path.isfile(specFile):
-            self.spectrum = xsp.Spectrum(specFile, backFile=backFile, respFile=respFile, arfFile=arfFile)
+            # Considering the case when the optional arguments are present: due to PyXspec bug the Spectrum class tries
+            # to read the file written in the specFile header and crashes when they are not present before substituting
+            # with the arguments' values. In this case I create e temporary file with 'none' as keyword values so that
+            # the Spectrum class will skip the reading.
+            if (backFile != 'USE_DEFAULT' and backFile is not None) or (
+                respFile != 'USE_DEFAULT' and respFile is not None) or (
+                arfFile != 'USE_DEFAULT' and arfFile is not None):
+                hdu = fits.open(specFile)
+                if backFile != 'USE_DEFAULT' and backFile is not None:
+                    hdu[1].header.set('BACKFILE', 'none')
+                if respFile != 'USE_DEFAULT' and respFile is not None:
+                    hdu[1].header.set('RESPFILE', 'none')
+                if arfFile != 'USE_DEFAULT' and arfFile is not None:
+                    hdu[1].header.set('ANCRFILE', 'none')
+
+                with tempfile.TemporaryDirectory() as tmp_dirname:
+                    tmp_filename = tmp_dirname + '/' + os.path.basename(specFile)
+                    hdu.writeto(tmp_filename)
+                    hdu.close()
+                    self.spectrum = xsp.Spectrum(tmp_filename, backFile=backFile, respFile=respFile, arfFile=arfFile)
+            else:
+                self.spectrum = xsp.Spectrum(specFile, backFile=backFile, respFile=respFile, arfFile=arfFile)
             self.keywords = fits.open(specFile)[0].header
             if header:
                 for key in header:
@@ -421,7 +446,6 @@ class SpecFit:
                 if erange[1] <= erange[0]:
                     raise ValueError("Invalid input:", erange, "Second argument must be larger than the first")
 
-
         self.spectrum.notice("**")
 
         # Setting lower energy limit
@@ -464,7 +488,7 @@ class SpecFit:
             flagList = []
             for index in range(self.model.nParameters):
                 if self.__get_parfree()[index]:
-                     flagList.append( ('F' if self.__get_sigma()[index] > 0 else 'T') + '---------')
+                    flagList.append(('F' if self.__get_sigma()[index] > 0 else 'T') + '---------')
                 else:
                     flagList.append('')
 
@@ -563,7 +587,6 @@ class SpecFit:
                 result[i, j] /= self.fitResult["sigma"][valid_inds[i]] * self.fitResult["sigma"][valid_inds[j]]
 
         return result
-
 
     def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3,
             abund='angr', verbose=0, apecroot="3.0.9", apecthermal=True, error=False) -> None:
@@ -765,10 +788,10 @@ class SpecFit:
             ax.imshow(corr_matrix, cmap=cm["bwr"], aspect='equal', vmin=-1, vmax=1)
             # Drawing grid lines requires some tweaks due to a bug
             # (see https://github.com/matplotlib/matplotlib/issues/12934)
-            minor_ticks = np.arange(self.nValid+1) - 0.51
+            minor_ticks = np.arange(self.nValid + 1) - 0.51
             minor_ticks[-1] += 0.01
-            ax.set_xticks(minor_ticks, minor=True, labels=np.full(self.nValid+1, None))
-            ax.set_yticks(minor_ticks, minor=True, labels=np.full(self.nValid+1, None))
+            ax.set_xticks(minor_ticks, minor=True, labels=np.full(self.nValid + 1, None))
+            ax.set_yticks(minor_ticks, minor=True, labels=np.full(self.nValid + 1, None))
             ax.grid(which='minor', color='black', linewidth=1)
 
             # Text annotations
@@ -780,6 +803,7 @@ class SpecFit:
         Prints the fit results in readable way
         :return: None
         """
+
         def __val2str(val: float, just='l') -> str:
             if val < 0.1 or val > 100:
                 return "{:.3E}".format(val)
@@ -942,7 +966,7 @@ def restore(file: str, path=None, quick=False, verbose=0) -> SpecFit:
             path_ = [path] if isinstance(path, str) else path
             i = 0
             found = os.path.isfile(path[i] + '/' + baseName)
-            while not found and i < len(path_)-1:
+            while not found and i < len(path_) - 1:
                 i += 1
                 found = os.path.isfile(path[i] + '/' + baseName)
             if found:
