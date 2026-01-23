@@ -119,7 +119,7 @@ def test_full_run(run_type):
     specfit.save(spfFile, overwrite=True)
     specfit.clear()
     assert os.path.isfile(spfFile)
-    assert_hdu_list_matches_reference(fits.open(spfFile), fits.open(referenceSpfFile), tol=1e-4, key_skip=('SPECFILE'))
+    assert_hdu_list_matches_reference(fits.open(spfFile), fits.open(referenceSpfFile), tol=1e-4)
     os.remove(spfFile)
 
 
