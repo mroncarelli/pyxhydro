@@ -4,7 +4,6 @@ import sys
 sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 # TODO: the two lines above are necessary only to make the code work in IntelliJ (useful for debugging), os is used
 
-import tempfile
 from astropy.io import fits
 import copy as cp
 import matplotlib.pyplot as plt
@@ -167,28 +166,12 @@ class SpecFit:
         __savedChatter = xsp.Xset.chatter
         xsp.Xset.chatter = verbose
         if specFile is not None and os.path.isfile(specFile):
-            # Considering the case when the optional arguments are present: due to PyXspec bug the Spectrum class tries
-            # to read the file written in the specFile header and crashes when they are not present before substituting
-            # with the arguments' values. In this case I create e temporary file with 'none' as keyword values so that
-            # the Spectrum class will skip the reading.
-            if (backFile != 'USE_DEFAULT' and backFile is not None) or (
-                respFile != 'USE_DEFAULT' and respFile is not None) or (
-                arfFile != 'USE_DEFAULT' and arfFile is not None):
-                hdu = fits.open(specFile)
-                if backFile != 'USE_DEFAULT' and backFile is not None:
-                    hdu[1].header.set('BACKFILE', 'none')
-                if respFile != 'USE_DEFAULT' and respFile is not None:
-                    hdu[1].header.set('RESPFILE', 'none')
-                if arfFile != 'USE_DEFAULT' and arfFile is not None:
-                    hdu[1].header.set('ANCRFILE', 'none')
-
-                with tempfile.TemporaryDirectory() as tmp_dirname:
-                    tmp_filename = tmp_dirname + '/' + os.path.basename(specFile)
-                    hdu.writeto(tmp_filename)
-                    hdu.close()
-                    self.spectrum = xsp.Spectrum(tmp_filename, backFile=backFile, respFile=respFile, arfFile=arfFile)
-            else:
-                self.spectrum = xsp.Spectrum(specFile, backFile=backFile, respFile=respFile, arfFile=arfFile)
+            # Disabling prompting to account for the cases when the response and background files saved in the header
+            # are not present
+            allow_prompting_ = xsp.Xset.allowPrompting
+            xsp.Xset.allowPrompting = False
+            self.spectrum = xsp.Spectrum(specFile, backFile=backFile, respFile=respFile, arfFile=arfFile)
+            xsp.Xset.allowPrompting = allow_prompting_
             self.keywords = fits.open(specFile)[0].header
             if header:
                 for key in header:
