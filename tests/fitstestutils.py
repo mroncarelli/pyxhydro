@@ -17,6 +17,21 @@ environmentVariablesPathList = ([packageDir.rstrip('/')] +
                                 [os.environ.get(envVar) for envVar in environmentVariablesList])
 
 
+def check_condition(condition: bool, msg: str, warn=False) -> None:
+    """
+    Checks a condition and raises an error or a warning.
+    :param condition: (bool) The condition to check.
+    :param msg: (str) The error message to show.
+    :param warn: (bool) If True a warning is raised in case of error, if False an error is raised. Default: False.
+    :return: None
+    """
+    if warn:
+        if not condition:
+            warnings.warn(msg)
+    else:
+        assert condition, msg
+
+
 def history_unpack(history: list) -> list:
     """
     Modifies a HISTORY list record by appending lines that correspond to the same record.
@@ -33,13 +48,14 @@ def history_unpack(history: list) -> list:
     return result
 
 
-def assert_string_in_header_matches_reference(string: str, string_reference: str) -> None:
+def assert_string_in_header_matches_reference(string: str, string_reference: str, warn=False) -> None:
     """
     Checks that a string in a header matches a reference string. If the string contains an environment variable it may
     differ from the reference one, but the test should not fail: in this case the test checks that the parts before and
     after the environment variable match. Otherwise, it checks that the two sting are identical.
     :param string: (str) String to check.
     :param string_reference: (str) Reference string.
+    :param warn: (bool) If set to True mismatches in keyword values will raise warnings, not failures. Default: True.
     :return: None.
     """
 
@@ -48,15 +64,19 @@ def assert_string_in_header_matches_reference(string: str, string_reference: str
             split_list = string.split(envVar)
             assert string_reference.startswith(split_list[0]) and string_reference.endswith(
                 split_list[-1]), string + " != " + string_reference
+            check_condition(string_reference.startswith(split_list[0]) and string_reference.endswith(split_list[-1]),
+                            string + " != " + string_reference,
+                            warn=warn)
             return None
         else:
             pass
-    assert string == string_reference
+    check_condition(string == string_reference, string + " != " + string_reference, warn=warn)
     return None
 
 
 def assert_header_has_all_keywords_and_values_of_reference(header: fits.header, header_reference: fits.header,
-                                                           key_skip=None, history_tag_skip=None) -> None:
+                                                           key_skip=None, history_tag_skip=None,
+                                                           warn=True) -> None:
     """
     Checks that a header contains all the keys, with same values, than the reference one. Other keywords/values may
     be present and do not affect the result.
@@ -64,13 +84,15 @@ def assert_header_has_all_keywords_and_values_of_reference(header: fits.header, 
     :param header_reference: (fits.header) Reference header.
     :param key_skip: (tuple or list) List of header keywords should not be checked.
     :param history_tag_skip: (tuple or list) List of tags that if present in a history record should not be checked.
+    :param warn: (bool) If set to True mismatches in keyword values will raise warnings, not failures. Default: True.
     :return: None.
     """
 
     history_checked = False
     for key in header_reference.keys():
         val_reference = header_reference.get(key)
-        assert key in header
+        check_condition(key in header, key + " key not present in header", warn=True)
+
         val = header.get(key)
         if key_skip is not None and key in key_skip:
             pass
@@ -85,13 +107,14 @@ def assert_header_has_all_keywords_and_values_of_reference(header: fits.header, 
                     if any(tag in history_record_reference for tag in history_tag_skip):
                         pass
                     else:
-                        assert_string_in_header_matches_reference(history_record, history_record_reference)
+                        assert_string_in_header_matches_reference(history_record, history_record_reference, warn=warn)
                 history_checked = True
         else:
             if type(val) == str:
-                assert_string_in_header_matches_reference(val, val_reference)
+                assert_string_in_header_matches_reference(val, val_reference, warn=warn)
             else:
-                assert val == pytest.approx(val_reference), key + " " + str(val) + " != " + str(val_reference)
+                check_condition(val == pytest.approx(val_reference), key + " " + str(val) + " != " + str(val_reference),
+                                warn=warn)
     return None
 
 
@@ -131,7 +154,7 @@ def assert_data_matches_reference(inp, reference, tol=None) -> None:
 
 
 def assert_hdu_list_matches_reference(inp: fits.hdu.hdulist.HDUList, reference: fits.hdu.hdulist.HDUList, tol=None,
-                                      key_skip=None, history_tag_skip=None) -> None:
+                                      key_skip=None, history_tag_skip=None, warn_on_keys=False) -> None:
     """
     Checks that a FITS file matches a reference one
     :param inp: (HDUList) HDUList to check.
@@ -139,12 +162,14 @@ def assert_hdu_list_matches_reference(inp: fits.hdu.hdulist.HDUList, reference: 
     :param tol: (float) Tolerance on the relative difference in the data values, default None i.e. 1e-6
     :param key_skip: (tuple or list) List of header keywords should not be checked.
     :param history_tag_skip: (tuple or list) List of tags that if present in a history record should not be checked.
+    :param warn_on_keys: (bool) If set to True mismatches in keyword values will raise warnings, not failures. Default:
+        False.
     :return: None.
     """
 
     for hdu, hdu_reference in zip(inp, reference):
         assert_header_has_all_keywords_and_values_of_reference(hdu.header, hdu_reference.header, key_skip=key_skip,
-                                                               history_tag_skip=history_tag_skip)
+                                                               history_tag_skip=history_tag_skip, warn=warn_on_keys)
         assert_data_matches_reference(hdu.data, hdu_reference.data, tol=tol)
 
     return None

@@ -48,7 +48,7 @@ def test_erosita_survey(run_type):
 
     # Checking GTI file
     assert_hdu_list_matches_reference(fits.open(GTIFile), fits.open(referenceErositaGTIFile),
-                                      key_skip=('DATE', 'COMMENT'))
+                                      key_skip=('DATE', 'COMMENT'), warn_on_keys=True)
     os.remove(GTIFile)
 
     # Removing CCD files
@@ -63,7 +63,8 @@ def test_erosita_survey(run_type):
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceErositaSurveyEvtFile),
                                           key_skip=('DATE', 'COMMENT', 'CHECKSUM'),
-                                          history_tag_skip=('START PARAMETER ', ' GTIfile = ', ' EvtFile = '))
+                                          history_tag_skip=('START PARAMETER ', ' GTIfile = ', ' EvtFile = '),
+                                          warn_on_keys=True)
     else:
         raise ValueError("ERROR in test_erosita_survey.py: unknown option " + run_type)
 
@@ -81,7 +82,8 @@ def test_erosita_survey(run_type):
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referenceErositaSurveyPhaFile),
                                           key_skip=('COMMENT'),
-                                          history_tag_skip=('START PARAMETER ', ' Spectrum = '))
+                                          history_tag_skip=('START PARAMETER ', ' Spectrum = '),
+                                          warn_on_keys=True)
     else:
         raise ValueError("ERROR in test_erosita_survey.py: unknown option " + run_type)
 

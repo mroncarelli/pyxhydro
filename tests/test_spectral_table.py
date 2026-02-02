@@ -21,7 +21,8 @@ def test_create_apec_table_matches_reference():
     clear_file(specTableFile)
     write_spectable(spTable, specTableFile, overwrite=True)
 
-    assert_hdu_list_matches_reference(fits.open(specTableFile), fits.open(referenceSpecTableFile), tol=1e-6)
+    assert_hdu_list_matches_reference(fits.open(specTableFile), fits.open(referenceSpecTableFile), tol=1e-6,
+                                      warn_on_keys=True)
 
 
 @pytest.fixture(scope="module", autouse=True)

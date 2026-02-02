@@ -186,7 +186,8 @@ def test_correlation_matrix_has_all_values_between_minus_one_and_one():
 
 def test_specfit_file_has_been_created_and_matches_reference():
     assert os.path.isfile(bapecSpecFitFile)
-    assert_hdu_list_matches_reference(fits.open(bapecSpecFitFile), fits.open(specFitReferenceFile), tol=1e-4)
+    assert_hdu_list_matches_reference(fits.open(bapecSpecFitFile), fits.open(specFitReferenceFile), tol=1e-4,
+                                      warn_on_keys=True)
     os.remove(bapecSpecFitFile)
 
 

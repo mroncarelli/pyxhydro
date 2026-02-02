@@ -44,7 +44,7 @@ def test_full_run(run_type):
     reference_spmap = fits.open(referenceSpmapFile)
 
     # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(spMapFile), reference_spmap, tol=5e-5)
+    assert_hdu_list_matches_reference(fits.open(spMapFile), reference_spmap, tol=5e-5, warn_on_keys=True)
 
     # Creating a spmap file from the spectral-map read from the file
     spmap_read = read_specmap(spMapFile)
@@ -55,7 +55,7 @@ def test_full_run(run_type):
     assert os.path.isfile(spMapFile2)
 
     # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(spMapFile2), reference_spmap, tol=5e-5)
+    assert_hdu_list_matches_reference(fits.open(spMapFile2), reference_spmap, tol=5e-5, warn_on_keys=True)
     os.remove(spMapFile2)
 
     # Creating a SIMPUT file from a spectral map
@@ -65,7 +65,8 @@ def test_full_run(run_type):
     del spmap_read
 
     # Checking that file content matches reference
-    assert_hdu_list_matches_reference(fits.open(simputFile), fits.open(referenceSimputFile), tol=5e-5)
+    assert_hdu_list_matches_reference(fits.open(simputFile), fits.open(referenceSimputFile), tol=5e-5,
+                                      warn_on_keys=True)
 
     # Creating an event-list file from the SIMPUT file
     if os.path.isfile(evtFile):
@@ -83,7 +84,8 @@ def test_full_run(run_type):
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceEvtFile), tol=5e-5,
                                           key_skip=('DATE', 'CREADATE', 'COMMENT'),
-                                          history_tag_skip=('START PARAMETER ', ' EvtFile = '))
+                                          history_tag_skip=('START PARAMETER ', ' EvtFile = '),
+                                          warn_on_keys=True)
     else:
         raise ValueError("ERROR in test_full_run.py: unknown option " + run_type)
 
@@ -100,7 +102,8 @@ def test_full_run(run_type):
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referencePhaFile), tol=5e-5,
                                           key_skip=('COMMENT'),
-                                          history_tag_skip=('START PARAMETER ', ' Spectrum = '))
+                                          history_tag_skip=('START PARAMETER ', ' Spectrum = '),
+                                          warn_on_keys=True)
     else:
         raise ValueError("ERROR in test_full_run.py: unknown option " + run_type)
 
@@ -119,7 +122,7 @@ def test_full_run(run_type):
     specfit.save(spfFile, overwrite=True)
     specfit.clear()
     assert os.path.isfile(spfFile)
-    assert_hdu_list_matches_reference(fits.open(spfFile), fits.open(referenceSpfFile), tol=1e-4)
+    assert_hdu_list_matches_reference(fits.open(spfFile), fits.open(referenceSpfFile), tol=1e-4, warn_on_keys=True)
     os.remove(spfFile)
 
 

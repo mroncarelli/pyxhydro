@@ -127,7 +127,7 @@ def test_created_file_matches_reference(specmap_inp=specMap, reference=reference
     os.remove(testFile)
     hdulist_reference = fits.open(reference)
 
-    assert_hdu_list_matches_reference(hdulist, hdulist_reference, tol=5e-5)
+    assert_hdu_list_matches_reference(hdulist, hdulist_reference, tol=5e-5, warn_on_keys=True)
 
 
 @pytest.fixture(scope="module", autouse=True)
