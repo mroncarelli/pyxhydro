@@ -492,7 +492,8 @@ class SpecFit:
             "method": xsp.Fit.statMethod,
             "nIterations": xsp.Fit.nIterations,
             "criticalDelta": xsp.Fit.criticalDelta,
-            "abund": xsp.Xset.abund[0:4]
+            "abund": xsp.Xset.abund[0:4],
+            "apecroot": [item[1] for item in xsp.Xset.modelStrings if item[0] == 'APECROOT'][0]
         }
 
         # Saving the data of the fit points
@@ -572,7 +573,7 @@ class SpecFit:
         return result
 
     def run(self, erange=(None, None), start=None, fixed=None, method="chi", niterations=100, criticaldelta=1.e-3,
-            abund='angr', verbose=0, apecroot="3.0.9", apecthermal=True, error=False) -> None:
+            abund='angr', verbose=0, apecroot=None, apecthermal=True, error=False) -> None:
         """
         Standard procedure to fit spectra.
         :param erange: (float, float) Energy range [keV]. If the first (second) elements is None the lower (higher)
@@ -584,6 +585,9 @@ class SpecFit:
         :param criticaldelta: (float) The absolute change in the fit statistic between iterations, less than which the
             fit is deemed to have converged.
         :param abund: (str) Abundance table, see `abund` command in Xspec. Default 'angr' i.e. Anders & Grevesse (1989).
+        :param verbose: (int) Verbosity level. Default 0.
+        :param apecroot: (str or tuple) Root table for Apec version. Default None, i.e. latest version of Apec tables.
+        :param apecthermal: (bool) If set to True thermal broadening for Apec turned on. Default True.
         :param error: (bool) If set to True the error procedure is run over all the parameters. The fitResult attribute
          will also containg the error flags defined by the Xspec error command (see
          https://heasarc.gsfc.nasa.gov/docs/xanadu/xspec/manual/node79.html). Default False.
@@ -594,10 +598,21 @@ class SpecFit:
             return None
 
         else:
+            if apecroot is not None and apecroot != "latest":
+                apecroot_ = str(apecroot).strip('(').strip(')').replace(', ', '.')  # works also with tuple
+            else:
+                # Finding latest version of apec tables
+                folder = os.environ.get("HEADAS") + "/../spectral/modelData/"
+                file_beg, file_end = "apec_v", "_coco.fits"
+                version_list = [file.strip(file_beg).strip(file_end) for file in os.listdir(folder)
+                                if file.startswith(file_beg) and file.endswith(file_end)]
+                version_list.sort()
+                apecroot_ = version_list[-1]
+
             xsp.Xset.saveXspecState()
             xsp.Xset.chatter = verbose
             xsp.Xset.abund = abund
-            xsp.Xset.addModelString("APECROOT", apecroot)
+            xsp.Xset.addModelString("APECROOT", apecroot_)
             xsp.Xset.addModelString("APECTHERMAL", "yes" if apecthermal else "no")
             xsp.Xset.addModelString("APEC_TRACE_ABUND", "Fe")
             xsp.AllData.highlightSpectrum(self.spectrum.index)
@@ -893,6 +908,7 @@ class SpecFit:
             hdulist[0].header.set('N_ITER', self.fitResult["nIterations"])
             hdulist[0].header.set('CR_DELTA', self.fitResult["criticalDelta"])
             hdulist[0].header.set('ABUND', self.fitResult["abund"])
+            hdulist[0].header.set('APECROOT', self.fitResult["apecroot"])
 
             # Inheriting keywords related to the simulation
             for key in keywordList:
@@ -1000,7 +1016,8 @@ def restore(file: str, path=None, quick=False, verbose=0) -> SpecFit:
         "method": h0.get('METHOD'),
         "nIterations": h0.get('N_ITER'),
         "criticalDelta": h0.get('CR_DELTA'),
-        "abund": h0.get('ABUND')
+        "abund": h0.get('ABUND'),
+        "apecroot": h0.get('APECROOT')
     }
 
     # Setting free/fixed parameters in model attributes (will make fitDone property work correctly)

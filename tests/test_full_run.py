@@ -117,7 +117,7 @@ def test_full_run(run_type):
     assert_specfit_has_coherent_properties(specfit)
     startPars = (0.01, 6., 0.3, 0.1, 1000., 1e-3)
     fixedPars = (True, False, True, False, False, False)
-    specfit.run(start=startPars, fixed=fixedPars, method='cstat', abund='aspl', erange=(3, 7))
+    specfit.run(start=startPars, fixed=fixedPars, method='cstat', abund='aspl', erange=(3, 7), apecroot=(3, 0, 9))
     assert_specfit_has_coherent_properties(specfit)
     specfit.save(spfFile, overwrite=True)
     specfit.clear()

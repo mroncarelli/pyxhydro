@@ -179,7 +179,8 @@ def test_isothermal_no_velocities():
     spfit_right_start = SpecFit(phaFile, "wabs(bapec)")
 
     fixed_pars = (True, False, False, False, True, False)
-    spfit_right_start.run(start=fitParsV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
+    spfit_right_start.run(start=fitParsV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max),
+                          apecroot=(3, 0, 9))
 
     assert_fit_results_within_error(spfit_right_start, fitParsV0, sigma_tol=2, rel=5e-3, msg=errMsg)
     spfit_right_start.clear()
@@ -189,7 +190,8 @@ def test_isothermal_no_velocities():
     spfit_wrong_start = SpecFit(phaFile, "wabs(bapec)")
     os.remove(phaFile)
     fixed_pars = (True, False, False, False, True, False)
-    spfit_wrong_start.run(start=startPV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
+    spfit_wrong_start.run(start=startPV0, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max),
+                          apecroot=(3, 0, 9))
 
     assert_fit_results_within_error(spfit_wrong_start, fitParsV0, sigma_tol=3, rel=5e-3, msg=errMsg)
     spfit_wrong_start.clear()
@@ -255,7 +257,8 @@ def test_isothermal_gaussian_velocities():
     spfit_right_start = SpecFit(phaFile, "wabs(bapec)")
 
     fixed_pars = (True, False, False, False, True, False)
-    spfit_right_start.run(start=fitPars, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
+    spfit_right_start.run(start=fitPars, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max),
+                          apecroot=(3, 0, 9))
 
     assert_fit_results_within_error(spfit_right_start, fitPars, sigma_tol=2, rel=5e-3, msg=errMsg)
     spfit_right_start.clear()
@@ -266,7 +269,8 @@ def test_isothermal_gaussian_velocities():
     os.remove(phaFile)
 
     fixed_pars = (True, False, False, False, False, False)
-    spfit_wrong_start.run(start=startP, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max))
+    spfit_wrong_start.run(start=startP, fixed=fixed_pars, method='cstat', abund=abund, erange=(e_min, e_max),
+                          apecroot=(3, 0, 9))
 
     assert_fit_results_within_error(spfit_wrong_start, fitPars, sigma_tol=3, rel=5e-3, msg=errMsg)
     spfit_wrong_start.clear()

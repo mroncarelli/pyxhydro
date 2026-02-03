@@ -26,7 +26,7 @@ toleranceNoStat = 0.1  # tolerance when starting with correct redshift and no st
 toleranceWithStat = 1.4  # tolerance when starting with correct redshift
 
 specFitBapec = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
-specFitBapec.run(start=wrongParsBapec, method="cstat")
+specFitBapec.run(start=wrongParsBapec, method="cstat", apecroot=(3, 0, 9))
 correlationMatrix = specFitBapec.correlation_matrix()
 if os.path.isfile(bapecSpecFitFile):
     os.remove(bapecSpecFitFile)
@@ -45,7 +45,7 @@ def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tu
     :return:
     """
     specfit = SpecFit(spectrum, model, respFile=rmf, arfFile=arf)
-    specfit.run(start=start, method=method)
+    specfit.run(start=start, method=method, apecroot=(3, 0, 9))
     assert_specfit_has_no_error_flags(specfit)
     assert_fit_results_within_error(specfit, reference, sigma_tol=tolerance)
     specfit.clear()
@@ -92,7 +92,7 @@ def test_fit_two_spectra_start_with_right_parameters():
     noticed2 = xsp.AllData(2).noticed
     active_model = xsp.AllModels.sources[1]
 
-    specfit_bapec.run(start=rightParsBapec, method="cstat")
+    specfit_bapec.run(start=rightParsBapec, method="cstat", apecroot=(3, 0, 9))
     assert specfit_bapec.fitDone
     assert_specfit_has_coherent_properties(specfit_bapec)
 
@@ -102,7 +102,7 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllModels.sources[1] == active_model
     assert_fit_results_within_error(specfit_bapec, rightParsBapec, sigma_tol=toleranceWithStat)
 
-    specfit_apec.run(start=rightParsApec, method="cstat")
+    specfit_apec.run(start=rightParsApec, method="cstat", apecroot=(3, 0, 9))
     assert specfit_apec.fitDone
     assert_specfit_has_coherent_properties(specfit_apec)
 
