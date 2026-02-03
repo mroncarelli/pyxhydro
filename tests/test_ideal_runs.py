@@ -69,7 +69,8 @@ if nz < 3:
     nz = int(np.round((zMaxTable - zMinTable) / dz)) + 1
 
 # Creating the spectral table
-specTable = apec_table(nz, zMinTable, zMaxTable, nt, tMinTable, tMaxTable, nene, e_min, e_max, metal, abund=abund)
+specTable = apec_table(nz, zMinTable, zMaxTable, nt, tMinTable, tMaxTable, nene, e_min, e_max, metal, abund=abund,
+                       apecroot='3.0.9')
 
 # Calculating normalization
 cosmo = cosmology.FlatLambdaCDM(H0=100., Om0=0.3)

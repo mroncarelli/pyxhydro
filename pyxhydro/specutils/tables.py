@@ -1,3 +1,5 @@
+from idlelib.browser import file_open
+
 from astropy.io import fits
 import numpy as np
 import warnings
@@ -222,6 +224,7 @@ def write_spectable(spectable: dict, file: str, overwrite=True) -> int:
     hdulist[2].header.set('UNITS', spectable.get('temperature_units'))
     hdulist[3].header.set('NENE', len(spectable.get('energy')))
     hdulist[3].header.set('UNITS', spectable.get('energy_units'))
+    hdulist[3].header.set('APECROOT', spectable.get('apec_root'))
 
     return hdulist.writeto(file, overwrite=overwrite)
 
@@ -315,7 +318,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
     :param metal: (float or tuple/list) Metallicity [Solar]. If a single value is provided it applies to all metals, if
     a tuple/list is provided each value will correspond to the 28 metals of the vvapec model of Xspec
     (https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node134.html). Default 0
-    :param apecroot: (str) Root table for Apec version. Default None, i.e. default table decide by Xspec
+    :param apecroot: (str) Root table for Apec version. Default None, i.e. latest version of Apec tables
     :param tbroad: (bool) Thermal broadening turned on (True) or off (False). Default True
     :param abund: (str) Solar abundance reference for Xspec (see
     https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node116.html), default 'angr', i.e. Anders & Grevesse 1989
@@ -336,8 +339,17 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
     xsp.AllModels.setEnergies(str(emin) + " " + str(emax) + " " + str(nene) + " lin")
 
     # Optional settings
-    if apecroot:
-        xsp.Xset.addModelString("APECROOT", apecroot)
+    if apecroot is None or apecroot == "latest":
+        # Finding latest version of apec tables
+        folder, file_beg, file_end = os.environ.get("HEADAS") + "/../spectral/modelData/", "apec_v", "_coco.fits"
+        version_list = [file.strip(file_beg).strip(file_end) for file in os.listdir(folder)
+                        if file.startswith(file_beg) and file.endswith(file_end)]
+        version_list.sort()
+        apecroot_ = version_list[-1]
+    else:
+        apecroot_ = str(apecroot).strip('(').strip(')').replace(', ', '.')  # works also with tuple
+    xsp.Xset.addModelString("APECROOT", str(apecroot_))
+
     if type(tbroad) == bool:
         xsp.Xset.addModelString("APECTHERMAL", "yes" if tbroad else "no")
     if abund:
@@ -392,7 +404,8 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
         'tbroad': tbroad,
         'metallicity': metal,
         'temperature_units': "keV",
-        'energy_units': "keV"
+        'energy_units': "keV",
+        'apec_root': apecroot_,
     }
 
     return result

@@ -17,7 +17,7 @@ def test_create_apec_table_matches_reference():
     nene, emin, emax = 2000, 2., 8.
     metal = 0.3
     spTable = apec_table(nz, zmin, zmax, ntemp, tmin, tmax, nene, emin, emax, metal=metal, tbroad=True, abund='aspl',
-                         flag_ene=False)
+                         flag_ene=False, apecroot=(3, 0, 9))
     clear_file(specTableFile)
     write_spectable(spTable, specTableFile, overwrite=True)
 
