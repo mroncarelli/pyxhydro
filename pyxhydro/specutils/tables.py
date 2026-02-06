@@ -1,5 +1,6 @@
 from astropy.io import fits
 import numpy as np
+from tqdm import tqdm
 import warnings
 
 SP = np.float32
@@ -181,6 +182,8 @@ def read_spectable(filename: str, z_cut=None, temperature_cut=None, energy_cut=N
         result['param'] = hdulist[0].header['PARAM']
     if 'NH' in hdulist[0].header:
         result['nh'] = SP(hdulist[0].header['NH'])
+    if 'APECROOT' in hdulist[0].header:
+        result['apec_root'] = hdulist[0].header['APECROOT']
 
     hdulist.close()
     return result
@@ -206,7 +209,7 @@ def write_spectable(spectable: dict, file: str, overwrite=True) -> int:
     hdulist.append(fits.ImageHDU(spectable.get('temperature'), name="Temperature"))
     hdulist.append(fits.ImageHDU(spectable.get('energy'), name="Energy"))
 
-    # Setting headers
+    # Setting header of Primary
     hdulist[0].header.set('MODEL', spectable.get('model'))
     hdulist[0].header.set('ABUND', spectable.get('abund'))
     hdulist[0].header.set('METAL', str(spectable.get('metallicity')))
@@ -216,13 +219,17 @@ def write_spectable(spectable: dict, file: str, overwrite=True) -> int:
     hdulist[0].header.set('NTEMP', len(spectable.get('temperature')))
     hdulist[0].header.set('NENE', len(spectable.get('energy')))
     hdulist[0].header.set('UNITS', spectable.get('units'))
+    if 'apec_root' in spectable:
+        hdulist[0].header.set('APECROOT', spectable.get('apec_root'))
+
+    # Setting header of Extensions 1-3
     hdulist[1].header.set('NZ', len(spectable.get('z')))
     hdulist[1].header.set('UNITS', "[---]")
     hdulist[2].header.set('NTEMP', len(spectable.get('temperature')))
     hdulist[2].header.set('UNITS', spectable.get('temperature_units'))
     hdulist[3].header.set('NENE', len(spectable.get('energy')))
     hdulist[3].header.set('UNITS', spectable.get('energy_units'))
-    hdulist[3].header.set('APECROOT', spectable.get('apec_root'))
+
 
     return hdulist.writeto(file, overwrite=overwrite)
 
@@ -301,7 +308,7 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
 
 
 def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax: float, nene: int, emin: float,
-               emax: float, metal=0., apecroot=None, tbroad=True, abund='angr', flag_ene=False) -> dict:
+               emax: float, metal=0., apecroot=None, tbroad=True, abund='angr', flag_ene=False, progress=False) -> dict:
     """
     Creates a 3D Apec spectral table with fixed metallicity.
     :param nz: (int) Number of redshifts, first dimension of the output table
@@ -322,6 +329,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
     https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node116.html), default 'angr', i.e. Anders & Grevesse 1989
     :param flag_ene: (bool) If set to True spectra are in [10^-14 keV s^-1 cm^3], if False in
     [10^-14 photons s^-1 cm^3], default False
+    :param progress: (bool) if set the progress bar is shown in output. Default: False
     :return: (dict) Dictionary containing the spectable in the "data" key, and other properties.
     """
 
@@ -375,7 +383,8 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
     model = xsp.Model('vvapec', 'pyxhydro.specutils.apec_table', sourceNum=0)
 
     table = np.ndarray([nz, ntemp, nene], dtype=SP)
-    for index_z in range(nz):
+    iter_ = tqdm(range(nz)) if progress else range(nz)
+    for index_z in iter_:
         pars[32] = z[index_z]
         for index_t in range(ntemp):
             pars[1] = temperature[index_t]
@@ -386,11 +395,11 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
                 table[index_z, index_t, :] = np.array(model.values(0))  # [10^-14 photons s^-1 cm^3]
 
     # Restoring PyXspec settings
-    xsp.Xset.chatter = chatter_
     xsp.Xset.modelStrings = model_strings_
     xsp.Xset.abund = abund_
     xsp.AllModels.setEnergies("reset")  # Resets to the PyXspec default, not to the original
     xsp.AllModels -= model.name  # Removing model object
+    xsp.Xset.chatter = chatter_
 
     result = {
         'data': table,
@@ -405,7 +414,7 @@ def apec_table(nz: int, zmin: float, zmax: float, ntemp: int, tmin: float, tmax:
         'metallicity': metal,
         'temperature_units': "keV",
         'energy_units': "keV",
-        'apec_root': apecroot_,
+        'apec_root': apecroot_
     }
 
     return result
