@@ -53,7 +53,7 @@ def test_erosita_pointed(run_type):
     elif run_type == 'complete':
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceErositaPointedEvtFile),
-                                          key_skip=('DATE', 'CREADATE', 'COMMENT', 'CHECKSUM'),
+                                          key_skip=('DATE', 'COMMAND', 'CREADATE', 'COMMENT', 'CHECKSUM'),
                                           history_tag_skip=('START PARAMETER ', ' EvtFile = '),
                                           warn_on_keys=True)
     else:
@@ -72,7 +72,7 @@ def test_erosita_pointed(run_type):
     elif run_type == 'complete':
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referenceErositaPointedPhaFile),
-                                          key_skip=('COMMENT'),
+                                          key_skip=('COMMAND', 'COMMENT'),
                                           history_tag_skip=('START PARAMETER ', ' Spectrum = '),
                                           warn_on_keys=True)
     else:

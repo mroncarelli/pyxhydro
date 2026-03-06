@@ -345,7 +345,7 @@ def sixtesim(simputfile: str, instrument: str, exposure, evtfile: str, pointing=
             sys_out = os.system(command_)
             result.append(sys_out)
         if all(value == 0 for value in result):
-            __inherit_keywords(simputfile, evtfile, add_keys={"SIMPUT_F": simputfile})
+            __inherit_keywords(simputfile, evtfile, add_keys={"SIMPUT_F": simputfile, "COMMAND": command_list[itask]})
             if special == 'erosita':
                 # For the eROSITA simulation I also need to add manually the XML file in the header history, as SIXTE
                 # does not do it or does it wrong. I take for reference the one of CCD 1.
@@ -716,5 +716,5 @@ def makespec(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     else:
         sys_out = os.system(command)
         if sys_out == 0:
-            __inherit_keywords(evtfile, phafile, add_keys={"EVT_FILE": evtfile})
+            __inherit_keywords(evtfile, phafile, add_keys={"EVT_FILE": evtfile, "COMMAND": command})
         return sys_out

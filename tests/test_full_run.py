@@ -83,7 +83,7 @@ def test_full_run(run_type):
     elif run_type == 'complete':
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceEvtFile), tol=5e-5,
-                                          key_skip=('DATE', 'CREADATE', 'COMMENT'),
+                                          key_skip=('DATE', 'CREADATE', 'COMMAND', 'COMMENT'),
                                           history_tag_skip=('START PARAMETER ', ' EvtFile = '),
                                           warn_on_keys=True)
     else:
@@ -101,7 +101,7 @@ def test_full_run(run_type):
     elif run_type == 'complete':
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referencePhaFile), tol=5e-5,
-                                          key_skip=('COMMENT'),
+                                          key_skip=('COMMAND', 'COMMENT'),
                                           history_tag_skip=('START PARAMETER ', ' Spectrum = '),
                                           warn_on_keys=True)
     else:

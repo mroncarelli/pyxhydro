@@ -62,7 +62,7 @@ def test_erosita_survey(run_type):
     elif run_type == 'complete':
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(evtFile), fits.open(referenceErositaSurveyEvtFile),
-                                          key_skip=('DATE', 'COMMENT', 'CHECKSUM'),
+                                          key_skip=('DATE', 'COMMAND', 'COMMENT', 'CHECKSUM'),
                                           history_tag_skip=('START PARAMETER ', ' GTIfile = ', ' EvtFile = '),
                                           warn_on_keys=True)
     else:
@@ -81,7 +81,7 @@ def test_erosita_survey(run_type):
     elif run_type == 'complete':
         # Checking that file content matches reference
         assert_hdu_list_matches_reference(fits.open(phaFile), fits.open(referenceErositaSurveyPhaFile),
-                                          key_skip=('COMMENT'),
+                                          key_skip=('COMMAND', 'COMMENT'),
                                           history_tag_skip=('START PARAMETER ', ' Spectrum = '),
                                           warn_on_keys=True)
     else:
