@@ -26,7 +26,7 @@ from pyxhydro.specutils.tables import apec_table
 
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .specfittestutils import assert_fit_results_within_error
-from .__shared import referenceDir, snapshotFile, clear_file, testInstrumentName
+from .__shared import referenceDir, snapshotFile, clear_file, testInstrumentName, testInstrumentFOV, snapshotCenter
 
 
 # Emission table parameters
@@ -74,12 +74,11 @@ specTable = apec_table(nz, zMinTable, zMaxTable, nt, tMinTable, tMaxTable, nene,
 
 # Calculating normalization
 cosmo = cosmology.FlatLambdaCDM(H0=100., Om0=0.3)
-gadget2arcmin = cosmo.arcsec_per_kpc_comoving(z).to_value() / 60.  # 1 arcmin / 1 h^-1 kpc (comoving)
+gadget2deg = cosmo.arcsec_per_kpc_comoving(z).to_value() / 3600.  # 1 deg / 1 h^-1 kpc (comoving)
 d_C = 1e3 * cosmo.comoving_distance(z).to_value()  # [h^-1 kpc] comoving
-XRISM_FOV = 3.  # [arcmin]
-mapSize = XRISM_FOV / gadget2arcmin # [h^-1 kpc] (comoving)
+mapSize = testInstrumentFOV / gadget2deg # [h^-1 kpc] (comoving)
 h_Hubble = readhead(snapshotFile, 'hubble')
-map_str = map2d(snapshotFile, 'nenH', 1, center=[2500., 2500.], size=mapSize, struct=True, tcut=1e6)
+map_str = map2d(snapshotFile, 'nenH', 1, center=snapshotCenter, size=mapSize, struct=True, tcut=1e6)
 InenHdl = map_str['map'][0, 0]  # [h^3 cn^-5] (comoving)
 norm = InenHdl * 1e-14 * h_Hubble ** 3 * (1 + z) ** 3 * mapSize ** 2 / (4 * pi * d_C ** 2) # [10^14 cm^-5] (physical)
 
@@ -129,7 +128,7 @@ def test_isothermal_no_velocities():
 
 
     # Creating the spectral map from the snapshot assuming isothermal gas with Gaussian velocity distribution
-    sp_map = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+    sp_map = specmap(snapshotFile, specTable, testInstrumentFOV, npix, z, center=snapshotCenter, proj='z',
                              tcut=1e6, isothermal=temp * keV2K, nh=nH, novel=True)
 
     # Checking that the integrated spectrum matches with the reference one
@@ -206,7 +205,7 @@ def test_isothermal_gaussian_velocities():
     sp_ref = wabs_bapec(nH, temp, metal, z, sigma_v, norm)  # [photons s^-1 cm^-2] (already multiplied by norm)
 
     # Creating the spectral map from the snapshot assuming isothermal gas with Gaussian velocity distribution
-    sp_map = specmap(snapshotFile, specTable, XRISM_FOV / 60., npix, z, center=[2500., 2500.], proj='z',
+    sp_map = specmap(snapshotFile, specTable, testInstrumentFOV, npix, z, center=snapshotCenter, proj='z',
                              tcut=1e6, isothermal=temp * keV2K, nh=nH, gaussvel=(0, sigma_v))
 
     # Checking that the integrated spectrum matches with the reference one

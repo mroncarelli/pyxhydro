@@ -33,8 +33,8 @@ def test_full_run(run_type):
     """
 
     # Creating a spectral map file from a calculated spectral map
-    spmap_calculated = specmap(snapshotFile, referenceSpecTableFile, 0.05, 25, redshift=0.1,
-                                        center=[2500., 2500.], proj='z', tcut=1e6, nh=0.01, nsample=1)
+    spmap_calculated = specmap(snapshotFile, referenceSpecTableFile, testInstrumentFOV, 25, redshift=0.1,
+                                        center=snapshotCenter, proj='z', tcut=1e6, nh=0.01, nsample=1)
     if os.path.isfile(spMapFile):
         os.remove(spMapFile)
     write_specmap(spmap_calculated, spMapFile)

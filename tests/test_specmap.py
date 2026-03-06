@@ -11,12 +11,12 @@ from .__shared import *
 
 SP = np.float32
 
-npix, size, redshift, center, proj, flag_ene, nsample, nh = 25, 0.05, 0.1, [2500., 2500.], 'z', False, 1, 0.01
+npix, size, redshift, proj, flag_ene, nsample, nh = 25, testInstrumentFOV, .1, 'z', False, 1, .01
 nene = fits.open(referenceSpecTableFile)[0].header.get('NENE')
 testFile = inputDir + 'file_created_for_test.spmap'
 
 specMap = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=0.1, nh=nh,
-                  center=center, proj=proj, tcut=1e6)
+                  center=snapshotCenter, proj=proj, tcut=1e6)
 
 
 def test_structure(inp=specMap):
@@ -78,8 +78,8 @@ def test_isothermal_spectrum_with_temperature_from_table():
     z, temp_iso = z_table[iz], temperature_table[it] * keV2K  # [K]
     spec_reference = sptable.get('data')[iz, it, :]
     spec_reference /= spec_reference.mean()  # normalize to mean = 1
-    specmap_iso = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=center, proj=proj,
-                                  isothermal=temp_iso, novel=True, nsample=nsample).get('data')
+    specmap_iso = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=snapshotCenter,
+                          proj=proj, isothermal=temp_iso, novel=True, nsample=nsample).get('data')
 
     nene_specmap = specmap_iso.shape[2]
     spec_iso = np.ndarray(nene_specmap, dtype=SP)
@@ -105,8 +105,8 @@ def test_isothermal_spectrum():
     spec_reference = calc_spec(sptable, z, temp_iso_kev, no_z_interp=True)
     spec_reference /= spec_reference.mean()  # normalize to mean = 1
     temp_iso = temp_iso_kev * keV2K  # [K]
-    specmap_iso = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=center, proj=proj,
-                                  isothermal=temp_iso, novel=True, nsample=nsample).get('data')
+    specmap_iso = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=5, redshift=z, center=snapshotCenter,
+                          proj=proj, isothermal=temp_iso, novel=True, nsample=nsample).get('data')
 
     spec_iso = np.ndarray(nene, dtype=SP)
     for iene in range(nene):

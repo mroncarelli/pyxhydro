@@ -8,20 +8,20 @@ from pyxhydro.sixte import simput
 from pyxhydro.specutils.tables import read_spectable, calc_spec
 from pyxhydro.sphprojection.mapping import specmap
 from .fitstestutils import assert_hdu_list_matches_reference
-from .__shared import inputDir, referenceSpecTableFile, referenceSimputFile, snapshotFile, clear_file
+from .__shared import (inputDir, referenceSpecTableFile, referenceSimputFile, snapshotFile, clear_file,
+                       testInstrumentFOV, snapshotCenter)
 
-npix, size, redshift, proj, flag_ene, tcut, nsample, nh = 25, 0.05, 0.1, 'z', False, 1.e6, 1, 0.01
+npix, size, redshift, proj, flag_ene, tcut, nsample, nh = 25, testInstrumentFOV, 0.1, 'z', False, 1.e6, 1, 0.01
 t_iso_keV = 6.3  # [keV]
 t_iso = t_iso_keV * keV2K  # [K]
-center = [2500., 2500.]  # comoving [h^-1 kpc]
 nene = fits.open(referenceSpecTableFile)[0].header.get('NENE')
 testSimputFile = inputDir + 'file_created_for_test.simput'
 
 # Isothermal + no velocities
 specMapIsothermalNovel = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift,
-                                 center=center, proj=proj, nsample=nsample, isothermal=t_iso, novel=True)
+                                 center=snapshotCenter, proj=proj, nsample=nsample, isothermal=t_iso, novel=True)
 
-specMap = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift, center=center,
+specMap = specmap(snapshotFile, referenceSpecTableFile, size=size, npix=npix, redshift=redshift, center=snapshotCenter,
                   proj=proj, tcut=tcut, nh=nh, nsample=nsample)
 
 

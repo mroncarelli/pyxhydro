@@ -7,6 +7,7 @@ packageDir = os.path.dirname(os.path.dirname(__file__)) + '/'
 # Input files
 inputDir = testDir + 'inp/'
 snapshotFile = inputDir + 'snap_Gadget_sample'
+snapshotCenter = (2500., 2500.)  # [h^-1 kpc] comoving
 spectrumApec = inputDir + 'apec_fakeit_for_test.pha'
 spectrumBapec = inputDir + 'bapec_fakeit_for_test.pha'
 spectrumApecNoStat = inputDir + 'apec_fakeit_nostat_for_test.pha'
@@ -30,6 +31,7 @@ specFitReferenceFile = referenceDir + 'reference_bapec_wrong_pars.spf'
 
 # Test instruments
 testInstrumentName = 'xrism-resolve-test'
+testInstrumentFOV = 3.0645 / 60.  # [deg]
 testErositaPointedName = 'erosita-test'
 testErositaSurveyName = 'erass1-test'
 

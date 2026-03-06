@@ -57,14 +57,14 @@ class Instrument:
         self.xml = tuple(dummy)
 
         # Getting data from XML file
-        focal_length, fov, arf, psf, vignetting = [], [], [], [], []
+        focal_length, diameter, arf, psf, vignetting = [], [], [], [], []
         for xml in self.xml:
             input_file = self.path + '/' + xml
             if os.path.isfile(input_file):
                 root = ElementTree.parse(input_file).getroot()
 
                 focal_length.append(float(root.find('telescope').find('focallength').attrib['value']))
-                fov.append(float(root.find('telescope').find('fov').attrib['diameter']))
+                diameter.append(float(root.find('telescope').find('fov').attrib['diameter']))
                 arf.append(root.find('telescope').find('arf').attrib['filename'])
                 psf.append(root.find('telescope').find('psf').attrib['filename'])
                 vignetting.append(root.find('telescope').find('vignetting').attrib['filename'])
@@ -72,7 +72,7 @@ class Instrument:
                 warnings.warn("File '" + input_file + "' not found.")
 
         self.focal_length = tuple(focal_length)
-        self.fov = tuple(fov)
+        self.diameter = tuple(diameter)
         self.arf = tuple(arf)
         self.psf =tuple(psf)
         self.vignetting = tuple(vignetting)
