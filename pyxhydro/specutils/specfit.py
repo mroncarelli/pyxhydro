@@ -179,10 +179,11 @@ class SpecFit:
                     if key not in self.keywords:
                         self.keywords.append(key, header.get(key), header.comments[key])
         else:
-            if specFile is None:
-                print('Spectrum not loaded (specFile is None)')
-            else:
-                print('Spectrum not loaded: file ' + str(specFile) + ' not found, spectrum not loaded')
+            if verbose > 0:
+                if specFile is None:
+                    print('Spectrum not loaded (specFile is None)')
+                else:
+                    print('Spectrum not loaded: file ' + str(specFile) + ' not found, spectrum not loaded')
             self.spectrum = None
             self.keywords = cp.deepcopy(header)
 
@@ -994,7 +995,7 @@ def restore(file: str, path=None, quick=False, verbose=0) -> SpecFit:
 
     # Initialization
     result = SpecFit(None if quick else specFile, model, backFile=backFile, respFile=respFile, arfFile=ancrFile,
-                     setPars=tuple(np.float64(values)), header=h0)
+                     setPars=tuple(np.float64(values)), header=h0, verbose=verbose)
 
     # Flagging the output as restored
     result._isRestored = True

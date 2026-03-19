@@ -179,6 +179,7 @@ def mosaic(n, center=(0, 0), fov=1) -> list:
     :return: (list of dict) List of pointings containing the following keys:
             - x: (float) x-coordinate of the pointing center
             - y: (float) y-coordinate of the pointing center
+            - index: (int tuple) indexes of the square coordinates
             - ring: (int) ring index with the respect to the '00' pointing located in the center of the mosaic
             - tag: (str) a tag that identifies the pointing, being '00' the central pointing (rounded low/left when
                 n is even) and with numbers 1, 2, 3, ... toward the up/right, and 9, 8, 7, ... towards the low/left.
@@ -191,6 +192,7 @@ def mosaic(n, center=(0, 0), fov=1) -> list:
         for j in range(n):
             result.append({'x': coord[i] * fov + center[0],
                            'y': coord[j] * fov + center[1],
+                           'index': (i, j),
                            'ring': max(abs(i - zero_pixel), abs(j - zero_pixel)),
                            'tag': str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)})
 
