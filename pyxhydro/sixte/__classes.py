@@ -183,25 +183,28 @@ class SixteInstruments:
         else:
             raise ValueError("Invalid input type")
 
-    def show(self, full=False):
+    def show(self, opt=None):
         if self.__data == {}:
             print("No instrument loaded")
         else:
-            print("List of available instruments:")
-            for name in self.__data:
-                if full:
-                    instr = self.get(name)
-                    print(" - " + name)
-                    print("     Subdir: " + instr.subdir)
-                    print("     Xml: " + ', '.join(instr.xml))
-                    print("     Command: " + instr.command)
-                    if instr.special:
-                        print("     Special: " + instr.special)
-                    if instr.attitude:
-                        print("     Attitude: " + instr.attitude)
-
-                else:
-                    print("   - " + name)
+            instr = self.get(opt)
+            if instr is not None:
+                instr.show()
+            else:
+                print("List of available instruments:")
+                for name in self.__data:
+                    if type(opt) == str and opt.strip().lower() == 'full':
+                        instr = self.get(name)
+                        print(" - " + name)
+                        print("     Subdir: " + instr.subdir)
+                        print("     Xml: " + ', '.join(instr.xml))
+                        print("     Command: " + instr.command)
+                        if instr.special:
+                            print("     Special: " + instr.special)
+                        if instr.attitude:
+                            print("     Attitude: " + instr.attitude)
+                    else:
+                        print("   - " + name)
 
     def verify(self, warn=False):
         if self.__data == {}:
