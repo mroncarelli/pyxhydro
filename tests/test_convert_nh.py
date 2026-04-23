@@ -51,8 +51,10 @@ def test_table_values_decrease_exponentially_with_nh(delta_nh=0.02):
                 spectable_new.get('data')[iz, it, :])
 
 
-def wabs_apec_spectrum(nh, kt, z, metal, norm):
+def wabs_apec_spectrum(nh, kt, z, metal, norm, apecroot=None):
     xsp.AllModels.setEnergies(str(e_min) + " " + str(e_max) + " " + str(nene) + " lin")
+    if apecroot:
+        xsp.Xset.addModelString("APECROOT", str(apecroot))
     pars = {}
     pars[1] = float(nh)  # [10^22 cm^-2]
     pars[2] = float(kt)  # [keV]
@@ -77,6 +79,7 @@ def test_spectrum_from_table_with_convert_nh_must_match_pyxspec():
     iz = TRG.int(0, nz)
     it = TRG.int(0, nt)
     nh = TRG.uniform(nH_min, nH_max)
-    spectrum_ref = wabs_apec_spectrum(nh, specTable.get("temperature")[it], specTable.get("z")[iz], metal, 1)
+    spectrum_ref = wabs_apec_spectrum(nh, specTable.get("temperature")[it], specTable.get("z")[iz], metal, 1,
+                                      apecroot=specTable.get("apec_root"))
     spectrum_calc = spabs.convert_nh(specTable, nh).get("data")[iz, it, :]
     assert spectrum_calc == pytest.approx(spectrum_ref, rel=1e-3), errMsg
