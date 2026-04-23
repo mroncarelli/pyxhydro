@@ -4,7 +4,7 @@ import os
 import gadgetutils.convert
 import numpy as np
 
-from xraysim.specutils.xraylibraries import XspecModel, AtomdbModel, SpexModel
+from pyxhydro.specutils.xraylibraries import XspecModel, AtomdbModel, SpexModel
 
 from gadgetutils.phys_const import kpc2cm, Xp, m_p, Msun2g
 from astropy.cosmology import FlatLambdaCDM

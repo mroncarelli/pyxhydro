@@ -6,16 +6,16 @@ from multiprocessing import Pool
 from astropy import cosmology
 
 import pygadgetreader as pygr
-from xraysim.sphprojection.mapping import get_map_coord, get_proj_index
-from xraysim.gadgetutils import convert
-from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
+from pyxhydro.sphprojection.mapping import get_map_coord, get_proj_index
+from pyxhydro.gadgetutils import convert
+from pyxhydro.gadgetutils.readspecial import readtemperature, readvelocity
 
-from xraysim.sphprojection.kernel import intkernel
-from xraysim.sphprojection.linkedlist import linkedlist2d
-from xraysim.sphprojection.kernel import kernel_mapping_p
-from xraysim.specutils.emisson_models import EmissionModels
-from xraysim.sixte import cube2simputfile
-from xraysim.sphprojection.mapping import write_speccube
+from pyxhydro.sphprojection.kernel import intkernel
+from pyxhydro.sphprojection.linkedlist import linkedlist2d
+from pyxhydro.sphprojection.kernel import kernel_mapping_p
+from pyxhydro.specutils.emisson_models import EmissionModels
+from pyxhydro.sixte import cube2simputfile
+from pyxhydro.sphprojection.mapping import write_specmap
 
 intkernel_vec = np.vectorize(intkernel)
 
@@ -279,7 +279,7 @@ def make_simput_emission_model(simfile: str, size: float, emin: float, emax: flo
     if zrange:
         result['zrange'] = zrange  # [h^-1 kpc] comoving
 
-    write_speccube(result, 'check.spcube')
+    write_specmap(result, 'check.spcube')
     cube2simputfile(result, 'check-xspec.simput')
 
     return result

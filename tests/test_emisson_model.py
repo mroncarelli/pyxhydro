@@ -9,14 +9,15 @@ sys.path.append(os.environ.get("HEADAS") + "/lib/python")
 
 from tqdm.auto import tqdm
 
-from xraysim.readgadget.readgadget import readsnap
-from xraysim.readgadget.readgadget import readhead
-from xraysim.gadgetutils.readspecial import readtemperature
-from xraysim.specutils.emisson_models import EmissionModels
-from xraysim.specutils.emisson_models import XspecModel
-from xraysim.specutils.emisson_models import AtomdbModel
+from pyxhydro.readgadget.readgadget import readsnap
+from pyxhydro.readgadget.readgadget import readhead
+from pyxhydro.gadgetutils.readspecial import readtemperature
+from pyxhydro.specutils.emisson_models import EmissionModels
+from pyxhydro.specutils.emisson_models import XspecModel
+from pyxhydro.specutils.emisson_models import AtomdbModel
 
-inputDir = os.environ.get('XRAYSIM') + '/tests/inp/'
+from .__shared import  inputDir
+
 snapshotFileGadget = inputDir + 'snap_Gadget_sample'
 snapshotFileGizmo = inputDir + 'snap_sample.hdf5'
 

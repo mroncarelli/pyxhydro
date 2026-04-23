@@ -4,11 +4,11 @@ from multiprocessing import Pool
 from astropy import cosmology
 
 import pygadgetreader as pygr
-from xraysim.gadgetutils import convert
-from xraysim.gadgetutils.readspecial import readtemperature, readvelocity
-from xraysim.sphprojection.linkedlist import linkedlist2d
-from xraysim.specutils.emisson_models import EmissionModels
-from xraysim.sphprojection.mapping import write_speccube
+from pyxhydro.gadgetutils import convert
+from pyxhydro.gadgetutils.readspecial import readtemperature, readvelocity
+from pyxhydro.sphprojection.linkedlist import linkedlist2d
+from pyxhydro.specutils.emisson_models import EmissionModels
+from pyxhydro.sphprojection.mapping import write_specmap
 from numba import njit
 
 # intkernel_vec = np.vectorize(intkernel)
@@ -354,14 +354,14 @@ def make_simput_emission_model(simfile: str, angular_size: float, energy_min: fl
     if zrange:
         result['zrange'] = zrange  # [h^-1 kpc] comoving
 
-    write_speccube(result, f'{simfile}.speccube')
+    write_specmap(result, f'{simfile}.speccube')
     #cube2simputfile(result, f'{simfile}.simput')
     return spectrum_cube
 
 
 import os
 
-inputDir = os.environ.get('XRAYSIM') + '/Gadget_simulations/'
+inputDir = os.environ.get('PYXHYDRO') + '/Gadget_simulations/'
 snapshotFile = inputDir + 'snap_119'
 print(snapshotFile)
 spectrumcube = make_simput_emission_model(snapshotFile, angular_size=2 * (0.1974122751756834), energy_min=0.1, energy_max=1, bins=1001,
