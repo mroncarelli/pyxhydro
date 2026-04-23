@@ -1,9 +1,8 @@
 from astropy.io import fits
 import numpy as np
+SP = np.float32
 from tqdm import tqdm
 import warnings
-
-SP = np.float32
 
 import os
 import sys
@@ -234,10 +233,10 @@ def write_spectable(spectable: dict, file: str, overwrite=True) -> int:
     return hdulist.writeto(file, overwrite=overwrite)
 
 
-def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, flag_ene=False) -> np.ndarray:
+def calc_spec(model: dict, z: float, temperature: float, no_z_interp=False, flag_ene=False) -> np.ndarray:
     """
     Calculates a spectrum from a table for a given redshift and temperature
-    :param spectable: structure containing the spectrum table
+    :param model: Dictionary containing the spectrum table or string with the emission model
     :param z: redshift where to compute the spectrum [---]
     :param temperature: temperature where to compute the spectrum [keV]
     :param no_z_interp: (boolean) if set to True redshift interpolation is turned off (useful to avoid line-emission
@@ -247,62 +246,68 @@ def calc_spec(spectable: dict, z: float, temperature: float, no_z_interp=False, 
     [10^-14 keV s^-1 cm^3] if flag_ene is set to True.
     """
 
-    data = spectable.get('data')  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
-    nene = data.shape[2]
-    z_table = spectable.get('z')
-    temperature_table = spectable.get('temperature')  # [keV]
-    flag_ene_table = spectable.get('flag_ene')
+    model_type = type(model)
+    if model_type is str:
+        # TODO
+        pass
+    elif model_type is dict:
 
-    # Redshift (index 0)
-    if no_z_interp:
-        if z < z_table.min() or z > z_table.max():
-            warnings.warn("Redshift " + str(z) + " out of range, no spectrum computed (returning zeros)",
+        data = model.get('data')  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
+        nene = data.shape[2]
+        z_table = model.get('z')
+        temperature_table = model.get('temperature')  # [keV]
+        flag_ene_table = model.get('flag_ene')
+
+        # Redshift (index 0)
+        if no_z_interp:
+            if z < z_table.min() or z > z_table.max():
+                warnings.warn("Redshift " + str(z) + " out of range, no spectrum computed (returning zeros)",
+                              category=RuntimeWarning)
+                return np.zeros(nene, dtype=SP)
+            else:
+                iz = nearest_index_sorted(z_table, z)
+                data = data[iz, :, :]
+        else:
+            iz0 = largest_index_smaller(z_table, z)
+            if iz0 is None:
+                warnings.warn("Extrapolating table for redshift " + str(z) + " smaller than the lower boundary of table",
+                              category=RuntimeWarning)
+                iz0 = 0
+            elif iz0 == len(z_table) - 1:
+                warnings.warn("Extrapolating table for redshift " + str(z) + " larger than the upper bound of table",
+                              category=RuntimeWarning)
+                iz0 = len(z_table) - 2
+            iz1 = iz0 + 1
+            fz = (z - z_table[iz0]) / (z_table[iz1] - z_table[iz0])
+            data = (1 - fz) * data[iz0, :, :] + fz * data[iz1, :, :]
+
+        # Temperature (index 1)
+        it0 = largest_index_smaller(temperature_table, temperature)
+        if it0 is None:
+            warnings.warn("Temperature " + str(temperature) + " out of range, no spectrum computed (returning zeros)",
                           category=RuntimeWarning)
             return np.zeros(nene, dtype=SP)
-        else:
-            iz = nearest_index_sorted(z_table, z)
-            data = data[iz, :, :]
-    else:
-        iz0 = largest_index_smaller(z_table, z)
-        if iz0 is None:
-            warnings.warn("Extrapolating table for redshift " + str(z) + " smaller than the lower boundary of table",
+        elif it0 == len(temperature_table) - 1:
+            warnings.warn("Extrapolating table for temperature " + str(temperature) + " > upper bound of table",
                           category=RuntimeWarning)
-            iz0 = 0
-        elif iz0 == len(z_table) - 1:
-            warnings.warn("Extrapolating table for redshift " + str(z) + " larger than the upper bound of table",
-                          category=RuntimeWarning)
-            iz0 = len(z_table) - 2
-        iz1 = iz0 + 1
-        fz = (z - z_table[iz0]) / (z_table[iz1] - z_table[iz0])
-        data = (1 - fz) * data[iz0, :, :] + fz * data[iz1, :, :]
+            it0 = len(temperature_table) - 2
+        it1 = it0 + 1
+        ft = (np.log(temperature) - np.log(temperature_table[it0])) / (
+                np.log(temperature_table[it1]) - np.log(temperature_table[it0]))
+        valid = np.where((data[it0, :] > 0) & (data[it1, :] > 0.))
+        result = np.zeros(nene, dtype=SP)
+        result[valid] = np.exp((1 - ft) * np.log(data[it0, valid]) + ft * np.log(
+            data[it1, valid]))  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
 
-    # Temperature (index 1)
-    it0 = largest_index_smaller(temperature_table, temperature)
-    if it0 is None:
-        warnings.warn("Temperature " + str(temperature) + " out of range, no spectrum computed (returning zeros)",
-                      category=RuntimeWarning)
-        return np.zeros(nene, dtype=SP)
-    elif it0 == len(temperature_table) - 1:
-        warnings.warn("Extrapolating table for temperature " + str(temperature) + " > upper bound of table",
-                      category=RuntimeWarning)
-        it0 = len(temperature_table) - 2
-    it1 = it0 + 1
-    ft = (np.log(temperature) - np.log(temperature_table[it0])) / (
-            np.log(temperature_table[it1]) - np.log(temperature_table[it0]))
-    valid = np.where((data[it0, :] > 0) & (data[it1, :] > 0.))
-    result = np.zeros(nene, dtype=SP)
-    result[valid] = np.exp((1 - ft) * np.log(data[it0, valid]) + ft * np.log(
-        data[it1, valid]))  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
-
-    # Converting photons to energy or vice versa if required
-    if flag_ene != flag_ene_table:
-        energy = spectable.get('energy')  # [keV]
-        if flag_ene:
-            for ind, ene in enumerate(energy):
-                result[:, :, ind] *= ene  # [10^-14 keV s^-1 cm^3]
-        else:
-            for ind, ene in enumerate(energy):
-                result[:, :, ind] /= ene  # [10^-14 photons s^-1 cm^3]
+        # Converting photons to energy or vice versa if required
+        if flag_ene != flag_ene_table:
+            energy = model.get('energy')  # [keV]
+            if flag_ene:
+                for ind, ene in enumerate(energy):
+                    result[:, :, ind] *= ene  # [10^-14 keV s^-1 cm^3]
+            else:
+                for ind, ene in enumerate(energy):
+                    result[:, :, ind] /= ene  # [10^-14 photons s^-1 cm^3]
 
     return result  # [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3]
 

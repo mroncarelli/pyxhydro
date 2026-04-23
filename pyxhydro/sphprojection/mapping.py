@@ -1,6 +1,8 @@
 import numpy as np
 from astropy.io import fits
 from astropy import cosmology
+import json
+import os
 from tqdm import tqdm
 
 from pyxhydro.gadgetutils.phys_const import Xp, m_p, Msun2g, kpc2cm
@@ -378,13 +380,13 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
         return qty_map
 
 
-def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
+def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
             energy_cut=None, tcut=0., flag_ene=False, nsample=None, isothermal=None, novel=None, gaussvel=None,
             seed=0, nosmooth=False, nh=None, simulation_type=None, progress=False):
     """
     Creates a spectral-map (spectral datacube) from a Gadget snapshot.
     :param snapfile: (str) Simulation snapshot file (Gadget)
-    :param sptable: (dict or str) Spectrum table or spectrum table file (FITS)
+    :param em_model: (dict or str) Spectrum table, spectrum table file (FITS) or emision model from em_reference.json
     :param size: (float) Angular size of the map [deg]
     :param npix: (int) Number of pixels per map side. Default: 256.
     :param redshift: (float) Redshift where to place the simulation. Default: the redshift of the Gadget snapshot file
@@ -540,33 +542,49 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
     del mass, rho, ne
 
     # Reading emission table [10^-14 photons s^-1 cm^3]
-    if type(sptable) == dict:
-        spectable = sptable
-    elif type(sptable) == str:
-        spectable = tables.read_spectable(sptable, z_cut=(np.min(z_eff[particle_list]), np.max(z_eff[particle_list])),
-                                          temperature_cut=(
-                                              np.min(temp_kev[particle_list]), np.max(temp_kev[particle_list])),
-                                          energy_cut=energy_cut)
+    if type(em_model) == dict:
+        em_model_ = em_model
+    elif type(em_model) == str:
+        if os.path.isfile(em_model):
+            em_model_ = tables.read_spectable(em_model, z_cut=(np.min(z_eff[particle_list]), np.max(z_eff[particle_list])),
+                                              temperature_cut=(
+                                                  np.min(temp_kev[particle_list]), np.max(temp_kev[particle_list])),
+                                              energy_cut=energy_cut)
+        else:
+            # Reading emission model data from the configuration file
+            models_config_file = os.path.join(os.path.dirname(__file__), 'em_reference.json')  # TODO dynamic config file
+            with open(models_config_file) as file:
+                config_data = json.load(file)
+            index = None
+            for ind, item in enumerate(config_data):
+                if item['name'] == em_model:
+                    index = ind
+            if index is None:
+                raise ValueError("Invalid em_model input")
+            else:
+                # TODO declare emission model object from config_data[index]
+                pass
+
     else:
         raise ValueError("Invalid sptable type: must be a string or dictionary")
 
     # In nh is provided the spectral table is converted
     if nh is not None:
-        spectable = absorption.convert_nh(spectable, nh)
+        em_model_ = absorption.convert_nh(em_model_, nh)
 
-    energy = spectable.get('energy')  # [keV]
+    energy = em_model_.get('energy')  # [keV]
     nene = len(energy)
     # TODO: include d_ene while generating the table
     d_ene = (energy[-1] - energy[0]) / (nene - 1)  # [keV] Assuming uniform energy interval.
 
     # Converting photons to energy o vice versa, if necessary
-    if flag_ene != spectable.get('flag_ene'):
+    if flag_ene != em_model_.get('flag_ene'):
         if flag_ene:
             for iene in range(0, nene):
-                spectable['data'][:, :, iene] *= energy[iene]  # [10^-14 keV s^-1 cm^3]
+                em_model_['data'][:, :, iene] *= energy[iene]  # [10^-14 keV s^-1 cm^3]
         else:
             for iene in range(0, nene):
-                spectable['data'][:, :, iene] /= energy[iene]  # [10^-14 photons s^-1 cm^3]
+                em_model_['data'][:, :, iene] /= energy[iene]  # [10^-14 photons s^-1 cm^3]
 
     # Defining iterable to iterate through particles
     iter_ = tqdm(particle_list[::nsample]) if progress else particle_list[::nsample]
@@ -575,7 +593,7 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
     specmap = np.full((npix, npix, nene), 0., dtype=DP)
 
     # Cython loop for mapping
-    specmap_loop(specmap, iter_, x, y, hsml, spectable, norm, z_eff, temp_kev)
+    specmap_loop(specmap, iter_, x, y, hsml, em_model_, norm, z_eff, temp_kev)
 
     specmap /= d_ene * pixsize ** 2  # [photons s^-1 cm^-2 arcmin^-2 keV^-1]
 
@@ -583,7 +601,7 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
     result = {
         'data': SP(specmap),
         'simulation_file': snapfile,
-        'spectral_table': sptable if type(sptable) == str else "(Computed)",
+        'spectral_table': em_model if type(em_model) == str else "(Computed)",
         'proj': proj,
         'z_cos': redshift,
         'd_c': 1e3 * cosmo.comoving_distance(redshift).to_value(),  # [h^-1 kpc]
@@ -616,8 +634,8 @@ def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center
         result['nh'] = nh  # [10^22 cm^-2]
         result['nh_units'] = '10^22 cm^-2'
     else:
-        if 'nh' in spectable:
-            result['nh'] = spectable.get('nh')  # [10^22 cm^-2]
+        if 'nh' in em_model_:
+            result['nh'] = em_model_.get('nh')  # [10^22 cm^-2]
             result['nh_units'] = '10^22 cm^-2'
 
     return result

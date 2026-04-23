@@ -4,18 +4,12 @@ import os
 import gadgetutils.convert
 import numpy as np
 
-from pyxhydro.specutils.xraylibraries import XspecModel, AtomdbModel, SpexModel
+from pyxhydro.specutils.xraylibraries import XspecModel
 
 from gadgetutils.phys_const import kpc2cm, Xp, m_p, Msun2g
 from astropy.cosmology import FlatLambdaCDM
 
-# Cosmological parameters
-h0 = 67.77
-omega_m = 0.27
-omega_l = 0.73
-omega_r = 0.0
-
-cosmo = FlatLambdaCDM(H0=h0, Om0=omega_m)
+cosmo = FlatLambdaCDM(H0=100, Om0=0.3)
 
 # Anders and Grevesse abundance table in terms of number fraction--->angr in mass fraction
 # Anders and Grevesse abundance table in terms of mass fraction
@@ -58,7 +52,7 @@ with open(models_config_file) as file:
 # [print(i) for i in json_data ]
 
 class EmissionModels:
-    def __init__(self, model_name: str, energy: np.array):
+    def __init__(self, model_name: str, energy: np.ndarray):
         """
         The EmissionModels constructor first searches for the model 'name' in the JSON record. Once it successfully
         locates the name, it initializes the X-Ray library along with its corresponding commands
@@ -77,20 +71,8 @@ class EmissionModels:
         # check all the set instances variable
         # print(self.json_record)
 
-        if self.json_record['code'] == 'xspec':
-            self.model = XspecModel(self.json_record['model'], self.energy)
-            self.model.set_xspec_commands(self.json_record['xset'])
-
-        elif self.json_record['code'] == 'atomdb':
-            self.model = AtomdbModel(self.json_record['model'], self.energy)
-            self.model.set_atomdb_commands(self.json_record['xset'])
-
-        elif self.json_record['code'] == 'spex':
-            self.model = SpexModel(self.json_record['model'], self.energy)
-            self.model.set_spex_commands(self.json_record['xset'])
-
-        else:
-            raise ValueError(f"Library '{self.json_record['code']}' not supported.")
+        self.model = XspecModel(self.json_record['model'], self.energy)
+        self.model.set_xspec_commands(self.json_record['xset'])
 
     def set_metals_ref(self, metal) -> np.ndarray:
         """
