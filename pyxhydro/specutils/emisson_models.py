@@ -31,7 +31,7 @@ Abundance_Table = {
                                 7.85193027e-06, 1.01642369e-04, 3.61744208e-06, 6.43301606e-05,
                                 3.97037310e-08, 3.27796178e-06, 3.57066498e-07, 1.70564600e-05,
                                 9.43435125e-06, 1.83190632e-03, 3.43680576e-06, 7.32283794e-05,
-                                7.21566472e-07, 1.82390032e-06])
+                                7.21566472e-07, 1.82390032e-06])  # Relative abundance in mass
 }
 
 Z_solar = np.sum(Abundance_Table['AbundanceTable'][2:])
@@ -92,12 +92,12 @@ class EmissionModels:
         else:
             raise ValueError(f"Library '{self.json_record['code']}' not supported.")
 
-    def set_metals_ref(self, metal) -> np.array:
+    def set_metals_ref(self, metal) -> np.ndarray:
         """
         This class method takes the metallicity array as input and assigns it to metals_ref based on the model type and
         the number of chemical species. This information can later be utilized in the corresponding X-ray library for
         spectrum calculation.
-        :param metal: array of float - metallicity corresponding to each sph gas particle
+        :param metal: array of float - metallicity corresponding to each sph gas particle [Gadget units]
         :return: The chemical species index which is essential for the PyAtomDB library (for the set abundance).
         """
         if self.json_record['n_metals'] == len(metal):
