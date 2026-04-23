@@ -1,7 +1,7 @@
 [
   {
-    "name": "athena-xifu",
-    "subdir": "athena-xifu/baseline",
+    "name": "new-athena-xifu",
+    "subdir": "new-athena-xifu/baseline",
     "xml": "xifu_nofilt_defoc.xml"
   },
   {
