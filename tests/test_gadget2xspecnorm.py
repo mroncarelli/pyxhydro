@@ -1,6 +1,6 @@
 import pytest
-from xraysim.gadgetutils.phys_const import Xp, Msun2g, m_p, kpc2cm, x_e0, pi
-from xraysim.gadgetutils import convert
+from pyxhydro.gadgetutils.phys_const import Xp, Msun2g, m_p, kpc2cm, x_e0, pi
+from pyxhydro.gadgetutils import convert
 import numpy as np
 
 gadget_unit_normalization = 1.e-14 * Xp ** 2 * x_e0 / (4. * pi) * (1.e10 * Msun2g / m_p) ** 2 / kpc2cm ** 5

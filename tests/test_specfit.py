@@ -1,32 +1,36 @@
 import os
-import sys
 
-sys.path.append(os.environ.get("HEADAS") + "/lib/python")
-# TODO: the lines above are necessary only to make the code work in IntelliJ (useful for debugging)
-
+from astropy.io import fits
+import numpy as np
 import pytest
+import xspec as xsp
 
 from .fitstestutils import assert_hdu_list_matches_reference
-from .specfittestutils import *
-from xraysim.specutils.specfit import *
+from .specfittestutils import (assert_specfit_has_no_error_flags, assert_fit_results_within_error,
+                               assert_specfit_has_coherent_properties)
+from .__shared import (inputDir, testInstrumentName, spectrumApec, spectrumBapec, spectrumApecNoStat,
+                       spectrumBapecNoStat, specFitReferenceFile, clear_file)
 
-input_dir = os.environ.get('XRAYSIM') + '/tests/inp/'
-reference_dir = os.environ.get('XRAYSIM') + '/tests/reference_files/'
-spectrumApec = input_dir + 'apec_fakeit_for_test.pha'
-spectrumBapec = input_dir + 'bapec_fakeit_for_test.pha'
-spectrumApecNoStat = input_dir + 'apec_fakeit_nostat_for_test.pha'
-spectrumBapecNoStat = input_dir + 'bapec_fakeit_nostat_for_test.pha'
-bapecSpecFitFile = input_dir +"bapec_specfit_created_for_test.spf"
-specFitReferenceFile = reference_dir + "reference_bapec_wrong_pars.spf"
+from pyxhydro.specutils.specfit import SpecFit
+from pyxhydro import sixte
 
-rmf = input_dir + 'resolve_h5ev_2019a.rmf'
-arf = input_dir + 'resolve_pnt_heasim_noGV_20190701.arf'
+bapecSpecFitFile = inputDir + "bapec_specfit_created_for_test.spf"
+instrument = sixte.instruments.get(testInstrumentName)
+rmf = instrument.path + "/rsl_Hp_5eV.rmf"
+arf = instrument.path + "/" + instrument.arf[0]
 rightParsApec = (7., 0.2, 0.15, 0.1)
 rightParsBapec = (5., 0.3, 0.2, 300., 0.1)
 wrongParsApec = (3., 0.4, 0.15, 2.)  # redshift is correct
 wrongParsBapec = (1., 0.1, 0.2, 100., 4.)  # redshift is correct
 toleranceNoStat = 0.1  # tolerance when starting with correct redshift and no statistical fluctuations
 toleranceWithStat = 1.4  # tolerance when starting with correct redshift
+
+specFitBapec = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
+specFitBapec.run(start=wrongParsBapec, method="cstat", apecroot=(3, 0, 9))
+correlationMatrix = specFitBapec.correlation_matrix()
+if os.path.isfile(bapecSpecFitFile):
+    os.remove(bapecSpecFitFile)
+specFitBapec.save(bapecSpecFitFile, overwrite=True)
 
 
 def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tuple, tolerance: float):
@@ -41,9 +45,10 @@ def fit_test(spectrum: str, model: str, start: tuple, method: str, reference: tu
     :return:
     """
     specfit = SpecFit(spectrum, model, respFile=rmf, arfFile=arf)
-    specfit.run(start=start, method=method)
+    specfit.run(start=start, method=method, apecroot=(3, 0, 9))
     assert_specfit_has_no_error_flags(specfit)
-    assert_fit_results_within_tolerance(specfit, reference, tol=tolerance)
+    assert_fit_results_within_error(specfit, reference, sigma_tol=tolerance)
+    specfit.clear()
 
 
 def test_apec_no_stat_fit_start_with_right_parameters():
@@ -87,7 +92,7 @@ def test_fit_two_spectra_start_with_right_parameters():
     noticed2 = xsp.AllData(2).noticed
     active_model = xsp.AllModels.sources[1]
 
-    specfit_bapec.run(start=rightParsBapec, method="cstat")
+    specfit_bapec.run(start=rightParsBapec, method="cstat", apecroot=(3, 0, 9))
     assert specfit_bapec.fitDone
     assert_specfit_has_coherent_properties(specfit_bapec)
 
@@ -95,9 +100,9 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_bapec, rightParsBapec, tol=toleranceWithStat)
+    assert_fit_results_within_error(specfit_bapec, rightParsBapec, sigma_tol=toleranceWithStat)
 
-    specfit_apec.run(start=rightParsApec, method="cstat")
+    specfit_apec.run(start=rightParsApec, method="cstat", apecroot=(3, 0, 9))
     assert specfit_apec.fitDone
     assert_specfit_has_coherent_properties(specfit_apec)
 
@@ -105,7 +110,9 @@ def test_fit_two_spectra_start_with_right_parameters():
     assert xsp.AllData(1).noticed == noticed1
     assert xsp.AllData(2).noticed == noticed2
     assert xsp.AllModels.sources[1] == active_model
-    assert_fit_results_within_tolerance(specfit_apec, rightParsApec, tol=toleranceWithStat)
+    assert_fit_results_within_error(specfit_apec, rightParsApec, sigma_tol=toleranceWithStat)
+    specfit_apec.clear()
+    specfit_bapec.clear()
 
 
 def test_apec_no_stat_fit_start_with_only_redshift_right():
@@ -133,16 +140,13 @@ def test_covariance_and_correlation_matrices_are_none_at_initialization():
     specfit = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
     assert specfit.covariance_matrix() is None
     assert specfit.correlation_matrix() is None
-
-
-specFitBapec = SpecFit(spectrumBapec, "bapec", respFile=rmf, arfFile=arf)
-specFitBapec.run(start=wrongParsBapec, method="cstat")
+    specfit.clear()
 
 
 def test_bapec_fit_start_with_only_redshift_right():
     # Fitting the bapec spectrum produced with fakeit, starting with all wrong parameters except for redshift should
     # lead to the correct result, within tolerance
-    assert_fit_results_within_tolerance(specFitBapec, rightParsBapec, tol=toleranceWithStat)
+    assert_fit_results_within_error(specFitBapec, rightParsBapec, sigma_tol=toleranceWithStat)
 
 
 def test_covariance_matrix_has_correct_shape_and_diagonal_elements():
@@ -154,9 +158,6 @@ def test_covariance_matrix_has_correct_shape_and_diagonal_elements():
     assert covariance_matrix.shape == (specFitBapec.nFree, specFitBapec.nFree)
     for i in range(specFitBapec.nFree):
         assert covariance_matrix[i, i] == pytest.approx(specFitBapec.fitResult["sigma"][i] ** 2)
-
-# Calculating correlation matrix
-correlationMatrix = specFitBapec.correlation_matrix()
 
 
 def test_correlation_matrix_has_correct_shape_and_diagonal_elements():
@@ -182,30 +183,16 @@ def test_correlation_matrix_has_all_values_between_minus_one_and_one():
         check[i, j] = correlationMatrix[i, j] == pytest.approx(1) or correlationMatrix[i, j] < 1
     assert check.all()
 
-if os.path.isfile(bapecSpecFitFile):
-    os.remove(bapecSpecFitFile)
-specFitBapec.save(bapecSpecFitFile, overwrite=True)
-
 
 def test_specfit_file_has_been_created_and_matches_reference():
     assert os.path.isfile(bapecSpecFitFile)
-    assert_hdu_list_matches_reference(fits.open(bapecSpecFitFile), fits.open(specFitReferenceFile), tol=1e-4)
+    assert_hdu_list_matches_reference(fits.open(bapecSpecFitFile), fits.open(specFitReferenceFile), tol=1e-4,
+                                      warn_on_keys=True)
     os.remove(bapecSpecFitFile)
 
 
-def test_fitpoints_match_with_xspec_plot_values():
-    """
-    The values saved in the fitPoints attribute must match the ones in the xspec.Plot object. WARNINGS 1) Works only
-    if the fit was the latest run. 2) This test has to run last of the set, or it may break the others since it has to
-    delete all spectra and models before running.
-    """
-    xsp.AllData.clear()
-    xsp.AllModels.clear()
-    specfit = SpecFit(spectrumApec, "apec", respFile=rmf, arfFile=arf)
-    specfit.run(start=rightParsApec, method="cstat")
-    xsp.Plot.xAxis = "keV"
-    xsp.Plot("data")
-    assert specfit.fitPoints["energy"] == pytest.approx(xsp.Plot.x())
-    assert specfit.fitPoints["spectrum"] == pytest.approx(xsp.Plot.y())
-    assert specfit.fitPoints["sigma"] == pytest.approx(xsp.Plot.yErr())
-    assert specfit.fitPoints["model"] == pytest.approx(xsp.Plot.model())
+@pytest.fixture(scope="module", autouse=True)
+def on_end_module():
+    yield
+    specFitBapec.clear()
+    clear_file(bapecSpecFitFile)

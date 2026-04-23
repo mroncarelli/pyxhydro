@@ -6,8 +6,9 @@ directory. They are all meant to be both light and representative of the ones us
 ### `- apec_fakeit_for_test.pha`
 This file was created with `fakeit` using the `bapec` model (*kT* = 7 keV, *Abund* = 0.2 Z<sub>Sun</sub>, *z* = 0.15,
 *norm* = 0.1). Thermal broadening included, Anders & Grevesse (1989) abundance table. The response
-files are `resolve_h5ev_2019a.rmf` and `resolve_pnt_heasim_noGV_20190701.arf`, the exposure was set to 1500 s. 
-Statistical fluctuations turned *ON*.
+files are ` rsl_Hp_5eV.rmf` and ` rsl_sixte_standard_GVclosed.arf` and they are stored in the 
+`$SIXTE/share/sixte/instruments/xrism-resolve-test` folder, the exposure was set to 1500 s. Statistical fluctuations 
+turned *ON*.
 
 ### `- apec_fakeit_nostat_for_test.pha`
 Same as `apec_fakeit_for_test.pha`, but with statistical fluctuations were turned *OFF* so that in every energy the 
@@ -20,10 +21,6 @@ Same as `apec_fakeit_for_test.pha` but using the `bapec` model (*kT* = 5 keV, *A
 ### `- bapec_fakeit_nostat_for_test.pha`
 Same as `bapec_fakeit_for_test.pha`, but with statistical fluctuations were turned *OFF* so that in every energy the
 spectrum should correspond to the model precisely.
-
-### `- resolve_pnt_heasim_noGV_20190701.arf, resolve_h5ev_2019a.rmf`  
-*XRISM-Resolve* response files. They were chosen between the ones available in Xspec as they are the largest ones below 
-10MB (the Github file size limit).  
 
 ### `- snap_Gadget_sample, snap_sample.hdf5`
 A *Gadget* snapshot containing a galaxy cluster simulated at low resolution in Gadget-2 and HDF5 format, 

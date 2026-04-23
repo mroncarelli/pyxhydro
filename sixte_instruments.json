@@ -1,7 +1,7 @@
 [
   {
-    "name": "athena-xifu",
-    "subdir": "athena-xifu/baseline",
+    "name": "new-athena-xifu",
+    "subdir": "new-athena-xifu/baseline",
     "xml": "xifu_nofilt_defoc.xml"
   },
   {
@@ -10,9 +10,19 @@
     "xml": "resolve_baseline_GVclosed.xml"
   },
   {
+    "name": "xrism-resolve-gvopen",
+    "subdir": "xrism/resolve",
+    "xml": "resolve_baseline_GVopen.xml"
+  },
+  {
     "name": "xrism-resolve-test",
     "subdir": "xrism-resolve-test",
     "xml": "resolve_baseline_test.xml"
+  },
+  {
+    "name": "xrism-resolve-gvopen-test",
+    "subdir": "xrism-resolve-test",
+    "xml": "resolve_baseline_GVopen_test.xml"
   },
   {
     "name": "erosita-test",

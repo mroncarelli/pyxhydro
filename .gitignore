@@ -1,5 +1,5 @@
 /.idea/
 /.pytest_cache/
 /build/
-/xraysim/xraysim.egg-info/
-xraysim.iml
+/pyxhydro/pyxhydro.egg-info/
+pyxhydro.iml
