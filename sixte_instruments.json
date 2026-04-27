@@ -2,7 +2,7 @@
   {
     "name": "new-athena-xifu",
     "subdir": "new-athena-xifu/baseline",
-    "xml": "xifu_nofilt_defoc.xml"
+    "xml": "xifu_nofilt_infoc.xml"
   },
   {
     "name": "xrism-resolve",
