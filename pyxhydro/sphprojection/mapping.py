@@ -13,6 +13,7 @@ from pyxhydro.sphprojection.kernel import intkernel, map2d_loop, map2d_loop2, sp
     map2d_alpha_weight_loop, map2d_alpha_weight_loop2
 from pyxhydro.sphprojection.linkedlist import linkedlist2d
 from pyxhydro.specutils import tables, absorption
+from pyxhydro.specutils import emisson_models
 
 intkernel_vec = np.vectorize(intkernel)
 
@@ -113,7 +114,7 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
 
     # Reading smoothing length or assigning it to zero if smoothing is turned off
     hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else readsnap(simfile, 'hsml', 'gas',
-                                                                          **pygro)  # [h^-1 kpc] comoving
+                                                                     **pygro)  # [h^-1 kpc] comoving
 
     # Defining center and map size
     if center is None:
@@ -199,7 +200,7 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
     elif quantity_ == 'rho2':  # Int(rho2*dl)
         nrm = np.full(ngas, 0., dtype=SP)  # [---]
         qty = mass * readsnap(simfile, 'rho', 'gas',
-                                   **pygro) / pixsize ** 2  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
+                              **pygro) / pixsize ** 2  # comoving [10^20 h^3 M_Sun^2 kpc^-5]
     elif quantity_ in ['ne', 'nenh', 'ne2', 'tmw', 'tew', 'tsl', 'taw', 'vmw', 'vew', 'vaw', 'wmw', 'wew', 'waw']:
         x_e = readsnap(simfile, 'ne', 'gas', **pygro)  # n_e / n_H [---]
         if quantity_ == 'ne':  # Int(ne*dl) after conversion factor is applied
@@ -447,7 +448,7 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
 
     # Reading smoothing length or assigning it to zero if smoothing is turned off
     hsml = np.full(ngas, 1.e-30, dtype=SP) if nosmooth else readsnap(snapfile, 'hsml', 'gas',
-                                                                          **pygro)  # [h^-1 kpc] comoving
+                                                                     **pygro)  # [h^-1 kpc] comoving
 
     # Geometry conversion
     cosmo = cosmology.FlatLambdaCDM(H0=100., Om0=0.3)
@@ -543,27 +544,29 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
 
     # Reading emission table [10^-14 photons s^-1 cm^3]
     if type(em_model) == dict:
-        em_model_ = em_model
+        models_config_file = os.path.join(os.path.dirname(__file__), '../specutils/', 'em_reference.json')
+        with open(models_config_file) as file:
+            config_data = json.load(file)
+        index = None
+        for ind, item in enumerate(config_data):
+            if item['name'] == em_model['name']:
+                index = ind
+        if index is None:
+            raise ValueError("Invalid em_model input")
+        else:
+            # TODO declare emission model object from config_data[index]
+            e_bins = np.linspace(energy_cut[0], energy_cut[1], 101) if energy_cut else np.linspace(0.1, 10.0, 101)
+            em_model_ = emisson_models.EmissionModel(e_bins, em_model['name'],False)
+
+            ##### Here I have to load in the metallicity for the simulation #############
+            # metallicity =
+            pass
     elif type(em_model) == str:
         if os.path.isfile(em_model):
             em_model_ = tables.read_spectable(em_model, z_cut=(np.min(z_eff[particle_list]), np.max(z_eff[particle_list])),
                                               temperature_cut=(
                                                   np.min(temp_kev[particle_list]), np.max(temp_kev[particle_list])),
                                               energy_cut=energy_cut)
-        else:
-            # Reading emission model data from the configuration file
-            models_config_file = os.path.join(os.path.dirname(__file__), 'em_reference.json')  # TODO dynamic config file
-            with open(models_config_file) as file:
-                config_data = json.load(file)
-            index = None
-            for ind, item in enumerate(config_data):
-                if item['name'] == em_model:
-                    index = ind
-            if index is None:
-                raise ValueError("Invalid em_model input")
-            else:
-                # TODO declare emission model object from config_data[index]
-                pass
 
     else:
         raise ValueError("Invalid sptable type: must be a string or dictionary")
@@ -579,6 +582,7 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
 
     # Converting photons to energy o vice versa, if necessary
     if flag_ene != em_model_.get('flag_ene'):
+        print("Gone")
         if flag_ene:
             for iene in range(0, nene):
                 em_model_['data'][:, :, iene] *= energy[iene]  # [10^-14 keV s^-1 cm^3]

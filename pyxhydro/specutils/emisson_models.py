@@ -39,7 +39,7 @@ with open(models_config_file) as file:
 
 class EmissionModel:
 
-    def __init__(self, energy: np.ndarray, sim_config: str) -> None:
+    def __init__(self, energy: np.ndarray, sim_config: str, flag_ene: bool) -> None:
         """
         :param energy:     energy bin edges in keV, shape (n_bins+1,)
         :param sim_config: simulation name matching 'name' in em_reference.json
@@ -79,6 +79,7 @@ class EmissionModel:
                 xsp.Xset.addModelString(cmd['arg'][0], cmd['arg'][1])
 
         self.model = xsp.Model("vvapec")
+        self.flag_ene = flag_ene
 
     # ------------------------------------------------------------------
     def _validate_config(self) -> None:
@@ -174,7 +175,6 @@ class EmissionModel:
             temperature: float,
             pz:          np.ndarray,
             norm:        float,
-            flag_ene:    bool = False,
     ) -> np.ndarray:
         """
         :param redshift:    cosmological redshift
@@ -193,11 +193,14 @@ class EmissionModel:
         self.model.setPars(params)
         result = np.array(self.model.values(0), dtype=np.float32)
 
-        if flag_ene:
+        if self.flag_ene:
             bin_centres = 0.5 * (self.energy[1:] + self.energy[:-1])
             result     *= bin_centres
 
         return result
+
+    def get(self, name):
+        return getattr(self, name)
 
     # ------------------------------------------------------------------
     def __enter__(self):
