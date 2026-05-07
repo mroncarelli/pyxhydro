@@ -1,42 +1,49 @@
 [
-    
-    {
-    "name": "TheThreeHundred-1",
-    "code": "xspec",
-    "model": "apec",
-    "xset": [
-      {"method":  "abund",
-        "arg": "angr"
-      },
-      {"method":  "addModelString",
-        "arg":  ["APECTHERMAL", "yes"]
-      },
-      {"method":  "addModelString",
-        "arg":  ["APEC_TRACE_ABUND", "Fe"]
-      }
-    ],
-    "n_metals": 1,
-    "chemical_elements": "None",
-    "metals_ref": [0]
-    
-    },
 
-    {
-    "name": "TheThreeHundred-3",
+  {
+    "name": "GADGET-X",
     "xset": [
-      {"method":  "abund",
+      {
+        "method": "abund",
         "arg": "angr"
       },
-      {"method":  "addModelString",
-        "arg":  ["APECTHERMAL", "yes"]
-      },
-      {"method":  "addModelString",
-        "arg":  ["APECROOT", "3.0.9"]
+      {
+        "method": "addModelString",
+        "arg": ["APECTHERMAL", "yes"]
       }
     ],
-    "n_metals": 9,
-    "chemical_elements": ["C", "N", "O", "Ne", "Mg", "Si", "S", "Ca", "Fe"],
-    "metals_ref": [2, 3, 4, 5, 6, 7, 8, 9, 10]
-    }
+    "untracked_fill": {"index": 0, "type": "total",   "name": "Z"}
+  },
+
+  {
+    "name": "GIZMO-SIMBA",
+    "xset": [
+      {
+        "method": "abund",
+        "arg": "angr"
+      },
+      {
+        "method": "addModelString",
+        "arg": ["APECTHERMAL", "yes"]
+      },
+      {
+        "method": "addModelString",
+        "arg": ["APECROOT", "3.0.9"]
+      }
+    ],
+    "untracked_fill": {"index": 0, "type": "total",  "name": "Z"},
+    "tracked": [
+      {"index": 2,  "type": "element", "name": "C"},
+      {"index": 3,  "type": "element", "name": "N"},
+      {"index": 4,  "type": "element", "name": "O"},
+      {"index": 5,  "type": "element", "name": "Ne"},
+      {"index": 6,  "type": "element", "name": "Mg"},
+      {"index": 7,  "type": "element", "name": "Si"},
+      {"index": 8,  "type": "element", "name": "S"},
+      {"index": 9,  "type": "element", "name": "Ca"},
+      {"index": 10, "type": "element", "name": "Fe"}
+    ]
+  }
+
 
 ]

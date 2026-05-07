@@ -1,166 +1,263 @@
-import json
 import os
-
-import gadgetutils.convert
+import json
 import numpy as np
+import xspec as xsp
 
-from pyxhydro.specutils.xraylibraries import XspecModel
-
-from gadgetutils.phys_const import kpc2cm, Xp, m_p, Msun2g
-from astropy.cosmology import FlatLambdaCDM
-
-cosmo = FlatLambdaCDM(H0=100, Om0=0.3)
-
-# Anders and Grevesse abundance table in terms of number fraction--->angr in mass fraction
-# Anders and Grevesse abundance table in terms of mass fraction
-# angr_array = (angr_array * atomic_weights) / (np.sum(angr_array * atomic_weights))
-
-Abundance_Table = {
-    'Symbols': np.array(['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl',
-                         'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn']),
-    'AbundanceTable': np.array([7.06534941e-01, 2.74100525e-01, 7.05343364e-11, 8.90682759e-11,
-                                3.01565655e-09, 3.05603908e-03, 1.09960388e-03, 9.54323263e-03,
-                                4.83378824e-07, 1.73980024e-03, 3.44846527e-05, 6.47369649e-04,
-                                5.57916578e-05, 6.98837004e-04, 6.12236919e-06, 3.64042128e-04,
-                                7.85193027e-06, 1.01642369e-04, 3.61744208e-06, 6.43301606e-05,
-                                3.97037310e-08, 3.27796178e-06, 3.57066498e-07, 1.70564600e-05,
-                                9.43435125e-06, 1.83190632e-03, 3.43680576e-06, 7.32283794e-05,
-                                7.21566472e-07, 1.82390032e-06])  # Relative abundance in mass
+# ── Anders & Grevesse solar abundance table (mass fractions) ──────────
+ABUNDANCE_TABLE = {
+    'Symbols': np.array(['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si',
+                         'P','S','Cl','Ar','K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn']),
+    'Values':  np.array([7.06534941e-01, 2.74100525e-01, 7.05343364e-11, 8.90682759e-11,
+                         3.01565655e-09, 3.05603908e-03, 1.09960388e-03, 9.54323263e-03,
+                         4.83378824e-07, 1.73980024e-03, 3.44846527e-05, 6.47369649e-04,
+                         5.57916578e-05, 6.98837004e-04, 6.12236919e-06, 3.64042128e-04,
+                         7.85193027e-06, 1.01642369e-04, 3.61744208e-06, 6.43301606e-05,
+                         3.97037310e-08, 3.27796178e-06, 3.57066498e-07, 1.70564600e-05,
+                         9.43435125e-06, 1.83190632e-03, 3.43680576e-06, 7.32283794e-05,
+                         7.21566472e-07, 1.82390032e-06])
 }
 
-Z_solar = np.sum(Abundance_Table['AbundanceTable'][2:])
+Z_SOLAR          = float(np.sum(ABUNDANCE_TABLE['Values'][2:]))
+SYMBOLS_TO_IDX   = {s: i for i, s in enumerate(ABUNDANCE_TABLE['Symbols'])}
+SYMBOLS_TO_SOLAR = dict(zip(ABUNDANCE_TABLE['Symbols'], ABUNDANCE_TABLE['Values']))
+SYMBOLS_TO_SLOT  = {s: i + 2 for i, s in enumerate(ABUNDANCE_TABLE['Symbols'])}
 
+# fixed cosmological values
+H_PRIMORDIAL  = 0.7517
+HE_PRIMORDIAL = 0.2453
 
-def spex_norm(mi, rhoi, nei, h):
-    conversion_factor = (1E10 * Msun2g * Xp / m_p) ** 2 * (h) * (kpc2cm ** -3)
-    return mi * rhoi * nei * conversion_factor
+H_SLOT        = 2
+HE_SLOT       = 3
+REDSHIFT_SLOT = 32
+NORM_SLOT     = 33
+METAL_SLOTS   = set(range(4, 32))   # Li(4) through Zn(31)
 
-
-# current_directory = os.getcwd()
-
-# models_config_file = os.path.join(current_directory, 'em_reference.json')
-
-# print(models_config_file)
-# with open(models_config_file) as file:
-#     json_data = json.load(file)
 models_config_file = os.path.join(os.path.dirname(__file__), 'em_reference.json')
 with open(models_config_file) as file:
     json_data = json.load(file)
 
 
-# this is the collection of models and their commands setting-abundance setting, broadening and metal reference
-# [print(i) for i in json_data ]
+class EmissionModel:
 
-class EmissionModels:
-    def __init__(self, model_name: str, energy: np.ndarray):
+    def __init__(self, energy: np.ndarray, sim_config: str) -> None:
         """
-        The EmissionModels constructor first searches for the model 'name' in the JSON record. Once it successfully
-        locates the name, it initializes the X-Ray library along with its corresponding commands
-        :param model_name: str - Specifies the model name as 'TheThreeHundred-1/2/3/4'.
-        :param energy: list of float - Represents the range of energy values in KeV for spectrum calculation.
+        :param energy:     energy bin edges in keV, shape (n_bins+1,)
+        :param sim_config: simulation name matching 'name' in em_reference.json
         """
-        self.json_record = next((i for i in json_data if i['name'] == model_name), None)
+        self.energy      = energy
+        self.json_record = next((i for i in json_data if i['name'] == sim_config), None)
 
-        # setting all the variables for the instances of the class - self
         if self.json_record is None:
-            raise ValueError(f"Model with name '{model_name}' not found in the json file.")
+            raise ValueError(f"Model '{sim_config}' not found in em_reference.json.")
 
-        self.json_record['metals_ref'] = np.array(self.json_record['metals_ref'], dtype=float)
-        self.json_record['chemical_elements'] = np.array(self.json_record['chemical_elements'], dtype=str)
-        self.energy = energy
-        # check all the set instances variable
-        # print(self.json_record)
+        # ensure 'tracked' key always exists (GADGET-X has none)
+        self.json_record.setdefault('tracked', [])
 
-        self.model = XspecModel(self.json_record['model'], self.energy)
-        self.model.set_xspec_commands(self.json_record['xset'])
+        self._validate_config()
 
-    def set_metals_ref(self, metal) -> np.ndarray:
-        """
-        This class method takes the metallicity array as input and assigns it to metals_ref based on the model type and
-        the number of chemical species. This information can later be utilized in the corresponding X-ray library for
-        spectrum calculation.
-        :param metal: array of float - metallicity corresponding to each sph gas particle [Gadget units]
-        :return: The chemical species index which is essential for the PyAtomDB library (for the set abundance).
-        """
-        if self.json_record['n_metals'] == len(metal):
-            metal_idx = {('apec', False): [0],
-                         ('vvapec', False): np.nonzero(np.in1d(Abundance_Table['Symbols'],
-                                                               self.json_record['chemical_elements']))[0] + 1 - 1,
-                         ('vvapec', True):
-                             np.nonzero(np.in1d(Abundance_Table['Symbols'], self.json_record['chemical_elements']))[
-                                 0] + 1 - 1
-                         }
+        # { element_symbol -> pz_column_index }
+        self._tracked_elements = {
+            e['name']: e['index']
+            for e in self.json_record['tracked']
+            if e['type'] == 'element'
+        }
 
-            idx = metal_idx.get((self.json_record['model'], self.json_record['n_metals'] > 1))
-            np.put(self.json_record['metals_ref'], idx, metal)
-            #print(self.json_record['metals_ref'],idx,Abundance_Table['Symbols'][idx])
-            #print(Abundance_Table['Symbols'][idx], idx, '\n')
+        # untracked_fill descriptor
+        self._fill = self.json_record['untracked_fill']
 
-            # scaling with respect to Anders and Grevesse values
-            if self.json_record['n_metals'] > 1:
-                self.json_record['metals_ref'][idx] = self.json_record['metals_ref'][idx] / Abundance_Table['AbundanceTable'][idx]
-            else:
-                self.json_record['metals_ref'][idx] = self.json_record['metals_ref'][idx] / Z_solar
+        # metal slots not covered by tracked elements
+        tracked_slots         = {SYMBOLS_TO_SLOT[s] for s in self._tracked_elements}
+        self._untracked_slots = METAL_SLOTS - tracked_slots
 
+        # xspec setup
+        xsp.Xset.chatter = 0
+        xsp.AllModels.setEnergies(f"{energy.min()} {energy.max()} {len(energy) - 1} lin")
+        for cmd in self.json_record.get('xset', []):
+            if cmd['method'] == 'abund':
+                xsp.Xset.abund = cmd['arg']
+            elif cmd['method'] == 'addModelString':
+                xsp.Xset.addModelString(cmd['arg'][0], cmd['arg'][1])
+
+        self.model = xsp.Model("vvapec")
+
+    # ------------------------------------------------------------------
+    def _validate_config(self) -> None:
+        forbidden    = {'H', 'He'}
+        tracked      = self.json_record['tracked']
+        fill         = self.json_record['untracked_fill']
+        seen_names   = set()
+        seen_indices = set()
+
+        for e in tracked:
+            for key in ('index', 'type', 'name'):
+                if key not in e:
+                    raise ValueError(f"Tracked entry missing '{key}'.")
+            if e['type'] != 'element':
+                raise ValueError("Tracked entries must have type='element'.")
+            if e['name'] not in SYMBOLS_TO_IDX:
+                raise ValueError(f"Unknown element '{e['name']}'.")
+            if e['name'] in forbidden:
+                raise ValueError(f"'{e['name']}' is fixed to primordial — mark as 'ignored'.")
+            if e['name'] in seen_names:
+                raise ValueError(f"Duplicate tracked element '{e['name']}'.")
+            if e['index'] in seen_indices:
+                raise ValueError(f"Duplicate tracked index '{e['index']}'.")
+            seen_names.add(e['name'])
+            seen_indices.add(e['index'])
+
+        for key in ('type', 'name', 'index'):
+            if key not in fill:
+                raise ValueError(f"untracked_fill missing '{key}'.")
+
+        if fill['type'] == 'total':
+            if fill['name'] != 'Z':
+                raise ValueError("Total fill must have name='Z'.")
+
+        elif fill['type'] == 'element':
+            if fill['name'] not in SYMBOLS_TO_IDX:
+                raise ValueError(f"Unknown fill element '{fill['name']}'.")
+            if fill['name'] in forbidden:
+                raise ValueError(f"'{fill['name']}' cannot be used as fill.")
+            if fill['name'] not in seen_names:
+                raise ValueError(f"Fill element '{fill['name']}' must also appear in tracked.")
         else:
-            raise ValueError(f"wrong setting n_metals is'{self.json_record['n_metals']} and len of metal'{len(metal)}.")
+            raise ValueError(f"Unknown untracked_fill type '{fill['type']}'.")
 
-        return idx
-
-    def compute_spectrum(self, z, temperature, metallicity, norm,
-                         flag_ene=False):
+    # ------------------------------------------------------------------
+    def _build_params(self, pz: np.ndarray) -> dict:
         """
-        This class method return the emission spectra for each gas particle at the given energy range using the gas
-        physical properties.
-        :param z: float - redshift for each gas particle
-        :param temperature: float - temperature in KeV for gas particle
-        :param metallicity: list of float - Metallicity values for gas particles, normalized to Anders & Grevesse.
-        :param norm: float - xspec and pyatomdb normalization factor
-        :param flag_ene: bool - conversion -----
-        :return:
+        Map one particle array to a parameter dict for metals.
+        H  (fixed)
+        He (fixed)
+        tracked metals   → from gas simulations, normalised to angr solar values
+        untracked metals → either by total metallicity or some metal, such as Fe
+
+        :param pz: 1-D metallicity array for one particle, [Z] for gadgetX or [Z,.....] for multi-species
+        :return:   {vvapec_param_slot: solar_normalised_value}
         """
+        all_indices  = [e['index'] for e in self.json_record['tracked']]
+        all_indices += [self._fill['index']]
+        n_expected   = max(all_indices) + 1
 
-        chem_idx = self.set_metals_ref(metallicity)
-        # print(self.json_record['metals_ref'])
+        if len(pz) < n_expected:
+            raise ValueError(
+                f"[{self.json_record['name']}] pz too short: "
+                f"need at least {n_expected} columns, got {len(pz)}."
+            )
 
-        result = self.model.calculate_spectrum(z, temperature, self.json_record['metals_ref'], chem_idx, norm)
+        params = {}
+
+        # H and He:
+        params[H_SLOT]  = H_PRIMORDIAL  / SYMBOLS_TO_SOLAR['H']
+        params[HE_SLOT] = HE_PRIMORDIAL / SYMBOLS_TO_SOLAR['He']
+
+        # tracked metals
+        for sym, col in self._tracked_elements.items():
+            params[SYMBOLS_TO_SLOT[sym]] = pz[col] / SYMBOLS_TO_SOLAR[sym]
+
+        # untracked metals
+        if self._fill['type'] == 'total':
+            fill_ratio = pz[self._fill['index']] / Z_SOLAR
+        else:
+            sym        = self._fill['name']
+            fill_ratio = pz[self._fill['index']] / SYMBOLS_TO_SOLAR[sym]
+
+        for slot in self._untracked_slots:
+            params[slot] = fill_ratio
+
+        return params
+
+    # ------------------------------------------------------------------
+    def calculate_spectrum(
+            self,
+            redshift:    float,
+            temperature: float,
+            pz:          np.ndarray,
+            norm:        float,
+            flag_ene:    bool = False,
+    ) -> np.ndarray:
+        """
+        :param redshift:    cosmological redshift
+        :param temperature: temperature in keV
+        :param pz:          P['z'][i, :] metallicity array for particle i
+        :param norm:        PyXspec normalisation (10^-14 cm^-5)
+        :param flag_ene:    if True → energy flux (multiply by bin centres)
+        :return:            spectrum shape (n_bins,)
+        """
+        params                = self._build_params(pz)
+        params[1]             = temperature
+        params[REDSHIFT_SLOT] = redshift
+        params[NORM_SLOT]     = norm
+        params                = {k: np.float64(v) for k, v in params.items()}
+
+        self.model.setPars(params)
+        result = np.array(self.model.values(0), dtype=np.float32)
+
         if flag_ene:
-            bins = 0.5 * (np.array(self.energy[1:] + np.array(self.energy)[:-1]))  # [10^-14 keV s^-1 cm-2]
-            result = result * bins
+            bin_centres = 0.5 * (self.energy[1:] + self.energy[:-1])
+            result     *= bin_centres
 
-        return np.array(result, dtype=np.float32)
+        return result
 
+    # ------------------------------------------------------------------
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print("removing dummy files")
-        dir_name = os.getcwd()
-        test = os.listdir(dir_name)
+        for f in os.listdir(os.getcwd()):
+            if f.endswith('.dum'):
+                os.remove(f)
 
-        for item in test:
-            if item.endswith(".dum"):
-                os.remove(os.path.join(dir_name, item))
-                
-                
-# testing line for gadget
-#T = 9.0404 # KeV
-#Z = [0.000192149] # Metallicity
-#energy_bins = np.linspace(0.1, 2.4, 101)
-#model_atom_db = EmissionModels(model_name='TheThreeHundred-2', energy=energy_bins)
-# print(model_atom_db.compute_spectrum(0.2, T, Z, 1.0))
-#import matplotlib.pyplot as plt
 
-# norm_1 = gadgetutils.convert.gadget2xspecnorm(0.0239, 124.807E-9, ((1/100)*(3E5)*1000),.677)
 
-# norm_3 = gadgetutils.convert.gadget2xspecnorm(0.0239, 124.807E-9, ((3/100)*(3E5)*1000),.677)
 
-# energy_bins = 0.5*(energy_bins[1:]+energy_bins[:-1])
-# plt.plot(energy_bins, model_atom_db.compute_spectrum(1, T, Z, norm_1*(1/(1+1))**2), color='r')
-# plt.plot(energy_bins*2, 3*3*2*2*model_atom_db.compute_spectrum(3, T, Z, norm_3*(1/(1+3))**2), color = 'k')
+############################################# TEST ####################################################################
+# energy_bins = np.linspace(0.1, 2.4, 101)
+#
+# # GADGET-X — single total metallicity
+# T      = 9.0404          # keV
+# Z      = np.array([0.000192149])   # total metallicity (mass fraction)
+#
+# model_gadget = EmissionModel(energy_bins, 'GADGET-X')
+# spectrum_gadget = model_gadget.calculate_spectrum(redshift=0.2, temperature=T, pz=Z, norm= 1.0)
+# print("GADGET-X spectrum:", spectrum_gadget)
+#
+# # GIZMO-SIMBA — 11 species
+# simba = np.array([
+#    0.000192149,   # index 0 — Z_total
+#    2.44e-01,      # index 1 — He
+#    3.06e-05,      # index 2 — C
+#    1.10e-05,      # index 3 — N
+#    9.54e-05,      # index 4 — O
+#    1.74e-05,      # index 5 — Ne
+#    6.47e-06,      # index 6 — Mg
+#    6.99e-06,      # index 7 — Si
+#    3.64e-06,      # index 8 — S
+#    6.43e-07,      # index 9 — Ca
+#    1.83e-05,      # index 10 — Fe
+# ])
+#
+# model_simba = EmissionModel(energy_bins, 'GIZMO-SIMBA')
+# spectrum_simba = model_simba.calculate_spectrum(
+#    redshift    = 0.2,
+#    temperature = T,
+#    pz          = simba,
+#    norm        = 1.0,
+# )
+# print("\nGIZMO-SIMBA spectrum:", spectrum_simba)
+# import matplotlib.pyplot as plt
+#
+# bin_centres = 0.5 * (energy_bins[1:] + energy_bins[:-1])
+#
+# fig, ax = plt.subplots(figsize=(8, 5))
+# ax.plot(bin_centres, spectrum_gadget, label='GADGET-X (single Z)',  lw=1.5)
+# ax.plot(bin_centres, spectrum_simba,  label='GIZMO-SIMBA (9 metals)', lw=1.5, ls='--')
+# ax.set_xlabel('Energy (keV)')
+# ax.set_ylabel(r'Flux [$10^{-14}$ photons s$^{-1}$ cm$^{-2}$]')
+# ax.set_title(f'vvapec  |  T = {T} keV  |  z = 0.2')
+# ax.set_yscale('log')
 # plt.xscale('log')
-# plt.yscale('log')
+# ax.legend()
+# ax.grid(True, alpha=0.3)
+# plt.tight_layout()
 # plt.show()
-
-# integrated_lum = np.sum( energy_bins*model_atom_db.compute_spectrum(1, T, Z, norm_1*(1/(1+1))**2) )
-# print(integrated_lum)
