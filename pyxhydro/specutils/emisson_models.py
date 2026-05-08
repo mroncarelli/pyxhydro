@@ -82,6 +82,10 @@ class EmissionModel:
 
     # ------------------------------------------------------------------
     def _validate_config(self) -> None:
+        """
+        Validates the model configuration and raises errors if something is wrong.
+        :return: None
+        """
         forbidden    = {'H', 'He'}
         tracked      = self.json_record['tracked']
         fill         = self.json_record['untracked_fill']
@@ -126,6 +130,11 @@ class EmissionModel:
     # ------------------------------------------------------------------
     def _build_params(self, pz: np.ndarray) -> dict:
         """
+        TODO Change this in order to get as an output a 28 element array with the indexes where each element has to be
+        TODO found in the simulation.
+        TODO The input should be something like this  "new": {"C": 2, "N": 2, "O": 2, ..., "Co": -1, "other": "total"}
+  }
+
         Map one particle array to a parameter dict for metals.
         H  (fixed)
         He (fixed)
@@ -182,7 +191,8 @@ class EmissionModel:
         :param pz:          P['z'][i, :] metallicity array for particle i
         :param norm:        PyXspec normalisation (10^-14 cm^-5)
         :param flag_ene:    if True → energy flux (multiply by bin centres)
-        :return:            spectrum shape (n_bins,)
+        :return:            array containing the spectrum. With standard Xspec parameters the units are
+            [10^-14 photons s^-1 cm^3] or [10^-14 keV s^-1 cm^3] if flag_ene is set to True.
         """
         params                = self._build_params(pz)
         params[1]             = temperature
