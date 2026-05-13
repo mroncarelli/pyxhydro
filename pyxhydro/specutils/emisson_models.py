@@ -41,7 +41,7 @@ class EmissionModel:
 
     def __init__(self, energy: np.ndarray, sim_config: str, flag_ene: bool) -> None:
         """
-        :param energy:     energy bin edges in keV, shape (n_bins+1,)
+        :param energy:     energy bin edges in keV, shape (n_bins+1)
         :param sim_config: simulation name matching 'name' in em_reference.json
         """
         self.energy      = energy

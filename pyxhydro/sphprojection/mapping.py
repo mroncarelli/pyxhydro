@@ -544,6 +544,8 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
 
     # Reading emission table [10^-14 photons s^-1 cm^3]
     Z = None
+    em_model_ = None
+
     if type(em_model) == dict:
         models_config_file = os.path.join(os.path.dirname(__file__), '../specutils/', 'em_reference.json')
         with open(models_config_file) as file:
