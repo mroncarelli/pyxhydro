@@ -543,6 +543,7 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
     del mass, rho, ne
 
     # Reading emission table [10^-14 photons s^-1 cm^3]
+    Z = None
     if type(em_model) == dict:
         models_config_file = os.path.join(os.path.dirname(__file__), '../specutils/', 'em_reference.json')
         with open(models_config_file) as file:
@@ -555,14 +556,19 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
             raise ValueError("Invalid em_model input")
         else:
             # TODO declare emission model object from config_data[index]
-            e_bins = np.linspace(energy_cut[0], energy_cut[1], 101) if energy_cut else np.linspace(0.1, 10.0, 101)
+            e_bins = np.linspace(energy_cut[0], energy_cut[1], 101) if energy_cut else np.linspace(0.01, 10.0, 101)
             em_model_ = emisson_models.EmissionModel(e_bins, em_model['name'],False)
 
             ##### Here I have to load in the metallicity for the simulation #############
-            # metallicity =
+            Z = readsnap(snapfile, 'Metallicity', 'gas', units=0, suppress=1).astype(np.float32)
+            if Z.ndim == 1:
+                Z = Z.reshape(-1, 1)
+            elif Z.ndim == 2:
+                Z = Z
             pass
     elif type(em_model) == str:
         if os.path.isfile(em_model):
+            print(os.path.isfile(em_model))
             em_model_ = tables.read_spectable(em_model, z_cut=(np.min(z_eff[particle_list]), np.max(z_eff[particle_list])),
                                               temperature_cut=(
                                                   np.min(temp_kev[particle_list]), np.max(temp_kev[particle_list])),
@@ -576,6 +582,7 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
         em_model_ = absorption.convert_nh(em_model_, nh)
 
     energy = em_model_.get('energy')  # [keV]
+    print(em_model_)
     nene = len(energy)
     # TODO: include d_ene while generating the table
     d_ene = (energy[-1] - energy[0]) / (nene - 1)  # [keV] Assuming uniform energy interval.
@@ -595,9 +602,10 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
 
     # Initializing specmap with double precision
     specmap = np.full((npix, npix, nene), 0., dtype=DP)
-
+    x    = np.ascontiguousarray(x,    dtype=np.float32)
+    y    = np.ascontiguousarray(y,    dtype=np.float32)
     # Cython loop for mapping
-    specmap_loop(specmap, iter_, x, y, hsml, em_model_, norm, z_eff, temp_kev)
+    specmap_loop(specmap, iter_, x, y, hsml, em_model_, norm, z_eff, temp_kev, Z)
 
     specmap /= d_ene * pixsize ** 2  # [photons s^-1 cm^-2 arcmin^-2 keV^-1]
 
@@ -638,7 +646,7 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
         result['nh'] = nh  # [10^22 cm^-2]
         result['nh_units'] = '10^22 cm^-2'
     else:
-        if 'nh' in em_model_:
+        if isinstance(em_model_, dict) and 'nh' in em_model_:
             result['nh'] = em_model_.get('nh')  # [10^22 cm^-2]
             result['nh_units'] = '10^22 cm^-2'
 

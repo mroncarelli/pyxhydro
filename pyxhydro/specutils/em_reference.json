@@ -10,9 +10,13 @@
       {
         "method": "addModelString",
         "arg": ["APECTHERMAL", "yes"]
+      },
+      {
+        "method": "addModelString",
+        "arg": ["APECROOT", "3.0.9"]
       }
     ],
-    "untracked_fill": {"index": 0, "type": "total",   "name": "Z"}
+    "metals": {"other": "total"}
   },
 
   {
@@ -31,19 +35,5 @@
         "arg": ["APECROOT", "3.0.9"]
       }
     ],
-    "untracked_fill": {"index": 0, "type": "total",  "name": "Z"},
-    "tracked": [
-      {"index": 2,  "type": "element", "name": "C"},
-      {"index": 3,  "type": "element", "name": "N"},
-      {"index": 4,  "type": "element", "name": "O"},
-      {"index": 5,  "type": "element", "name": "Ne"},
-      {"index": 6,  "type": "element", "name": "Mg"},
-      {"index": 7,  "type": "element", "name": "Si"},
-      {"index": 8,  "type": "element", "name": "S"},
-      {"index": 9,  "type": "element", "name": "Ca"},
-      {"index": 10, "type": "element", "name": "Fe"}
-    ]
-  }
-
-
+    "metals": {"C": 2, "N": 3, "O": 4, "Ne": 5, "Mg": 6, "Si": 7, "S": 8, "Ca": 9, "Fe": 10, "other": "total"}}
 ]

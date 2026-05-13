@@ -428,8 +428,8 @@ def map2d_alpha_weight_loop2(double[:, :, ::1] qty_map, double[:, :, ::1] qty2_m
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
-def specmap_loop(double[:, :, ::1] spmap, iter_, float[:] x, float[:] y, float[:] hsml, spectable, norm, z_eff,
-                  temp_kev):
+def specmap_loop(double[:, :, ::1] spmap, iter_, float[:] x, float[:] y, float[:] hsml, em_model, norm, z_eff,
+                  temp_kev, float[:, :] z_metal):
     """
     Cython version of a loop in mapping module (specmap).
     """
@@ -440,7 +440,10 @@ def specmap_loop(double[:, :, ::1] spmap, iter_, float[:] x, float[:] y, float[:
     cdef Py_ssize_t i0, j0
 
     for ipart in iter_:
-        spectrum = norm[ipart] * calc_spec(spectable, z_eff[ipart], temp_kev[ipart], no_z_interp=True, flag_ene=False)
+        if z_metal is not None:
+            spectrum = em_model.calculate_spectrum(z_eff[ipart], temp_kev[ipart], z_metal[ipart],norm[ipart])
+        else:
+            spectrum = norm[ipart] * calc_spec(em_model, z_eff[ipart], temp_kev[ipart], no_z_interp=True, flag_ene=False)
         # Getting the kernel weights in the two directions
         wx, i0 = kernel_mapping(x[ipart], hsml[ipart], nx)
         wy, j0 = kernel_mapping(y[ipart], hsml[ipart], ny)

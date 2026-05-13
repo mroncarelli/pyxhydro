@@ -50,25 +50,33 @@ class EmissionModel:
         if self.json_record is None:
             raise ValueError(f"Model '{sim_config}' not found in em_reference.json.")
 
-        # ensure 'tracked' key always exists (GADGET-X has none)
-        self.json_record.setdefault('tracked', [])
-
         self._validate_config()
 
-        # { element_symbol -> pz_column_index }
-        self._tracked_elements = {
-            e['name']: e['index']
-            for e in self.json_record['tracked']
-            if e['type'] == 'element'
-        }
+        self._tracked_elements = {}
 
-        # untracked_fill descriptor
-        self._fill = self.json_record['untracked_fill']
+        self._untracked_elements = {}
+
+        for i in self.json_record['metals']:
+            if i!="other":
+                self._tracked_elements.update({i:self.json_record['metals'][i]})
+
+            if i == "other":
+                if self.json_record['metals'][i]=="total":
+                    #print("This",self.json_record['metals'][i])
+                    self._untracked_elements.update({self.json_record['metals'][i]:0})
+                else:
+                    #print("Second",self.json_record['metals'][i])
+                    self._untracked_elements.update(self.json_record['metals'][i])
+
+        # print(self._tracked_elements)
+        # print(self._untracked_elements)
+        # print('total' in self._untracked_elements.keys())
 
         # metal slots not covered by tracked elements
         tracked_slots         = {SYMBOLS_TO_SLOT[s] for s in self._tracked_elements}
+        # print(tracked_slots)
         self._untracked_slots = METAL_SLOTS - tracked_slots
-
+        # print(self._untracked_slots)
         # xspec setup
         xsp.Xset.chatter = 0
         xsp.AllModels.setEnergies(f"{energy.min()} {energy.max()} {len(energy) - 1} lin")
@@ -83,49 +91,110 @@ class EmissionModel:
 
     # ------------------------------------------------------------------
     def _validate_config(self) -> None:
-        forbidden    = {'H', 'He'}
-        tracked      = self.json_record['tracked']
-        fill         = self.json_record['untracked_fill']
-        seen_names   = set()
+        forbidden = {'H', 'He'}
+        metals    = self.json_record.get('metals')
+
+        if metals is None:
+            raise ValueError(f"[{self.json_record['name']}] Missing 'metals' key.")
+
+        if not isinstance(metals, dict):
+            raise ValueError(f"[{self.json_record['name']}] 'metals' must be a dict.")
+
+        if 'other' not in metals:
+            raise ValueError(f"[{self.json_record['name']}] 'metals' must contain 'other' key.")
+
         seen_indices = set()
 
-        for e in tracked:
-            for key in ('index', 'type', 'name'):
-                if key not in e:
-                    raise ValueError(f"Tracked entry missing '{key}'.")
-            if e['type'] != 'element':
-                raise ValueError("Tracked entries must have type='element'.")
-            if e['name'] not in SYMBOLS_TO_IDX:
-                raise ValueError(f"Unknown element '{e['name']}'.")
-            if e['name'] in forbidden:
-                raise ValueError(f"'{e['name']}' is fixed to primordial — mark as 'ignored'.")
-            if e['name'] in seen_names:
-                raise ValueError(f"Duplicate tracked element '{e['name']}'.")
-            if e['index'] in seen_indices:
-                raise ValueError(f"Duplicate tracked index '{e['index']}'.")
-            seen_names.add(e['name'])
-            seen_indices.add(e['index'])
+        for sym, val in metals.items():
 
-        for key in ('type', 'name', 'index'):
-            if key not in fill:
-                raise ValueError(f"untracked_fill missing '{key}'.")
+            if sym == 'other':
+                continue
 
-        if fill['type'] == 'total':
-            if fill['name'] != 'Z':
-                raise ValueError("Total fill must have name='Z'.")
+            if sym not in SYMBOLS_TO_IDX:
+                raise ValueError(
+                    f"[{self.json_record['name']}] Unknown element '{sym}' in metals."
+                )
 
-        elif fill['type'] == 'element':
-            if fill['name'] not in SYMBOLS_TO_IDX:
-                raise ValueError(f"Unknown fill element '{fill['name']}'.")
-            if fill['name'] in forbidden:
-                raise ValueError(f"'{fill['name']}' cannot be used as fill.")
-            if fill['name'] not in seen_names:
-                raise ValueError(f"Fill element '{fill['name']}' must also appear in tracked.")
+            # ── H and He forbidden
+            if sym in forbidden:
+                raise ValueError(
+                    f"[{self.json_record['name']}] '{sym}' is fixed at primordial "
+                    f"— remove it from metals."
+                )
+
+            if not isinstance(val, int) or val < 0:
+                raise ValueError(
+                    f"[{self.json_record['name']}] '{sym}' index must be a "
+                    f"non-negative integer, got '{val}'."
+                )
+
+            # ── no duplicate indices
+            if val in seen_indices:
+                raise ValueError(
+                    f"[{self.json_record['name']}] Duplicate column index "
+                    f"'{val}' for element '{sym}'."
+                )
+
+            seen_indices.add(val)
+
+        # validate 'other'
+        other = metals['other']
+
+        if isinstance(other, str):
+            # 'other': 'total'  — scale all untracked by total Z
+            if other != 'total':
+                raise ValueError(
+                    f"[{self.json_record['name']}] 'other' string value must be "
+                    f"'total', got '{other}'."
+                )
+
+        elif isinstance(other, dict):
+            # 'other': {{'Fe': 10}}  — scale by a specific tracked element
+            if len(other) != 1:
+                raise ValueError(
+                    f"[{self.json_record['name']}] 'other' dict must have exactly "
+                    f"one entry, got {len(other)}."
+                )
+
+            sym, idx = next(iter(other.items()))
+
+            if sym not in SYMBOLS_TO_IDX:
+                raise ValueError(
+                    f"[{self.json_record['name']}] Unknown element '{sym}' in 'other'."
+                )
+
+            if sym in forbidden:
+                raise ValueError(
+                    f"[{self.json_record['name']}] '{sym}' cannot be used in 'other'."
+                )
+
+            if not isinstance(idx, int) or idx < 0:
+                raise ValueError(
+                    f"[{self.json_record['name']}] '{sym}' index in 'other' must be "
+                    f"a non-negative integer, got '{idx}'."
+                )
+
+            # the reference element must also appear in tracked
+            if sym not in metals:
+                raise ValueError(
+                    f"[{self.json_record['name']}] 'other' reference element '{sym}' "
+                    f"must also appear as a tracked element in metals."
+                )
+
+            # index must match
+            if metals[sym] != idx:
+                raise ValueError(
+                    f"[{self.json_record['name']}] 'other' index {idx} for '{sym}' "
+                    f"does not match tracked index {metals[sym]}."
+                )
+
         else:
-            raise ValueError(f"Unknown untracked_fill type '{fill['type']}'.")
+            raise ValueError(
+                f"[{self.json_record['name']}] 'other' must be 'total' (string) "
+                f"or a single-element dict like {{'Fe': 10}}, got '{other}'."
+            )
 
-    # ------------------------------------------------------------------
-    def _build_params(self, pz: np.ndarray) -> dict:
+    def _build_params(self, pZ: np.ndarray) -> dict:
         """
         Map one particle array to a parameter dict for metals.
         H  (fixed)
@@ -133,35 +202,39 @@ class EmissionModel:
         tracked metals   → from gas simulations, normalised to angr solar values
         untracked metals → either by total metallicity or some metal, such as Fe
 
-        :param pz: 1-D metallicity array for one particle, [Z] for gadgetX or [Z,.....] for multi-species
+        :param pZ: 1-D metallicity array for one particle, [Z] for gadgetX or [Z,.....] for multi-species
         :return:   {vvapec_param_slot: solar_normalised_value}
         """
-        all_indices  = [e['index'] for e in self.json_record['tracked']]
-        all_indices += [self._fill['index']]
-        n_expected   = max(all_indices) + 1
 
-        if len(pz) < n_expected:
+        required_index = max(
+            list(self._tracked_elements.values()) +
+            list(self._untracked_elements.values())
+        )
+
+        if len(pZ) <= required_index:
             raise ValueError(
-                f"[{self.json_record['name']}] pz too short: "
-                f"need at least {n_expected} columns, got {len(pz)}."
+                f"[{self.json_record['name']}] pZ too short: "
+                f"highest required index is {required_index}, "
+                f"but pZ has length {len(pZ)}."
             )
 
-        params = {}
+        fill_ratio = None
 
-        # H and He:
-        params[H_SLOT]  = H_PRIMORDIAL  / SYMBOLS_TO_SOLAR['H']
-        params[HE_SLOT] = HE_PRIMORDIAL / SYMBOLS_TO_SOLAR['He']
+        # H and He: initialized to the bbn ratio
+        params = {H_SLOT: H_PRIMORDIAL / SYMBOLS_TO_SOLAR['H'], HE_SLOT: HE_PRIMORDIAL / SYMBOLS_TO_SOLAR['He']}
 
         # tracked metals
-        for sym, col in self._tracked_elements.items():
-            params[SYMBOLS_TO_SLOT[sym]] = pz[col] / SYMBOLS_TO_SOLAR[sym]
+        if len(self._tracked_elements)>0:
+            for sym, col in self._tracked_elements.items():
+                params[SYMBOLS_TO_SLOT[sym]] = pZ[col] / SYMBOLS_TO_SOLAR[sym]
 
         # untracked metals
-        if self._fill['type'] == 'total':
-            fill_ratio = pz[self._fill['index']] / Z_SOLAR
+        if 'total' in self._untracked_elements.keys():
+            fill_ratio = pZ[self._untracked_elements['total']] / Z_SOLAR
         else:
-            sym        = self._fill['name']
-            fill_ratio = pz[self._fill['index']] / SYMBOLS_TO_SOLAR[sym]
+            chem = next(iter(self._untracked_elements.keys()))
+            sim_idx  = next(iter(self._untracked_elements.values()))
+            fill_ratio = pZ[sim_idx] / SYMBOLS_TO_SOLAR[chem]
 
         for slot in self._untracked_slots:
             params[slot] = fill_ratio
@@ -173,24 +246,25 @@ class EmissionModel:
             self,
             redshift:    float,
             temperature: float,
-            pz:          np.ndarray,
+            pZ:          np.ndarray,
             norm:        float,
     ) -> np.ndarray:
         """
         :param redshift:    cosmological redshift
         :param temperature: temperature in keV
-        :param pz:          P['z'][i, :] metallicity array for particle i
+        :param pZ:          P['z'][i, :] metallicity array for particle i
         :param norm:        PyXspec normalisation (10^-14 cm^-5)
         :param flag_ene:    if True → energy flux (multiply by bin centres)
         :return:            spectrum shape (n_bins,)
         """
-        params                = self._build_params(pz)
+        params                = self._build_params(pZ)
         params[1]             = temperature
         params[REDSHIFT_SLOT] = redshift
         params[NORM_SLOT]     = norm
         params                = {k: np.float64(v) for k, v in params.items()}
 
         self.model.setPars(params)
+
         result = np.array(self.model.values(0), dtype=np.float32)
 
         if self.flag_ene:
@@ -221,8 +295,8 @@ class EmissionModel:
 # T      = 9.0404          # keV
 # Z      = np.array([0.000192149])   # total metallicity (mass fraction)
 #
-# model_gadget = EmissionModel(energy_bins, 'GADGET-X')
-# spectrum_gadget = model_gadget.calculate_spectrum(redshift=0.2, temperature=T, pz=Z, norm= 1.0)
+# model_gadget = EmissionModel(energy_bins, 'GADGET-X',False)
+# spectrum_gadget = model_gadget.calculate_spectrum(redshift=0.2, temperature=T, pZ=Z, norm= 1.0)
 # print("GADGET-X spectrum:", spectrum_gadget)
 #
 # # GIZMO-SIMBA — 11 species
@@ -240,11 +314,11 @@ class EmissionModel:
 #    1.83e-05,      # index 10 — Fe
 # ])
 #
-# model_simba = EmissionModel(energy_bins, 'GIZMO-SIMBA')
+# model_simba = EmissionModel(energy_bins, 'GIZMO-SIMBA',False)
 # spectrum_simba = model_simba.calculate_spectrum(
 #    redshift    = 0.2,
 #    temperature = T,
-#    pz          = simba,
+#    pZ          = simba,
 #    norm        = 1.0,
 # )
 # print("\nGIZMO-SIMBA spectrum:", spectrum_simba)
