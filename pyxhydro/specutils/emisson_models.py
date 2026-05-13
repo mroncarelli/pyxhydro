@@ -254,7 +254,6 @@ class EmissionModel:
         :param temperature: temperature in keV
         :param pZ:          P['z'][i, :] metallicity array for particle i
         :param norm:        PyXspec normalisation (10^-14 cm^-5)
-        :param flag_ene:    if True → energy flux (multiply by bin centres)
         :return:            spectrum shape (n_bins,)
         """
         params                = self._build_params(pZ)
