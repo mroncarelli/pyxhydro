@@ -547,27 +547,34 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
     em_model_ = None
 
     if type(em_model) == dict:
-        models_config_file = os.path.join(os.path.dirname(__file__), '../specutils/', 'em_reference.json')
-        with open(models_config_file) as file:
-            config_data = json.load(file)
-        index = None
-        for ind, item in enumerate(config_data):
-            if item['name'] == em_model['name']:
-                index = ind
-        if index is None:
-            raise ValueError("Invalid em_model input")
-        else:
-            # TODO declare emission model object from config_data[index]
-            e_bins = np.linspace(energy_cut[0], energy_cut[1], 101) if energy_cut else np.linspace(0.01, 10.0, 101)
-            em_model_ = emisson_models.EmissionModel(e_bins, em_model['name'],False)
+        if 'name' in em_model:
+            # Variable metallicity
+            models_config_file = os.path.join(os.path.dirname(__file__), '../specutils/', 'em_reference.json')
+            with open(models_config_file) as file:
+                config_data = json.load(file)
+            index = None
+            for ind, item in enumerate(config_data):
+                if item['name'] == em_model['name']:
+                    index = ind
+            if index is None:
+                raise ValueError("Invalid em_model input")
+            else:
+                # TODO declare emission model object from config_data[index]
+                e_bins = np.linspace(energy_cut[0], energy_cut[1], 101) if energy_cut else np.linspace(0.01, 10.0, 101)
+                em_model_ = emisson_models.EmissionModel(e_bins, em_model['name'],False)
 
-            ##### Here I have to load in the metallicity for the simulation #############
-            Z = readsnap(snapfile, 'Metallicity', 'gas', units=0, suppress=1).astype(np.float32)
-            if Z.ndim == 1:
-                Z = Z.reshape(-1, 1)
-            elif Z.ndim == 2:
-                Z = Z
-            pass
+                ##### Here I have to load in the metallicity for the simulation #############
+                Z = readsnap(snapfile, 'Metallicity', 'gas', units=0, suppress=1).astype(np.float32)
+                if Z.ndim == 1:
+                    Z = Z.reshape(-1, 1)
+                elif Z.ndim == 2:
+                    Z = Z
+                pass
+        elif 'data' in em_model and 'model' in em_model:
+            # Spectable
+            em_model_ = em_model
+        else:
+            raise ValueError("Invalid emission_model")
     elif type(em_model) == str:
         if os.path.isfile(em_model):
             print(os.path.isfile(em_model))
@@ -575,9 +582,8 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
                                               temperature_cut=(
                                                   np.min(temp_kev[particle_list]), np.max(temp_kev[particle_list])),
                                               energy_cut=energy_cut)
-
     else:
-        raise ValueError("Invalid sptable type: must be a string or dictionary")
+        raise ValueError("Invalid emission_model")
 
     # In nh is provided the spectral table is converted
     if nh is not None:
