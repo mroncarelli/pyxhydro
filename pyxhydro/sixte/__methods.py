@@ -4,6 +4,7 @@ import tempfile
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+import numbers
 import numpy as np
 from astropy.io import fits
 
@@ -623,15 +624,17 @@ def get_xmlpath(evtfile: str):
     return xmlpath
 
 
-def makespec(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None, logfile=None, overwrite=True,
-             verbose=None, no_exec=False):
+def makespec(evtfile: str, phafile: str, rsppath=None, filter=None, grading=None, pixid=None, logfile=None,
+             overwrite=True, verbose=None, no_exec=False):
     """ Creates a .pha file containing the spectrum extracted from an event file using the SIXTE makespec command
     :param evtfile: (str) Event file
     :param phafile: (str) Output file
     :param rsppath: (str) Path to the .rmf and .arf files
-    :param pixid: (int or int list) Pixel id of photons to be included in the spectrum (default, None, i.e. all pixels)
-    :param grading: (int or int list) Grading of photons to be included in the spectrum (default, None, i.e. all
-        photons)
+    :param filter: (str) Filter for the events, must follow the syntax for CFITSIO rowfilter. Default: None.
+    :param grading: (int or int list) Grading of photons to be included in the spectrum. Adds to filter if present.
+        Default: None, i.e. all gradings.
+    :param pixid: (int or int list) Pixel id of photons to be included in the spectrum. Adds to filter if present.
+        Default: None, i.e. all pixel ids.
     :param logfile: (str) If set the output is not written on screen but saved in the file
     :param overwrite: (bool) If set overwrites previous output file (phafile) if exists, default True
     :param verbose: (int) Verbosity level, with 0 being the lowest (see SIXTE manual 'chatter') and 7 highest.
@@ -640,51 +643,68 @@ def makespec(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
     :return: System output of SIXTE makespec command (or string containing the command if no_exec is set to True)
     """
 
-    # Defining filter list to be used (if not empty) with the EventFilter keyword of makespec
-    filter_list = []
-
-    # Grading
-    error_msg_grading = "Grading values must be integer, iterable of integers or None."
-    warning_msg_grading = "WARNING: " + evtfile + " does not contain the GRADING column. Ignoring grading option."
-    if isinstance(grading, type(None)):
-        pass
-    else:
-        if not no_exec:
-            if 'GRADING' in fits.open(evtfile)[1].data.names:
-                if isinstance(grading, int):
-                    filter_list.append("GRADING==" + str(grading))
-                elif isinstance(grading, tuple) or isinstance(grading, list):
-                    if all(type(item) is int for item in grading):
-                        tag_grading = " '(GRADING==" + str(grading[0])
-                        for item in grading[1:]:
-                            tag_grading += " || GRADING==" + str(item)
-                        tag_grading += ")'"
-                        filter_list.append(tag_grading)
-                    else:
-                        raise ValueError(error_msg_grading)
-                else:
-                    raise ValueError(error_msg_grading)
+    def __int_filter(val, column: str) -> str:
+        """
+        Constructs a string with a filter for integer values
+        :param val: (int or iterable of integers) Values to be included in the filter
+        :param column: (str) Column name
+        :return: (str) Filter string
+        """
+        if hasattr(val, '__iter__'):
+            if all(isinstance(item, numbers.Integral) and not isinstance(item, bool) for item in val):
+                result = "(" + column + "==" + str(val[0])
+                for item in val[1:]:
+                    result += "||" + column + "==" + str(item)
+                result += ")"
             else:
-                # Grading filter is ignored as it is not present in the event-list (warning issued)
-                print(warning_msg_grading)
-
-    # Pixel Id
-    error_msg_pixid = "Pixid values must be integer, iterable of integers or None."
-    if isinstance(pixid, type(None)):
-        pass
-    elif isinstance(pixid, int):
-        filter_list.append("PIXID==" + str(pixid))
-    elif isinstance(pixid, tuple) or isinstance(pixid, list):
-        if all(type(item) is int for item in pixid):
-            tag_pixid = " '(PIXID==" + str(pixid[0])
-            for item in pixid[1:]:
-                tag_pixid += " || PIXID==" + str(item)
-            tag_pixid += ")'"
-            filter_list.append(tag_pixid)
+                raise ValueError(column + " values must be integers")
+        elif isinstance(val, numbers.Integral) and not isinstance(val, bool):
+            result = column + "==" + str(val)
         else:
-            raise ValueError(error_msg_pixid)
-    else:
-        raise ValueError(error_msg_pixid)
+            raise ValueError(column + " values must be integers")
+        return result
+
+    # error_msg_grading = "Grading values must be integer, iterable of integers or None."
+    # warning_msg_grading = "WARNING: " + evtfile + " does not contain the GRADING column. Ignoring grading option."
+    # if isinstance(grading, type(None)):
+    #     pass
+    # else:
+    #     if not no_exec:
+    #         if 'GRADING' in fits.open(evtfile)[1].data.names:
+    #             if isinstance(grading, int):
+    #                 filter_list.append("GRADING==" + str(grading))
+    #             elif isinstance(grading, tuple) or isinstance(grading, list):
+    #                 if all(type(item) is int for item in grading):
+    #                     tag_grading = "(GRADING==" + str(grading[0])
+    #                     for item in grading[1:]:
+    #                         tag_grading += " || GRADING==" + str(item)
+    #                     tag_grading += ")"
+    #                     filter_list.append(tag_grading)
+    #                 else:
+    #                     raise ValueError(error_msg_grading)
+    #             else:
+    #                 raise ValueError(error_msg_grading)
+    #         else:
+    #             # Grading filter is ignored as it is not present in the event-list (warning issued)
+    #             print(warning_msg_grading)
+    #
+    # # Pixel Id
+    # error_msg_pixid = "Pixid values must be integer, iterable of integers or None."
+    # if isinstance(pixid, type(None)):
+    #     pass
+    # elif hasattr(pixid, '__iter__'):
+    #     if all(item.is_integer() for item in pixid):
+    #         tag_pixid = "(PIXID==" + str(pixid[0])
+    #         for item in pixid[1:]:
+    #             tag_pixid += " || PIXID==" + str(item)
+    #         tag_pixid += ")"
+    #         filter_list.append(tag_pixid)
+    #     else:
+    #         raise ValueError(error_msg_pixid)
+    # elif pixid.is_integer():
+    #     filter_list.append("PIXID==" + str(pixid))
+    # else:
+    #     raise ValueError(error_msg_pixid)
 
     # If rsppath is not provided I try to recover it from the evtfile
     rsppath_ = get_xmlpath(evtfile) if rsppath is None else rsppath
@@ -694,8 +714,23 @@ def makespec(evtfile: str, phafile: str, rsppath=None, pixid=None, grading=None,
 
     command = "makespec EvtFile=" + evtfile + " Spectrum=" + phafile + tag_rsppath + ' clobber=' + clobber_
 
+    # Defining filter list to be used (if not empty) with the EventFilter keyword of makespec
+    filter_list = []
+
+    # Filter
+    if type(filter) == str and filter.strip() != '':
+        filter_list.append("(" + filter + ")")
+
+    # Grading
+    if grading is not None:
+        filter_list.append(__int_filter(grading, 'GRADING'))
+
+    # PixId
+    if pixid is not None:
+        filter_list.append(__int_filter(pixid, 'PIXID'))
+
     # Defining a tag to be used (if not empty) with the EventFilter keyword of makespec
-    tag_filter = ' && '.join(filter_list)
+    tag_filter = '&&'.join(filter_list)
     if tag_filter != '':
         command += ' EventFilter="' + tag_filter + '"'
 
