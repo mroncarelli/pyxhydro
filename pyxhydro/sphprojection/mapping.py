@@ -385,6 +385,7 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
             energy_cut=None, tcut=0., flag_ene=False, nsample=None, isothermal=None, novel=None, gaussvel=None,
             seed=0, nosmooth=False, nh=None, simulation_type=None, progress=False):
     """
+    TODO Add emin, emax, nene for variable metallicity models
     Creates a spectral-map (spectral datacube) from a Gadget snapshot.
     :param snapfile: (str) Simulation snapshot file (Gadget)
     :param em_model: (dict or str) Spectrum table, spectrum table file (FITS) or emision model from em_reference.json

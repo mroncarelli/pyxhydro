@@ -35,6 +35,10 @@ testInstrumentFOV = 3.0645 / 60.  # [deg]
 testErositaPointedName = 'erosita-test'
 testErositaSurveyName = 'erass1-test'
 
+# Test emission model TODO redefine path for em_reference.json
+models_config_file = os.path.join(os.path.dirname(__file__), '../pyxhydro/specutils/em_reference.json')
+testEmissionModel = 'GIZMO-SIMBA'
+
 def clear_file(file: str) -> None:
     if os.path.exists(file):
         os.remove(file)
