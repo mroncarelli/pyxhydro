@@ -79,7 +79,7 @@ class EmissionModel:
         # print(self._untracked_slots)
         # xspec setup
         xsp.Xset.chatter = 0
-        xsp.AllModels.setEnergies(f"{energy.min()} {energy.max()} {len(energy) - 1} lin")
+        xsp.AllModels.setEnergies(f"{energy.min()} {energy.max()} {len(energy)} lin")
         for cmd in self.json_record.get('xset', []):
             if cmd['method'] == 'abund':
                 xsp.Xset.abund = cmd['arg']
@@ -231,10 +231,12 @@ class EmissionModel:
         # untracked metals
         if 'total' in self._untracked_elements.keys():
             if len(self._tracked_elements.values())>0:
+                test_pz = np.asarray(pZ, dtype=np.float64)
                 idx = list(self._tracked_elements.values())
-                tracked_total = np.sum(pZ[idx])
+                tracked_total = np.sum(test_pz[idx])
                 fill_ratio = (pZ[self._untracked_elements['total']] - tracked_total) / Z_SOLAR
-                print(fill_ratio)
+                if fill_ratio<0:
+                    fill_ratio = 0.0
             else:
                 fill_ratio = (pZ[self._untracked_elements['total']]) / Z_SOLAR
         else:

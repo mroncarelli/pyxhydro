@@ -381,12 +381,15 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
         return qty_map
 
 
-def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
+def specmap(snapfile: str, em_model, emin, emax, nene ,size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
             energy_cut=None, tcut=0., flag_ene=False, nsample=None, isothermal=None, novel=None, gaussvel=None,
             seed=0, nosmooth=False, nh=None, simulation_type=None, progress=False):
     """
     TODO Add emin, emax, nene for variable metallicity models
     Creates a spectral-map (spectral datacube) from a Gadget snapshot.
+    :param emin: the minimum energy for the spectrum in KeV
+    :param emax: the maximum energy for the spectrum in KeV
+    :param nene: energy bins count
     :param snapfile: (str) Simulation snapshot file (Gadget)
     :param em_model: (dict or str) Spectrum table, spectrum table file (FITS) or emision model from em_reference.json
     :param size: (float) Angular size of the map [deg]
@@ -561,11 +564,24 @@ def specmap(snapfile: str, em_model, size: float, npix=256, redshift=None, cente
                 raise ValueError("Invalid em_model input")
             else:
                 # TODO declare emission model object from config_data[index]
-                e_bins = np.linspace(energy_cut[0], energy_cut[1], 101) if energy_cut else np.linspace(0.01, 10.0, 101)
+                if (emin is not None) and (emin is not None) and (emin is not None):
+                    e_bins = np.linspace(emin, emax, nene)
                 em_model_ = emisson_models.EmissionModel(e_bins, em_model['name'],False)
 
                 ##### Here I have to load in the metallicity for the simulation #############
-                Z = readsnap(snapfile, 'Metallicity', 'gas', units=0, suppress=1).astype(np.float32)
+                is_hdf5 = snapfile.endswith(('.hdf5', '.h5'))
+
+                if is_hdf5:
+                    key = 'Metallicity'
+                else:
+                    key = 'Z   '
+
+                try:
+                    Z = readsnap(snapfile, key, 'gas', units=0, suppress=1)
+                except (ValueError, KeyError):
+                    raise RuntimeError(f"Cannot read metallicity: wrong keyword or unknown simulation format for {snapfile}")
+
+                print("Metallicity", Z)
                 if Z.ndim == 1:
                     Z = Z.reshape(-1, 1)
                 elif Z.ndim == 2:
