@@ -230,8 +230,14 @@ class EmissionModel:
 
         # untracked metals
         if 'total' in self._untracked_elements.keys():
-            # TODO subtract tracked elements composition
-            fill_ratio = pZ[self._untracked_elements['total']] / Z_SOLAR
+            if len(self._tracked_elements.values())>0:
+                idx = list(self._tracked_elements.values())
+                tracked_total = np.sum(pZ[idx])
+                fill_ratio = (pZ[self._untracked_elements['total']] - tracked_total) / Z_SOLAR
+                print(fill_ratio)
+            else:
+                fill_ratio = (pZ[self._untracked_elements['total']]) / Z_SOLAR
+            print("fixed",fill_ratio)
         else:
             chem = next(iter(self._untracked_elements.keys()))
             sim_idx  = next(iter(self._untracked_elements.values()))
