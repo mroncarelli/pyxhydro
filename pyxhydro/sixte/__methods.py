@@ -645,66 +645,37 @@ def makespec(evtfile: str, phafile: str, rsppath=None, filter=None, grading=None
 
     def __int_filter(val, column: str) -> str:
         """
-        Constructs a string with a filter for integer values
+        Constructs a string with a filter for integer values. Optimized to have the lowest number of characters.
         :param val: (int or iterable of integers) Values to be included in the filter
         :param column: (str) Column name
         :return: (str) Filter string
         """
         if hasattr(val, '__iter__'):
             if all(isinstance(item, numbers.Integral) and not isinstance(item, bool) for item in val):
-                result = "(" + column + "==" + str(val[0])
-                for item in val[1:]:
-                    result += "||" + column + "==" + str(item)
-                result += ")"
+                val_ = np.sort(np.unique(np.array(val)))
+
+                # Finding consecutive intervals to shorten the string
+                breaks = np.where(np.diff(val_) != 1)[0] + 1
+                groups = np.split(val_, breaks)
+                condition_list = []
+                for g in groups:
+                    if len(g) == 1:
+                        # Single number
+                        condition_list.append(column + '==' + str(g[0]))
+                    else:
+                        # Interval extremes, using > and < to save characters
+                        condition_list.append('(' + column + '>' + str(g[0] - 1) + '&&' +
+                                              column + '<' + str(g[-1] + 1) + ')')
+
+                result = '||'.join(condition_list)
+
             else:
                 raise ValueError(column + " values must be integers")
         elif isinstance(val, numbers.Integral) and not isinstance(val, bool):
-            result = column + "==" + str(val)
+            result = column + '==' + str(val)
         else:
             raise ValueError(column + " values must be integers")
         return result
-
-    # error_msg_grading = "Grading values must be integer, iterable of integers or None."
-    # warning_msg_grading = "WARNING: " + evtfile + " does not contain the GRADING column. Ignoring grading option."
-    # if isinstance(grading, type(None)):
-    #     pass
-    # else:
-    #     if not no_exec:
-    #         if 'GRADING' in fits.open(evtfile)[1].data.names:
-    #             if isinstance(grading, int):
-    #                 filter_list.append("GRADING==" + str(grading))
-    #             elif isinstance(grading, tuple) or isinstance(grading, list):
-    #                 if all(type(item) is int for item in grading):
-    #                     tag_grading = "(GRADING==" + str(grading[0])
-    #                     for item in grading[1:]:
-    #                         tag_grading += " || GRADING==" + str(item)
-    #                     tag_grading += ")"
-    #                     filter_list.append(tag_grading)
-    #                 else:
-    #                     raise ValueError(error_msg_grading)
-    #             else:
-    #                 raise ValueError(error_msg_grading)
-    #         else:
-    #             # Grading filter is ignored as it is not present in the event-list (warning issued)
-    #             print(warning_msg_grading)
-    #
-    # # Pixel Id
-    # error_msg_pixid = "Pixid values must be integer, iterable of integers or None."
-    # if isinstance(pixid, type(None)):
-    #     pass
-    # elif hasattr(pixid, '__iter__'):
-    #     if all(item.is_integer() for item in pixid):
-    #         tag_pixid = "(PIXID==" + str(pixid[0])
-    #         for item in pixid[1:]:
-    #             tag_pixid += " || PIXID==" + str(item)
-    #         tag_pixid += ")"
-    #         filter_list.append(tag_pixid)
-    #     else:
-    #         raise ValueError(error_msg_pixid)
-    # elif pixid.is_integer():
-    #     filter_list.append("PIXID==" + str(pixid))
-    # else:
-    #     raise ValueError(error_msg_pixid)
 
     # If rsppath is not provided I try to recover it from the evtfile
     rsppath_ = get_xmlpath(evtfile) if rsppath is None else rsppath
@@ -719,7 +690,7 @@ def makespec(evtfile: str, phafile: str, rsppath=None, filter=None, grading=None
 
     # Filter
     if type(filter) == str and filter.strip() != '':
-        filter_list.append("(" + filter + ")")
+        filter_list.append(filter.strip())
 
     # Grading
     if grading is not None:
@@ -729,10 +700,11 @@ def makespec(evtfile: str, phafile: str, rsppath=None, filter=None, grading=None
     if pixid is not None:
         filter_list.append(__int_filter(pixid, 'PIXID'))
 
-    # Defining a tag to be used (if not empty) with the EventFilter keyword of makespec
-    tag_filter = '&&'.join(filter_list)
-    if tag_filter != '':
-        command += ' EventFilter="' + tag_filter + '"'
+    # Adding the EventFilter keyword in makespec only if a filter of any kind is present
+    if len(filter_list) == 1:
+        command += ' EventFilter="' + filter_list[0] + '"'
+    elif len(filter_list) >= 2:
+        command += ' EventFilter="(' + ')&&('.join(filter_list) + ')"'
 
     if type(verbose) is int:
         if verbose < 0:
