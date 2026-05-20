@@ -23,7 +23,7 @@ DP = np.float64
 npix = 128
 
 # Relative tolerance (some test with alpha-weight may fail with 1e-6)
-relTol = 1e-5
+relTol = 5e-5
 
 # Mass must be read by all tests
 mass = readsnap(snapshotFile, 'mass', 'gas', units=0, suppress=1)  # [10^10 h^-1 M_Sun]

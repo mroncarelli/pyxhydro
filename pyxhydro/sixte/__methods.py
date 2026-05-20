@@ -1,6 +1,8 @@
 import copy as cp
 import os
+import re
 import tempfile
+import warnings
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -725,3 +727,55 @@ def makespec(evtfile: str, phafile: str, rsppath=None, filter=None, grading=None
         if sys_out == 0:
             __inherit_keywords(evtfile, phafile, add_keys={"EVT_FILE": evtfile, "COMMAND": command})
         return sys_out
+
+
+def get_filter_values(phafile: str, key='PIXID') -> np.ndarray:
+    """
+    Gets the values of PIXID (default) or GRADING from a pha file created with sixte.makespec.
+    :param phafile: (str) Spectrum file
+    :param key: (str) PIXID or GRADING
+    :return: (array of int) The array of (sorted) values
+    """
+
+    key_ = key.strip().upper()
+    if key_ not in ['PIXID', 'GRADING']:
+        raise ValueError(key + " must be either 'PIXID' or 'GRADING'")
+
+    command = fits.open(phafile)[0].header['COMMAND']  # Sixte command that generated the file
+    match = re.search(r'EventFilter="([^"]*)"', command)
+    if match is None:
+        warnings.warn('EventFilter not found in the COMMAND keyword of ' + phafile + ' heaader.')
+        return np.empty(0, dtype=np.int32)
+
+    ev_filter = match.group(1)
+    expr_list = ev_filter.split(')&&(')
+    valid_expr_list = []
+    for grp in expr_list:
+        if key_ in grp:
+            valid_expr_list.append(grp)
+
+    if len(valid_expr_list) == 0:
+        warnings.warn(key_ + ' not found in the COMMAND keyword of ' + phafile + ' heaader.')
+        return np.empty(0, dtype=np.int32)
+    elif len(valid_expr_list) > 1:
+        raise ValueError("Invalid COMMAND keyword in " + phafile + " heaader.")
+
+    expr = valid_expr_list[0]  # Only one expression cointains the key
+    values = []
+
+    # Build regex dynamically from the keyword
+    interval_pattern = rf'{re.escape(key_)}>(-?\d+)&&{re.escape(key_)}<(-?\d+)'
+    single_pattern = rf'{re.escape(key_)}==(-?\d+)'
+    #interval_pattern = rf'{re.escape(key_)}>(\d+)&&{re.escape(key_)}<(\d+)'
+    #single_pattern = rf'{re.escape(key_)}==(\d+)'
+
+    # Extract intervals
+    for a, b in re.findall(interval_pattern, expr):
+        a, b = int(a), int(b)
+        values.extend(range(a + 1, b))
+
+    # Extract single values
+    for x in re.findall(single_pattern, expr):
+        values.append(int(x))
+
+    return np.array(sorted(values), dtype=np.int32)
