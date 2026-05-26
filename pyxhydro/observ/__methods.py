@@ -170,31 +170,83 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
     return np.sum(spectrum * effarea)  # [counts s^-1]
 
 
-def mosaic(n, center=(0, 0), fov=1) -> list:
+def mosaic(n, center=(0, 0), side=1, hexagon=False, layout='h') -> list:
     """
-    Creates a square mosaic of pointings.
-    :param n: (int) Number of sides of the square mosaic.
+    Creates a square or hexagonal mosaic of pointings. For hexagon mosaic it uses odd horizontal or vertical layout.
+    :param n: (int) Number of sides of the mosaic.
     :param center: (float x 2) Coordinate of the center of the mosaic [arbitrary units], default (0, 0).
-    :param fov: (float) Field of view, default 1 [arbitrary units]
+    :param side: (float) Side of the square (or hexagon), default 1 [arbitrary units]
+    :param hexagon: (bool) If set to True creates a hexagonal mosaic, default False
+    :param layout: (str) Tyling type for exagonal mosaic: 'h', i.e. horizontal (default), or 'v', i.e. vertical
     :return: (list of dict) List of pointings containing the following keys:
             - x: (float) x-coordinate of the pointing center
             - y: (float) y-coordinate of the pointing center
-            - index: (int tuple) indexes of the square coordinates
+            - index: (int tuple) indexes of the 2D coordinates
             - ring: (int) ring index with the respect to the '00' pointing located in the center of the mosaic
             - tag: (str) a tag that identifies the pointing, being '00' the central pointing (rounded low/left when
                 n is even) and with numbers 1, 2, 3, ... toward the up/right, and 9, 8, 7, ... towards the low/left.
                 The uniqueness of the tag will fail for n > 10.
     """
-    coord = np.linspace(-0.5 * (n - 1), 0.5 * (n - 1), n, endpoint = True, dtype=SP)
+
+    def __hex_distance(col1: int, row1: int, col2: int, row2: int) -> int:
+        """
+        Calculates the distance between two hexagons.
+        :param col1:
+        :param row1:
+        :param col2:
+        :param row2:
+        :return:
+        """
+        def offset_to_cube(col, row):
+            x = col - (row - (row & 1)) // 2
+            z = row
+            y = -x - z
+            return x, y, z
+
+        x1, y1, z1 = offset_to_cube(col1, row1)
+        x2, y2, z2 = offset_to_cube(col2, row2)
+
+        # Cube distance
+        return max(
+            abs(x1 - x2),
+            abs(y1 - y2),
+            abs(z1 - z2)
+        )
+
+    coord = np.linspace(-0.5 * (n - 1), 0.5 * (n - 1), n, endpoint=True, dtype=SP)
     zero_pixel = int(np.floor((n - 1) / 2))
     result = []
+
+    if hexagon:
+        side_spacing = np.sqrt(3)  # spacing in the direction of hex_tyling
+        orth_spacing = 1.5  # spacing in the direction orthogonal to hex_tyling
+        layout_ = layout.strip().lower()
+        if layout_ == 'h':
+            for i in range(n):
+                for j in range(n):
+                    result.append({'x': (coord[i] + (j % 2) * 0.5) * side_spacing + center[0],
+                                   'y': coord[j] * orth_spacing + center[1],
+                                   'ring': __hex_distance(i, j, zero_pixel, zero_pixel)})
+        elif layout_ == 'v':
+            for i in range(n):
+                for j in range(n):
+                    result.append({'x': coord[i] * orth_spacing + center[0],
+                                   'y': (coord[j] + (i % 2) * 0.5) * side_spacing + center[1],
+                                   'ring': __hex_distance(j, i, zero_pixel, zero_pixel)})
+        else:
+            raise ValueError("Invalid input type: hex_tyling must be 'h' or 'v'.")
+    else:
+        for i in range(n):
+            for j in range(n):
+                result.append({'x': coord[i] * side + center[0],
+                               'y': coord[j] * side + center[1],
+                               'ring': max(abs(i - zero_pixel), abs(j - zero_pixel))})
+
+    # Adding index and tag (common to all cases)
     for i in range(n):
         for j in range(n):
-            result.append({'x': coord[i] * fov + center[0],
-                           'y': coord[j] * fov + center[1],
-                           'index': (i, j),
-                           'ring': max(abs(i - zero_pixel), abs(j - zero_pixel)),
-                           'tag': str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)})
+            result[j + n * i]['index'] = (i, j)
+            result[j + n * i]['tag'] = str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)
 
     return result
 
