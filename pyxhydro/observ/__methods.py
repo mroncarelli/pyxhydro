@@ -4,13 +4,17 @@ Set of methods connected to observational quantities.
 
 import numpy as np
 from astropy.io import fits
+from matplotlib.path import Path
+
 from ..gadgetutils.phys_const import keV2erg
 from .. import sixte
 from ..sphprojection.mapping import read_specmap
 
 SP = np.float32
+DP = np.float64
 
-def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> float:
+
+def countrate(inp, arf, telescope=1, xrange=None, yrange=None, polygon=None, erange=None) -> float:
     """
     Calculates the expected countrate of a spectral map for a given response.
     :param inp: (fits.HDUList or str) Spectral map. The input can be either a specmap (mapping module), or a Simput
@@ -22,11 +26,30 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         Default 1.
     :param xrange: (2 x float) Range in the x-axis [arcmin]. For spectral map assumes 0 in the center. Default None.
     :param yrange: (2 x float) Range in the y-axis [arcmin]. For spectral map assumes 0 in the center. Default None.
+    :param polygon: (2D float array) Coordinates
     :param erange: (2 x float) Energy range [keV]. Default None.
     :return: (float) The expected countrate [cts s^-1].
     """
 
-    def e_sp_from_spmap(spmap: dict, xrange=None, yrange=None, erange=None) -> tuple:
+    def __inside_fov(points: np.ndarray, xrange=None, yrange=None, polygon=None) -> np.ndarray:
+        """
+        Determines if a set of points is inside and x,y-range and is inside a polygon of given vertices.
+        :param points: (n x 2 array) The points coordinates.
+        :return: (array of bool) True if the point respects all conditions, False otherwise.
+        """
+        n = points.shape[0]
+        flag = np.full(n, True)
+        if xrange is not None:
+            flag *= ((points[:, 0] >= xrange[0]) & (points[:, 0] < xrange[1]))
+        if yrange is not None:
+            flag *= ((points[:, 1] >= yrange[0]) & (points[:, 1] < yrange[1]))
+        if polygon is not None:
+            path = Path(polygon)
+            flag *= path.contains_points(points)
+
+        return flag
+
+    def e_sp_from_spmap(spmap: dict, xrange=None, yrange=None, polygon=None, erange=None) -> tuple:
         """
         Extracts the energy bins spectra from a spectral map.
         :param spmap: (dict) Spectral map.
@@ -37,33 +60,33 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         """
 
         energy = spmap["energy"]  # [keV]
-        data = spmap["data"]
+        nx, ny, nene = spmap["data"].shape
+        assert nx == ny  # assumes square regular map
+        # Reshaping array to allow easier filtering
+        data = spmap["data"].reshape(nx * ny, nene)
         d_ene = spmap["energy_interval"]  # [keV]
 
-        if xrange is not None or yrange is not None:
-            npix = data.shape[0]
+        if xrange is not None or yrange is not None or polygon is not None:
             size = spmap["size"]  # [deg]
-            step = size / npix  # [arcmin]
-            pvec = np.linspace(0.5 * (-size + step), 0.5 * (size - step), num=npix, endpoint=True)  # [deg]
+            step = size / nx  # [arcmin]
+            pvec = np.linspace(0.5 * (-size + step), 0.5 * (size - step), num=nx, endpoint=True)  # [deg]
+            coords = np.ndarray([nx * ny, 2], dtype=SP)
+            for ipix in range(nx):
+                for jpix in range(ny):
+                    coords[nx * ipix + jpix, 0] = pvec[ipix]
+                    coords[nx * ipix + jpix, 1] = pvec[jpix]
 
-            if xrange is not None:
-                data = data[np.where((pvec >= xrange[0]) & (pvec < xrange[1]))[0], :, :]
-
-            if yrange is not None:
-                data = data[:, np.where((pvec >= yrange[0]) & (pvec < yrange[1]))[0], :]
+            data = data[np.where(__inside_fov(coords, xrange=xrange, yrange=yrange, polygon=polygon))[0], :]
+            del coords
 
         if erange is not None:
             index_ecut =  np.where((energy >= erange[0]) & (energy < erange[1]))[0]
             energy = energy[index_ecut]
             d_ene = d_ene[index_ecut]
-            data = data[:, :, index_ecut]
+            data = data[:, index_ecut]
             del index_ecut
 
-        spectrum = np.zeros(shape=(len(energy)), dtype=SP)  # [photons (or keV) keV^-1 s^-1 cm^-2 arcmin^-2]
-        nx, ny, nene = data.shape
-        for ipix in range(nx):
-            for jpix in range(ny):
-                spectrum += data[ipix, jpix, :]  # [photons (or keV) keV^-1 s^-1 cm^-2 arcmin^-2]
+        spectrum = np.sum(data, axis=0, dtype=DP)
 
         if spmap["flag_ene"]:
             spectrum /= energy  # [photons keV^-1 s^-1 cm^-2 arcmin^-2]
@@ -73,7 +96,8 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         return energy, spectrum  # [keV], [photons s^-1 cm^-2]
 
 
-    def e_sp_from_simput(simput: fits.hdu.hdulist.HDUList, xrange=None, yrange=None, erange=None) -> tuple:
+    def e_sp_from_simput(simput: fits.hdu.hdulist.HDUList, xrange=None, yrange=None, polygon=None,
+                         erange=None) -> tuple:
         """
         Extracts the energy bins spectra from an input file HDUList. Assumes that the energy coordinate is the same for
         all spectra and that it is uniform.
@@ -87,8 +111,9 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
         energy = simput[2].data['ENERGY'][0]  # Energy coordinates, assumed to be the same for all spectra [keV]
         d_ene = (energy[-1] - energy[0]) / (len(energy) - 1)  # [keV]
         data = simput[2].data['FLUXDENSITY']  # [photons s^-1 cm^-2 keV^-1]
-        for isp in range(len(data)):
-            data[isp] *= d_ene  # [photons s^-1 cm^-2]
+        nsp, nene = data.shape
+        for isp in range(nsp):
+            data[isp, :] *= d_ene  # [photons s^-1 cm^-2]
 
         # Renormalization. This is actually not necessary if the Simput file has been created with the sixte module.
         flux = simput[1].data['FLUX']  # [erg s^-1 cm^-2]
@@ -97,20 +122,13 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
             data[isp] *= flux[isp] / flux0  # [photons s^-1 cm^-2]
         del flux
 
-        if xrange is not None and yrange is None:
-            ra = simput[1].data['RA']  # [deg]
-            data = data[np.where((ra >= xrange[0]) & (ra < xrange[1]))[0], :]
-            del ra
-        elif xrange is None and yrange is not None:
-            dec = simput[1].data['DEC']  # [deg]
-            data = data[np.where((dec >= yrange[0]) & (dec < yrange[1]))[0], :]
-            del dec
-        elif xrange is not None and yrange is not None:
-            ra = simput[1].data['RA']  # [deg]
-            dec = simput[1].data['DEC']  # [deg]
-            data = data[np.where((ra >= xrange[0]) & (ra < xrange[1]) &
-                                 (dec >= yrange[0]) & (dec < yrange[1]))[0], :]
-            del ra, dec
+        if xrange is not None or yrange is not None or polygon is not None:
+            coords = np.ndarray([nsp, 2], dtype=SP)
+            coords[:, 0] = simput[1].data['RA']  # [deg]
+            coords[:, 1] = simput[1].data['DEC']  # [deg]
+
+            data = data[np.where(__inside_fov(coords, xrange=xrange, yrange=yrange, polygon=polygon))[0], :]
+            del coords
 
         if erange is not None:
             index_ecut =  np.where((energy >= erange[0]) & (energy < erange[1]))[0]
@@ -118,10 +136,10 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
             data = data[:, index_ecut]
             del index_ecut
 
-        spectrum = np.zeros(shape=(len(energy)), dtype=SP)  # [photons s^-1 cm^-2]
-        nsp, nene = data.shape
-        for isp in range(nsp):
-            spectrum += data[isp, :]  # [photons s^-1 cm^-2]
+        spectrum = np.sum(data, axis=0, dtype=DP) # [photons s^-1 cm^-2]
+        # nsp, nene = data.shape
+        # for isp in range(nsp):
+        #     spectrum += data[isp, :]  # [photons s^-1 cm^-2]
 
         return energy, spectrum  # [keV], [photons s^-1 cm^-2]
 
@@ -129,17 +147,19 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, erange=None) -> f
     input_type = type(inp)
     if input_type == dict:
         # Assuming it's a specmap ([keV], [photons s^-1 cm^-2])
-        energy, spectrum = e_sp_from_spmap(inp, xrange=xrange, yrange=yrange, erange=erange)
+        energy, spectrum = e_sp_from_spmap(inp, xrange=xrange, yrange=yrange, polygon=polygon, erange=erange)
     elif input_type == fits.hdu.hdulist.HDUList:
         # Assuming it's a Simput HUDList ([keV], [photons s^-1 cm^-2])
-        energy, spectrum = e_sp_from_simput(inp, xrange=xrange, yrange=yrange, erange=erange)
+        energy, spectrum = e_sp_from_simput(inp, xrange=xrange, yrange=yrange, polygon=polygon, erange=erange)
     elif input_type == str:
         try:
             # Trying with a file containing a specmap ([keV], [photons s^-1 cm^-2])
-            energy, spectrum = e_sp_from_spmap(read_specmap(inp), xrange=xrange, yrange=yrange, erange=erange)
+            energy, spectrum = e_sp_from_spmap(read_specmap(inp), xrange=xrange, yrange=yrange, polygon=polygon,
+                                               erange=erange)
         except:
             # Trying with a Simput file ([keV], [photons s^-1 cm^-2])
-            energy, spectrum = e_sp_from_simput(fits.open(inp), xrange=xrange, yrange=yrange, erange=erange)
+            energy, spectrum = e_sp_from_simput(fits.open(inp), xrange=xrange, yrange=yrange, polygon=polygon,
+                                                erange=erange)
     else:
         raise ValueError("Invalid input type. Must be a specmap dictionary, a Simput HUDList or a string with a file "
                          "name containing one of them.")

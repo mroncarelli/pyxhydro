@@ -38,6 +38,12 @@ yrange.sort()  # [deg]
 erange = TRG.uniform(emin, emax, size=2)  # [deg]
 erange.sort()  # [deg]
 
+# Rectangle corresponding to the xrange and yrange conditions
+rectangle = np.asarray([[xrange[0], yrange[0]],
+                        [xrange[1], yrange[0]],
+                        [xrange[1], yrange[1]],
+                        [xrange[0], yrange[1]]])
+
 # For photon counts derived from the eventlist the range is reduced to avoid border effect. I also include a
 # minimum range to avoid very small areas
 xmin2, xmax2 = -0.5 * instrumentFOV + pixelSize, 0.5 * instrumentFOV - pixelSize # [deg]
@@ -141,6 +147,64 @@ def test_countrate_outside_erange_must_be_zero():
     """
     assert countrate(referenceSpmapFile, arfFile, erange=(emin - 2, emin - 1)) == 0
     assert countrate(referenceSimputFile, arfFile, erange=(emin - 2, emin -1)) == 0
+
+
+
+def test_countrate_sum_splitting_xrange_must_match(f=0.7):
+    """
+    The countrate computed with xrange must match the sum of the countrates when xrange is split into two.
+    """
+    split = (1-f) * xrange[0] + f * xrange[1]
+    assert (countrate(referenceSpmapFile, arfFile, xrange=xrange) ==
+            pytest.approx(countrate(referenceSpmapFile, arfFile, xrange=(xrange[0], split)) +
+                          countrate(referenceSpmapFile, arfFile, xrange=(split, xrange[1])))), errMsg
+
+
+def test_countrate_sum_splitting_yrange_must_match(f=0.7):
+    """
+    The countrate computed with xrange must match the sum of the countrates when yrange is split into two.
+    """
+    split = (1-f) * yrange[0] + f * yrange[1]
+    assert (countrate(referenceSpmapFile, arfFile, yrange=yrange) ==
+            pytest.approx(countrate(referenceSpmapFile, arfFile, yrange=(yrange[0], split)) +
+                          countrate(referenceSpmapFile, arfFile, yrange=(split, yrange[1])))), errMsg
+
+
+def test_countrate_sum_splitting_erange_must_match(f=0.7):
+    """
+    The countrate computed with erange must match the sum of the countrates when erange is split into two.
+    """
+    split = (1-f) * erange[0] + f * erange[1]
+    assert (countrate(referenceSpmapFile, arfFile, erange=erange) ==
+            pytest.approx(countrate(referenceSpmapFile, arfFile, erange=(erange[0], split)) +
+                          countrate(referenceSpmapFile, arfFile, erange=(split, erange[1])))), errMsg
+
+
+def test_countrate_with_rectangle_field_must_match_the_equivalent_with_xrange_and_yrange():
+    """
+    The countrate on a rectangular field must match the one with the same field defined with xrange and yrange.
+    """
+    assert (countrate(referenceSpmapFile, arfFile, polygon=rectangle) ==
+            pytest.approx(countrate(referenceSpmapFile, arfFile, xrange=xrange, yrange=yrange))), errMsg
+
+
+def test_countrate_with_redundant_xrange_and_yrange_must_match_the_equivalent_with_polygon_only():
+    """
+    The countrate with xrange, yrange and polygon that actually matches the rectangle defined by xrange and yrange must
+    match the one with the same field defined with polygon only.
+    """
+    assert (countrate(referenceSpmapFile, arfFile, xrange=xrange, yrange=yrange, polygon=rectangle) ==
+            pytest.approx(countrate(referenceSpmapFile, arfFile, polygon=rectangle))), errMsg
+
+
+def test_countrate_with_rectangle_field_must_match_the_sum_of_the_countrates_splitting_the_rectangle_in_two():
+    """
+    The countrate on a rectangular field must match the sum of the countrates when the rectangle is split into two
+    triangles on its diagonal.
+    """
+    assert (countrate(referenceSpmapFile, arfFile, polygon=rectangle) ==
+            pytest.approx(countrate(referenceSpmapFile, arfFile, polygon=rectangle[[0, 1, 2], :]) +
+                          countrate(referenceSpmapFile, arfFile, polygon=rectangle[[0, 2, 3], :]))), errMsg
 
 
 def nevt_filter(table: fits.fitsrec.FITS_rec, simput_file=None, xrange=None, yrange=None, erange=None):
