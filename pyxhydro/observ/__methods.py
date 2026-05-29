@@ -262,7 +262,7 @@ def mosaic(n, center=(0, 0), side=1, hexagon=False, layout='h') -> list:
                                'y': coord[j] * side + center[1],
                                'ring': max(abs(i - zero_pixel), abs(j - zero_pixel))})
 
-    # Adding index and tag (common to all cases)
+    # Adding index and tag (common to all cases)K
     for i in range(n):
         for j in range(n):
             result[j + n * i]['index'] = (i, j)
