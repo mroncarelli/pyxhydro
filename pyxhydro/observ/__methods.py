@@ -190,7 +190,7 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, polygon=None, era
     return np.sum(spectrum * effarea)  # [counts s^-1]
 
 
-def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h') -> list:
+def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h', force_center=False) -> list:
     """
     Creates a square or hexagonal mosaic of pointings. For hexagon mosaic it uses odd horizontal or vertical layout.
     :param n: (int) Number of sides of the mosaic.
@@ -199,6 +199,8 @@ def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h') -> list
     :param theta: (float) Rotation angle, default 0 [deg]
     :param hexagon: (bool) If set to True creates a hexagonal mosaic, default False
     :param layout: (str) Tyling type for exagonal mosaic: 'h', i.e. horizontal (default), or 'v', i.e. vertical
+    :param force_center: (bool) If set to True the coordinates are set to have the pointing with tag '00' contered in
+        the center position, default False
     :return: (list of dict) List of pointings containing the following keys:
             - x: (float) x-coordinate of the pointing center
             - y: (float) y-coordinate of the pointing center
@@ -263,6 +265,20 @@ def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h') -> list
                                'y': coord[j] * side,
                                'ring': max(abs(i - zero_pixel), abs(j - zero_pixel))})
 
+    # Adding index and tag (common to all cases)
+    for i in range(n):
+        for j in range(n):
+            result[j + n * i]['index'] = (i, j)
+            result[j + n * i]['tag'] = str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)
+
+    # Centering in the '00' pixel if required
+    if force_center:
+        i00 = np.where(np.asarray([p['tag'] for p in result]) == '00')[0][0]
+        xc, yc = result[i00]['x'], result[i00]['y']
+        for item in result:
+            item['x'] -= xc
+            item['y'] -= yc
+
     # Applying rotation and offset
     theta_rad = np.deg2rad(theta)
     for item in result:
@@ -270,12 +286,6 @@ def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h') -> list
         y_ = item['x'] * np.sin(theta_rad) + item['y'] * np.cos(theta_rad) + center[1]
         item['x'] = x_
         item['y'] = y_
-
-    # Adding index and tag (common to all cases)
-    for i in range(n):
-        for j in range(n):
-            result[j + n * i]['index'] = (i, j)
-            result[j + n * i]['tag'] = str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)
 
     return result
 
