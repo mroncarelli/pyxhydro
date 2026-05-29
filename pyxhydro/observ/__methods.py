@@ -190,12 +190,13 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, polygon=None, era
     return np.sum(spectrum * effarea)  # [counts s^-1]
 
 
-def mosaic(n, center=(0, 0), side=1, hexagon=False, layout='h') -> list:
+def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h') -> list:
     """
     Creates a square or hexagonal mosaic of pointings. For hexagon mosaic it uses odd horizontal or vertical layout.
     :param n: (int) Number of sides of the mosaic.
     :param center: (float x 2) Coordinate of the center of the mosaic [arbitrary units], default (0, 0).
     :param side: (float) Side of the square (or hexagon), default 1 [arbitrary units]
+    :param theta: (float) Rotation angle, default 0 [deg]
     :param hexagon: (bool) If set to True creates a hexagonal mosaic, default False
     :param layout: (str) Tyling type for exagonal mosaic: 'h', i.e. horizontal (default), or 'v', i.e. vertical
     :return: (list of dict) List of pointings containing the following keys:
@@ -244,25 +245,33 @@ def mosaic(n, center=(0, 0), side=1, hexagon=False, layout='h') -> list:
         if layout_ == 'h':
             for i in range(n):
                 for j in range(n):
-                    result.append({'x': ((coord[i] + (j % 2) * 0.5) * side_spacing) * side + center[0],
-                                   'y': coord[j] * orth_spacing * side + center[1],
+                    result.append({'x': ((coord[i] + (j % 2) * 0.5) * side_spacing) * side,
+                                   'y': coord[j] * orth_spacing * side,
                                    'ring': __hex_distance(i, j, zero_pixel, zero_pixel)})
         elif layout_ == 'v':
             for i in range(n):
                 for j in range(n):
-                    result.append({'x': coord[i] * orth_spacing * side + center[0],
-                                   'y': ((coord[j] + (i % 2) * 0.5) * side_spacing) * side + center[1],
+                    result.append({'x': coord[i] * orth_spacing * side,
+                                   'y': ((coord[j] + (i % 2) * 0.5) * side_spacing) * side,
                                    'ring': __hex_distance(j, i, zero_pixel, zero_pixel)})
         else:
             raise ValueError("Invalid input type: hex_tyling must be 'h' or 'v'.")
     else:
         for i in range(n):
             for j in range(n):
-                result.append({'x': coord[i] * side + center[0],
-                               'y': coord[j] * side + center[1],
+                result.append({'x': coord[i] * side,
+                               'y': coord[j] * side,
                                'ring': max(abs(i - zero_pixel), abs(j - zero_pixel))})
 
-    # Adding index and tag (common to all cases)K
+    # Applying rotation and offset
+    theta_rad = np.deg2rad(theta)
+    for item in result:
+        x_ = item['x'] * np.cos(theta_rad) - item['y'] * np.sin(theta_rad) + center[0]
+        y_ = item['x'] * np.sin(theta_rad) + item['y'] * np.cos(theta_rad) + center[1]
+        item['x'] = x_
+        item['y'] = y_
+
+    # Adding index and tag (common to all cases)
     for i in range(n):
         for j in range(n):
             result[j + n * i]['index'] = (i, j)
