@@ -244,14 +244,14 @@ def mosaic(n, center=(0, 0), side=1, hexagon=False, layout='h') -> list:
         if layout_ == 'h':
             for i in range(n):
                 for j in range(n):
-                    result.append({'x': (coord[i] + (j % 2) * 0.5) * side_spacing + center[0],
-                                   'y': coord[j] * orth_spacing + center[1],
+                    result.append({'x': ((coord[i] + (j % 2) * 0.5) * side_spacing) * side + center[0],
+                                   'y': coord[j] * orth_spacing * side + center[1],
                                    'ring': __hex_distance(i, j, zero_pixel, zero_pixel)})
         elif layout_ == 'v':
             for i in range(n):
                 for j in range(n):
-                    result.append({'x': coord[i] * orth_spacing + center[0],
-                                   'y': (coord[j] + (i % 2) * 0.5) * side_spacing + center[1],
+                    result.append({'x': coord[i] * orth_spacing * side + center[0],
+                                   'y': ((coord[j] + (i % 2) * 0.5) * side_spacing) * side + center[1],
                                    'ring': __hex_distance(j, i, zero_pixel, zero_pixel)})
         else:
             raise ValueError("Invalid input type: hex_tyling must be 'h' or 'v'.")
