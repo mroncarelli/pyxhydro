@@ -190,14 +190,14 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, polygon=None, era
     return np.sum(spectrum * effarea)  # [counts s^-1]
 
 
-def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h', force_center=False) -> list:
+def mosaic(n, center=(0, 0), side=1, theta=0, tyling='square', layout='h', force_center=False) -> list:
     """
     Creates a square or hexagonal mosaic of pointings. For hexagon mosaic it uses odd horizontal or vertical layout.
-    :param n: (int) Number of sides of the mosaic.
+    :param n_side: (int) Number of sides of the mosaic. For type 'hexring' is the number of rings.
     :param center: (float x 2) Coordinate of the center of the mosaic [arbitrary units], default (0, 0).
     :param side: (float) Side of the square (or hexagon), default 1 [arbitrary units]
     :param theta: (float) Rotation angle, default 0 [deg]
-    :param hexagon: (bool) If set to True creates a hexagonal mosaic, default False
+    :param tyling: (str) Can be 'square', 'hexagon' or 'hexring', default 'square'.
     :param layout: (str) Tyling type for exagonal mosaic: 'h', i.e. horizontal (default), or 'v', i.e. vertical
     :param force_center: (bool) If set to True the coordinates are set to have the pointing with tag '00' contered in
         the center position, default False
@@ -236,40 +236,53 @@ def mosaic(n, center=(0, 0), side=1, theta=0, hexagon=False, layout='h', force_c
             abs(z1 - z2)
         )
 
-    coord = np.linspace(-0.5 * (n - 1), 0.5 * (n - 1), n, endpoint=True, dtype=SP)
-    zero_pixel = int(np.floor((n - 1) / 2))
+    tyling_ = tyling.lower().strip()
+
+    if tyling_ == 'hexring':
+        n_side = 2 * n + 1
+    else:
+        n_side = n
+
+    coord = np.linspace(-0.5 * (n_side - 1), 0.5 * (n_side - 1), n_side, endpoint=True, dtype=SP)
+    zero_pixel = int(np.floor((n_side - 1) / 2))
     result = []
 
-    if hexagon:
+    if tyling_ in ['hexagon', 'hexring']:
         side_spacing = np.sqrt(3)  # spacing in the direction of hex_tyling
         orth_spacing = 1.5  # spacing in the direction orthogonal to hex_tyling
         layout_ = layout.strip().lower()
         if layout_ == 'h':
-            for i in range(n):
-                for j in range(n):
+            for i in range(n_side):
+                for j in range(n_side):
                     result.append({'x': ((coord[i] + (j % 2) * 0.5) * side_spacing) * side,
                                    'y': coord[j] * orth_spacing * side,
                                    'ring': __hex_distance(i, j, zero_pixel, zero_pixel)})
         elif layout_ == 'v':
-            for i in range(n):
-                for j in range(n):
+            for i in range(n_side):
+                for j in range(n_side):
                     result.append({'x': coord[i] * orth_spacing * side,
                                    'y': ((coord[j] + (i % 2) * 0.5) * side_spacing) * side,
                                    'ring': __hex_distance(j, i, zero_pixel, zero_pixel)})
         else:
             raise ValueError("Invalid input type: hex_tyling must be 'h' or 'v'.")
-    else:
-        for i in range(n):
-            for j in range(n):
+    elif tyling_ == 'square':
+        for i in range(n_side):
+            for j in range(n_side):
                 result.append({'x': coord[i] * side,
                                'y': coord[j] * side,
                                'ring': max(abs(i - zero_pixel), abs(j - zero_pixel))})
+    else:
+        raise ValueError("Invalid type argument: hex_tyling must be one of 'square', 'hexagon' or 'hexring'.")
 
     # Adding index and tag (common to all cases)
-    for i in range(n):
-        for j in range(n):
-            result[j + n * i]['index'] = (i, j)
-            result[j + n * i]['tag'] = str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)
+    for i in range(n_side):
+        for j in range(n_side):
+            result[j + n_side * i]['index'] = (i, j)
+            result[j + n_side * i]['tag'] = str((i - zero_pixel) % 10) + str((j - zero_pixel) % 10)
+
+    # Removing hexagons outside the ring for hexring
+    if tyling_ == 'hexring':
+        result = [p for p in result if p['ring'] < n]
 
     # Centering in the '00' pixel if required
     if force_center:
