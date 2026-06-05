@@ -285,7 +285,7 @@ def mosaic(n, center=(0, 0), side=1, theta=0, tyling='square', layout='h', force
         result = [p for p in result if p['ring'] < n]
 
     # Centering in the '00' pixel if required
-    if force_center:
+    if force_center or tyling_ == 'hexring':
         i00 = np.where(np.asarray([p['tag'] for p in result]) == '00')[0][0]
         xc, yc = result[i00]['x'], result[i00]['y']
         for item in result:
