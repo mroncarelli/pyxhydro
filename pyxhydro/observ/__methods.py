@@ -124,7 +124,7 @@ def countrate(inp, arf, telescope=1, xrange=None, yrange=None, polygon=None, era
 
         if xrange is not None or yrange is not None or polygon is not None:
             coords = np.ndarray([nsp, 2], dtype=SP)
-            coords[:, 0] = simput[1].data['RA']  # [deg]
+            coords[:, 0] = ra_corr(simput[1].data['RA'], 'deg', zero=True)  # [deg] zero-centered
             coords[:, 1] = simput[1].data['DEC']  # [deg]
 
             data = data[np.where(__inside_fov(coords, xrange=xrange, yrange=yrange, polygon=polygon))[0], :]
