@@ -220,13 +220,13 @@ def __inherit_keywords(input_file: str, output_file: str, add_keys=None) -> int:
     """
     Writes a list of keywords (if present) from the Primary header of the input file into the Primary header of the
     output file.
-    :param input_file: (str) Input FITS file.
+    :param input_file: (str) Input FITS file(s).
     :param output_file: (str) Output FITS file that will be modified.
     :param add_keys: (dict) List of additional keywords/values to add to the output file.
     :return: (int) System output of the writing operation
     """
 
-    header_inp = fits.getheader(input_file, 0)
+    header_inp = fits.getheader(input_file.split(',')[0], 0)  # Takes the first Simput file when more than one
     hdulist = fits.open(output_file)
 
     for key in keywordList:
