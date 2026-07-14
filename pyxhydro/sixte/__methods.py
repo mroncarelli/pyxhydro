@@ -779,3 +779,64 @@ def get_filter_values(phafile: str, key='PIXID') -> np.ndarray:
         values.append(int(x))
 
     return np.array(sorted(values), dtype=np.int32)
+
+
+def vignetting(arf, vignet, theta: float, outfile:str, overwrite=True) -> None:
+    """
+    Creates a vignetted arf based on the original one and on the vignetting file used by Sixte. Considers only the
+    off-axis distance. TODO test
+    :param arf: (str or fits.HDUList) Ancillary response file.
+    :param vignet: (str or fits.HDUList) Vignetting file.
+    :param theta: (float) Off-axis distance [deg].
+    :param outfile: (str) Output file name.
+    :param overwrite: (bool) If True (default) overwrites existing file.
+    :return: None
+    """
+    if type(arf) is fits.HDUList:
+        arf_ = arf
+    elif type(arf) is str:
+        arf_ = fits.open(arf)
+    else:
+        raise ValueError("arf argument must be a fits.HDUList or str")
+
+    if type(vignet) is fits.HDUList:
+        vignet_ = vignet
+    elif type(vignet) is str:
+        vignet_ = fits.open(vignet)
+    else:
+        raise ValueError("vignet argument must be a fits.HDUList or str")
+
+    if theta < 0:
+        warnings.warn('Theta value cannot be negative. Assuming theta = 0, returning original arf.')
+        arf_.writeto(outfile, overwrite=overwrite)
+
+    # ARF data
+    em = 0.5 * (arf_[1].data['ENERG_LO'] + arf_[1].data['ENERG_HI'])  # [keV]]
+    eff_area = arf_[1].data['SPECRESP']  # [cm^2]
+
+    # Vignetting matrix (assumes dependence on off-axis angle only)
+    em_vig = 0.5 * (vignet_[1].data['ENERG_LO'][0, :] + vignet_[1].data['ENERG_HI'][0, :])  # [keV]
+    theta_vig = vignet_[1].data['THETA'][0, :]  # [deg]
+    vig_matrix = vignet_[1].data['VIGNET'][0, 0, :, :]  # [---]
+
+    if theta > theta_vig.max():
+        warnings.warn('Off-axis angle (theta) exceeds maximum value of the vignetting file: extrapolating')
+
+    # Find interval
+    if theta <= theta_vig[0]:
+        i0, i1 = 0, 1
+    elif theta >= theta_vig[-1]:
+        i0, i1 = -2, -1
+    else:
+        i1 = np.searchsorted(theta_vig, theta)
+        i0 = i1 - 1
+
+    x0, x1 = theta_vig[i0], theta_vig[i1]
+    w = (theta - x0) / (x1 - x0)
+
+    vig_array = (1 - w) * vig_matrix[i0] + w * vig_matrix[i1]  # [---]
+
+    eff_area *= np.interp(em, em_vig, vig_array)  # [cm^2]
+    arf_[1].data['SPECRESP'] = eff_area  # [cm^2]
+
+    return arf_.writeto(outfile, overwrite=overwrite)
