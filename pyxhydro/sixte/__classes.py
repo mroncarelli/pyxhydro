@@ -148,6 +148,20 @@ class Instrument:
 
         return None if verbose > 0 else ok
 
+    def vignetted_arf(self, theta: float, outfile: str, index=0, overwrite=True) -> None:
+        """
+        Creates a vignetted arf based on the original one and on the vignetting file used by Sixte. Considers only the
+        off-axis distance. TODO test
+        :param theta: (float) Off-axis distance [deg].
+        :param outfile: (str) Output file name.
+        :param index: (int) Index of the telescope. Default 0.
+        :param overwrite: (bool) If True (default) overwrites existing file.
+        :return: None
+        """
+        from pyxhydro.sixte import vignetting # as __vignettingMethod
+        vignetting(self.path + '/' + self.arf[index], self.path + '/' + self.vignetting[index], theta, outfile,
+                   overwrite=overwrite)
+
 
 def load_instrument(inp: dict) -> Instrument:
     """
