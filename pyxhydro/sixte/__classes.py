@@ -57,17 +57,34 @@ class Instrument:
         self.xml = tuple(dummy)
 
         # Getting data from XML file
-        focal_length, diameter, arf, psf, vignetting = [], [], [], [], []
+        focal_length, diameter, arf, psf, vignetting, rmf, nxb = [], [], [], [], [], [], []
+
+        def get_attrib(root, path, attrib, cast=None):
+            element = root
+            for tag in path:
+                element = element.find(tag)
+                if element is None:
+                    return None
+
+            value = element.attrib.get(attrib)
+            if value is None:
+                return None
+
+            return cast(value) if cast else value
+
         for xml in self.xml:
             input_file = self.path + '/' + xml
             if os.path.isfile(input_file):
                 root = ElementTree.parse(input_file).getroot()
 
-                focal_length.append(float(root.find('telescope').find('focallength').attrib['value']))
-                diameter.append(float(root.find('telescope').find('fov').attrib['diameter']))
-                arf.append(root.find('telescope').find('arf').attrib['filename'])
-                psf.append(root.find('telescope').find('psf').attrib['filename'])
-                vignetting.append(root.find('telescope').find('vignetting').attrib['filename'])
+                focal_length.append(get_attrib(root, ['telescope', 'focallength'], 'value', float))
+                diameter.append(get_attrib(root, ['telescope', 'fov'], 'diameter', float))
+                arf.append(get_attrib(root, ['telescope', 'arf'], 'filename'))
+                psf.append(get_attrib(root, ['telescope', 'psf'], 'filename'))
+                vignetting.append(get_attrib(root, ['telescope', 'vignetting'], 'filename'))
+                rmf.append(get_attrib(root, ['detector', 'rmf'], 'filename'))
+                nxb.append(get_attrib(root, ['detector', 'phabackground'], 'filename'))
+
             else:
                 warnings.warn("File '" + input_file + "' not found.")
 
@@ -76,6 +93,8 @@ class Instrument:
         self.arf = tuple(arf)
         self.psf =tuple(psf)
         self.vignetting = tuple(vignetting)
+        self.rmf = tuple(rmf)
+        self.nxb = tuple(nxb)
 
     @property
     def n_telescopes(self):
