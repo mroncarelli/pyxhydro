@@ -13,7 +13,7 @@ import numpy as np
 from pyxhydro.gadgetutils.phys_const import kpc2cm, m_e, m_p, Xp, Msun2g
 from pyxhydro.gadgetutils.readspecial import readtemperature, readvelocity
 from pyxhydro.pygadgetreader import readsnap
-from pyxhydro.sphprojection.mapping import map2d
+from pyxhydro.sphprojection.mapping import map2d, map2d_xyq
 from .randomutils import TrueRandomGenerator, globalRandomSeed
 from .__shared import snapshotFile
 
@@ -325,7 +325,65 @@ def test_waw_with_alpha_vector_matches_scalar():
                     val0 = map0[ii, jj]
                     val1 = map1[ii, jj]
                     # Testing the difference also in absolute value (km/s) since values may be negative or ~0
-                    assert val1 == pytest.approx(val0, abs=2) or val1 == pytest.approx(val0, rel=1e-4), errMsg
+                    assert val1 == pytest.approx(val0, rel=1e-4, abs=2), errMsg
             assert map_alpha_vec["map2"][:, :, index] == pytest.approx(map_alpha["map2"], abs=1e-3), errMsg
             assert map_alpha_vec["norm"][:, :, index] == pytest.approx(map_alpha["norm"], rel=relTol), errMsg
             assert alpha_scalar == map_alpha["alpha"], errMsg
+
+
+def test_map2d_xyq_maps_match_map2d_rho():
+    """
+    Projected mass density computed with map2d and map2d_xyq must match
+    """
+    pos = readsnap(snapshotFile, 'pos', 'gas', units=0, suppress=1)
+    hsml = readsnap(snapshotFile, 'hsml', 'gas', units=0, suppress=1)
+    map_str = map2d(snapshotFile, 'rho', npix=npix, struct=True)
+    map_xyq, nrm = map2d_xyq(pos[:, 0], pos[:, 1], mass, hsml, npix=npix, norm=True)
+
+    assert map_xyq * nrm == pytest.approx(map_str['map'] * map_str['pixel_size'] ** 2, rel=relTol), errMsg
+
+
+def test_map2d_xyq_maps_match_map2d_tmw():
+    """
+    Projected mass-weighted temperature computed with map2d and map2d_xyq must match
+    """
+    pos = readsnap(snapshotFile, 'pos', 'gas', units=0, suppress=1)
+    hsml = readsnap(snapshotFile, 'hsml', 'gas', units=0, suppress=1)
+    temp = readtemperature(snapshotFile, 'K', suppress=1)
+    x_e = readsnap(snapshotFile, 'ne', 'gas', suppress=1)
+    map_str = map2d(snapshotFile, 'tmw', npix=npix, struct=True)
+    map_xyq = map2d_xyq(pos[:, 0], pos[:, 1], temp, hsml, npix=npix, weight=mass * x_e)
+
+    assert map_xyq == pytest.approx(map_str['map'], rel=relTol), errMsg
+
+
+def test_map2d_xyq_maps_match_map2d_vew():
+    """
+    Projected emission-weighted velocity computed with map2d and map2d_xyq must match
+    """
+    pos = readsnap(snapshotFile, 'pos', 'gas', units=0, suppress=1)
+    hsml = readsnap(snapshotFile, 'hsml', 'gas', units=0, suppress=1)
+    v_z = readvelocity(snapshotFile, 'km/s', suppress=1)[:, 2]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)
+    x_e = readsnap(snapshotFile, 'ne', 'gas', suppress=1)
+    map_str = map2d(snapshotFile, 'vew', npix=npix, struct=True)
+    map_xyq = map2d_xyq(pos[:, 0], pos[:, 1], v_z, hsml, npix=npix, weight=mass * rho * x_e**2)
+
+    assert map_xyq == pytest.approx(map_str['map'], rel=relTol, abs=1), errMsg
+
+
+def test_map2d_xyq_maps_match_map2d_wew():
+    """
+    Projected emission-weighted velocity dispersion computed with map2d and map2d_xyq must match
+    """
+    pos = readsnap(snapshotFile, 'pos', 'gas', units=0, suppress=1)
+    hsml = readsnap(snapshotFile, 'hsml', 'gas', units=0, suppress=1)
+    v_z = readvelocity(snapshotFile, 'km/s', suppress=1)[:, 2]
+    rho = readsnap(snapshotFile, 'rho', 'gas', units=0, suppress=1)
+    x_e = readsnap(snapshotFile, 'ne', 'gas', suppress=1)
+    map_str = map2d(snapshotFile, 'wew', npix=npix, struct=True)
+    map_v = map2d_xyq(pos[:, 0], pos[:, 1], v_z, hsml, npix=npix, weight=mass * rho * x_e**2)
+    map_w = map2d_xyq(pos[:, 0], pos[:, 1], v_z**2, hsml, npix=npix, weight=mass * rho * x_e**2)
+    map_w = np.sqrt(np.maximum(map_w - map_v**2, 0))
+
+    assert map_w == pytest.approx(map_str['map'], rel=relTol, abs=1), errMsg

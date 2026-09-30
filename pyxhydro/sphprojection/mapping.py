@@ -64,13 +64,90 @@ def get_map_coord(simfile: str, proj_index: int, z=False):
         return x, y
 
 
+def __get_map_geometry(x, y, hsml, center=None, size=None):
+    """
+    Determine the geometry of a square map.
+
+    Parameters
+    ----------
+    x, y : array-like
+        Coordinates of the particles.
+    hsml : array-like
+        Smoothing lengths.
+    center : array-like or None, optional
+        Map center as a 2-element vector [xc, yc].
+        If None, the center is determined from the simulation box.
+    size : float or None, optional
+        Side length of the square map. If None, it is determined
+        from the simulation box and/or center.
+
+    Returns
+    -------
+    xmap0, ymap0 : float
+        Lower-left corner of the map.
+    size : float
+        Side length of the m
+    """
+
+    if center is None:
+        xmin, xmax = min(x - hsml), max(x + hsml)
+        ymin, ymax = min(y - hsml), max(y + hsml)
+
+        xc = 0.5 * (xmin + xmax)
+        yc = 0.5 * (ymin + ymax)
+
+        if size is None:
+            delta_x = xmax - xmin
+            delta_y = ymax - ymin
+
+            if delta_x >= delta_y:
+                size = delta_x
+                xmap0 = xmin
+                ymap0 = ymin - 0.5 * (delta_x - delta_y)
+            else:
+                size = delta_y
+                xmap0 = xmin - 0.5 * (delta_y - delta_x)
+                ymap0 = ymin
+        else:
+            xmap0 = xc - 0.5 * size
+            ymap0 = yc - 0.5 * size
+
+    else:
+        try:
+            xc, yc = float(center[0]), float(center[1])
+        except (TypeError, ValueError, IndexError):
+            raise ValueError(
+                f"Invalid center: {center}. "
+                "Must be a 2D number vector."
+            )
+
+        if size is None:
+            xmin, xmax = min(x - hsml), max(x + hsml)
+            ymin, ymax = min(y - hsml), max(y + hsml)
+
+            if not (xmin <= xc <= xmax and ymin <= yc <= ymax):
+                print("WARNING: Map center is outside the simulation box")
+
+            size = 2. * max(
+                abs(xc - xmin),
+                abs(xc - xmax),
+                abs(yc - ymin),
+                abs(yc - ymax)
+            )
+
+        xmap0 = xc - 0.5 * size
+        ymap0 = yc - 0.5 * size
+
+    return xmap0, ymap0, size
+
+
 def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None, proj='z', zrange=None, tcut=0,
           nsample=None, struct=False, nosmooth=False, progress=False):
     """
     Creates a projected 2D map of a physical quantitiy from a Gadget snapshot.
     :param simfile: (str) simulation file (Gadget)
     :param quantity: (str) physical quantity to map (one of rho, rho2, Tmw, Tew, Tsl, Taw, vmw, vew, vaw, wmw, wew, waw)
-    :param npix: (int) number of map pixels per side
+    :param npix: (int) number of map pixels per side, default 256
     :param alpha: (float) exponent of the temperature weight, w = n_e^2*T^alpha. Default: 0 (i.e. emission-weighted)
     :param center: (float 2) comoving coord. of the map center [h^-1 kpc]. Default: median point of gas particles
     :param size: (float) map comoving size [h^-1 kpc]. Default: encloses all gas particles
@@ -114,35 +191,7 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
                                                                           **pygro)  # [h^-1 kpc] comoving
 
     # Defining center and map size
-    if center is None:
-        xmin, xmax = min(x - hsml), max(x + hsml)
-        ymin, ymax = min(y - hsml), max(y + hsml)
-        xc = 0.5 * (xmin + xmax)
-        yc = 0.5 * (ymin + ymax)
-        if size is None:
-            delta_x, delta_y = xmax - xmin, ymax - ymin
-            if delta_x >= delta_y:
-                size = delta_x
-                xmap0, ymap0 = xmin, ymin - 0.5 * (delta_x - delta_y)
-            else:
-                size = delta_y
-                xmap0, ymap0 = xmin - 0.5 * (delta_y - delta_x), ymin
-        else:
-            xmap0, ymap0 = xc - 0.5 * size, yc - 0.5 * size
-    else:
-        try:
-            xc, yc = float(center[0]), float(center[1])
-        except BaseException:
-            raise ValueError("Invalid center: ", center, "Must be a 2d number vector")
-
-        if size is None:
-            xmin, xmax = min(x - hsml), max(x + hsml)
-            ymin, ymax = min(y - hsml), max(y + hsml)
-            if not (xmin <= xc <= xmax and ymin <= yc <= ymax):
-                print("WARNING: Map center is outside the simulation box")
-            size = 2. * max(abs(xc - xmin), abs(xc - xmax), abs(yc - ymin), abs(yc - ymax))
-
-        xmap0, ymap0 = xc - 0.5 * size, yc - 0.5 * size
+    xmap0, ymap0, size = __get_map_geometry(x, y, hsml, center, size)
 
     pixsize = size / npix  # [h^-1 kpc] comoving
 
@@ -311,17 +360,8 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
     if quantity_ in ['wmw', 'wew', 'waw']:
         qty2_map[np.where(nrm_map != 0.)] /= nrm_map[np.where(nrm_map != 0.)]
         # Numerical noise may cause some pixels of qty_map to have smaller values than the corresponding ones, squared,
-        # in qty2_map: this would cause the presence of nan in the result. The loops below puts 0 in those pixels.
-        if multi_alpha:
-            for ipix in range(npix):
-                for jpix in range(npix):
-                    for k in range(nalpha):
-                        qty_map[ipix, jpix, k] = np.sqrt(max(qty_map[ipix, jpix, k] - qty2_map[ipix, jpix, k] ** 2, 0.))
-        else:
-            for ipix in range(npix):
-                for jpix in range(npix):
-                    qty_map[ipix, jpix] = np.sqrt(max(qty_map[ipix, jpix] - qty2_map[ipix, jpix] ** 2, 0.))
-
+        # in qty2_map: this would cause the presence of nan in the result. This puts 0 in those pixels.
+        qty_map = np.sqrt(np.maximum(qty_map - qty2_map ** 2, 0.))
 
     # Conversion to float32 for output
     qty_map = SP(qty_map)
@@ -376,6 +416,70 @@ def map2d(simfile: str, quantity: str, npix=256, alpha=0, center=None, size=None
     else:
 
         return qty_map
+
+
+def map2d_xyq(x: np.ndarray, y: np.ndarray, q: np.ndarray, hsml=None, weight=None, npix=256, center=None, size=None,
+              norm=False, progress=False):
+    """
+    Creates a 2D map containing the (weighted) average of a quantity provided as an input. Differs from map2d in that
+    it does not read the snapshot file, i.e. Int(w * q) / Int(w).
+    :param x: (array) x-coordinate of the particles [arbitrary units]
+    :param y: (array) y-coordinate of the particles [arbitrary units]
+    :param qty: (array) Quantity to map
+    :param hsml: (array) Smoothing length of the particles [same as pos]. Default None, i.e. no smoothing.
+    :param weight: (array) Normalization of the mapping. Default: None, i.e. all particles have the same weight.
+    :param npix: (int) number of map pixels per side
+    :param center: (float 2) Coordinates of the map center [same as pos]. Default: median point of gas particles
+    :param size: (float) Map size [same as pos]. Default: encloses all gas particles
+    :param norm_map: (bool) If set to True the normalization map is put in output. Default: False.
+    :param progress: (bool) if set the progress bar is shown in output. Default: False
+    :return: 2D map of the averaged quantity. If norm_map is True, tuple with 2D map and normalization map
+    """
+
+    x = np.asarray(x, dtype=SP)
+    npart = len(x)
+    y = np.asarray(y, dtype=SP)
+
+    if len(y) != npart:
+        raise ValueError('y argument must have the same length as x')
+
+    q = np.asarray(q, dtype=SP)
+    if len(q) != npart:
+        raise ValueError('q argument must have the same length as x')
+
+    hsml = np.full(npart, 1e-30, dtype=SP) if hsml is None else SP(hsml)
+    if len(hsml) != npart:
+        raise ValueError('hsml argument must have the same length as x')
+
+    weight = np.full(npart, 1, dtype=SP) if weight is None else SP(weight)
+    if len(weight) != npart:
+        raise ValueError('weight argument must have the same length as x')
+
+    # Defining center and map size
+    xmap0, ymap0, size = __get_map_geometry(x, y, hsml, center, size)
+
+    # Normalizing coordinates in pixel units (0 = left/bottom border, npix = right/top border)
+    x = (x - xmap0) / size * npix  # [pixel units]
+    y = (y - ymap0) / size * npix  # [pixel units]
+    hsml = hsml / size * npix  # [pixel units]
+
+    # Cutting out particles outside the f.o.v. and for other conditions
+    valid = np.where((x + hsml > 0) & (x - hsml < npix) & (y + hsml > 0) & (y - hsml < npix))[0]
+
+    # Creating linked list
+    particle_list = valid[linkedlist2d(x[valid], y[valid], npix, npix)]
+    del valid
+
+    qty_map = np.full((npix, npix), 0., dtype=DP)
+    nrm_map = np.full((npix, npix), 0., dtype=DP)
+    iter_ = tqdm(particle_list) if progress else particle_list
+    map2d_loop(qty_map, nrm_map, iter_, x, y, hsml, weight * q, weight)
+    qty_map[np.where(nrm_map != 0.)] /= nrm_map[np.where(nrm_map != 0.)]
+
+    if norm:
+        return SP(qty_map), SP(nrm_map)
+    else:
+        return SP(qty_map)
 
 
 def specmap(snapfile: str, sptable, size: float, npix=256, redshift=None, center=None, proj='z', zrange=None,
